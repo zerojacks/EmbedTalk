@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.gutter-horizontal {
+  cursor: ew-resize;
+}
+
+.gutter-vertical {
+  cursor: ns-resize;
+}
+
+[data-theme="dark"] thead {
+  @apply bg-gray-700 text-white;
+}
+
+[data-theme="light"] thead {
+  @apply bg-gray-300 text-black;
+}
+
+th {
+  border-right: 2px solid #ccc;
+  /* 给列之间添加边框 */
+  position: relative;
+  border-color: transparent;
+}
+
+th:first-child {
+  border-left: none;
+  /* 移除第一列的左边框 */
+}
+
+th:last-child {
+  border-right: none;
+  /* 移除最后一列的右边框 */
+}
+
+/* 你可以根据需要隐藏最外层表格的边框 */
+table {
+  border-collapse: collapse;
+}
+
+thead {
+  border: none;
+  /* 隐藏表头外层的边框 */
+}
+
+.alert {
+  border-radius: var(--rounded-box, 1rem);
+  border-width: 1px;
+  --tw-border-opacity: 1;
+  border-color: var(--fallback-b2, oklch(var(--b2)/var(--tw-border-opacity)));
+  padding: 1rem;
+  --tw-text-opacity: 1;
+  color: var(--fallback-bc, oklch(var(--bc)/var(--tw-text-opacity)));
+  --alert-bg: var(--fallback-b2, oklch(var(--b2)/1));
+  --alert-bg-mix: var(--fallback-b1, oklch(var(--b1)/1));
+  background-color: var(--alert-bg)
+}
+
+.alert-info {
+  border-color: var(--fallback-in, oklch(var(--in)/0.2));
+  --tw-text-opacity: 1;
+  color: var(--fallback-inc, oklch(var(--inc)/var(--tw-text-opacity)));
+  --alert-bg: var(--fallback-in, oklch(var(--in)/1));
+  --alert-bg-mix: var(--fallback-b1, oklch(var(--b1)/1))
+}
+
+.alert-success {
+  border-color: var(--fallback-su, oklch(var(--su)/0.2));
+  --tw-text-opacity: 1;
+  color: var(--fallback-suc, oklch(var(--suc)/var(--tw-text-opacity)));
+  --alert-bg: var(--fallback-su, oklch(var(--su)/1));
+  --alert-bg-mix: var(--fallback-b1, oklch(var(--b1)/1))
+}
+
+.alert-warning {
+  border-color: var(--fallback-wa, oklch(var(--wa)/0.2));
+  --tw-text-opacity: 1;
+  color: var(--fallback-wac, oklch(var(--wac)/var(--tw-text-opacity)));
+  --alert-bg: var(--fallback-wa, oklch(var(--wa)/1));
+  --alert-bg-mix: var(--fallback-b1, oklch(var(--b1)/1))
+}
+
+.alert-error {
+  border-color: var(--fallback-er, oklch(var(--er)/0.2));
+  --tw-text-opacity: 1;
+  color: var(--fallback-erc, oklch(var(--erc)/var(--tw-text-opacity)));
+  --alert-bg: var(--fallback-er, oklch(var(--er)/1));
+  --alert-bg-mix: var(--fallback-b1, oklch(var(--b1)/1))
+}
+
+.justify-between-text {
+  text-align: justify;
+  line-height: 20px;
+  overflow: hidden;
+  height: 20px;
+}
+
+.justify-between-text::after {
+  content: '';
+  display: inline-block;
+  width: 100%;
+}
+
+.treetableview {
+  min-height: 3rem /* 48px */;
+  flex-shrink: 1;
+  padding-left: 0rem /* 16px */;
+  padding-right: 0rem /* 16px */;
+  padding-top: 0rem /* 8px */;
+  padding-bottom: 0.5rem /* 8px */;
+  font-size: 0.875rem /* 14px */;
+  line-height: 1.25rem /* 20px */;
+  line-height: 2;
+  border-radius: var(--rounded-btn, 0.5rem /* 8px */);
+  border-width: 1px;
+  --tw-bg-opacity: 1;
+  background-color: var(--fallback-b1,oklch(var(--b1)/var(--tw-bg-opacity)));
+}
+
+.toast-container {
+    position: fixed; /* or absolute */
+    z-index: 1000; /* adjust as necessary */
+    pointer-events: none; /* prevent interaction */
+}
+
+.toast-group {
+    display: flex;
+    flex-direction: column; /* Stack toasts vertically */
+    pointer-events: auto; /* Allow interaction within the group */
+}

@@ -1,0 +1,1449 @@
+use crate::basefunc::frame_csg::FrameCsg;
+use crate::basefunc::frame_fun::FrameFun;
+use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement};
+use num_traits::ToPrimitive;
+use regex::Regex;
+use serde::de::value;
+use serde_json::Value;
+use std::{collections::HashMap, ptr::null};
+
+// use crate::basefunc::frame_645::Frame645;
+#[derive(Debug)]
+pub enum ProtocolInfo {
+    ProtocolCSG13,
+    ProtocolCSG16,
+    ProtocolDLT64507,
+}
+
+impl ProtocolInfo {
+    pub fn name(&self) -> &str {
+        match self {
+            ProtocolInfo::ProtocolCSG13 => "CSG13",
+            ProtocolInfo::ProtocolCSG16 => "CSG16",
+            ProtocolInfo::ProtocolDLT64507 => "DLT/645-2007",
+        }
+    }
+}
+
+pub struct FrameAnalisyic;
+
+impl FrameAnalisyic {
+    pub fn process_frame(frame: &[u8], region: &str) -> Vec<Value> {
+        let mut parsed_data: Vec<Value> = Vec::new();
+
+        if FrameCsg::is_csg_frame(frame) {
+            let result = FrameCsg::analysic_csg_frame_by_afn(frame, &mut parsed_data, 0, region);
+            match result {
+                Ok(_) => {}
+                Err(_) => {}
+            }
+        }
+        parsed_data
+    }
+    pub fn prase_data(
+        data_item_id: &str,
+        protocol: &str,
+        region: &str,
+        data_segment: &[u8],
+        index: usize,
+        dir: Option<u8>,
+    ) -> Vec<Value> {
+        // 根据xml配置解析数据
+        let mut parsed_data = Vec::new();
+
+        // 假设 ConfigManager 是你自己的结构体，并且 get_config_xml 是其方法
+        println!("prase_data data_item_id: {:?}", data_item_id);
+        if let Some(data_item_elem) =
+            ProtocolConfigManager::get_config_xml(data_item_id, protocol, region, dir)
+        {
+            let need_delete = protocol == ProtocolInfo::ProtocolDLT64507.name();
+            parsed_data = Self::prase_data_item(
+                &data_item_elem,
+                data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+        }
+        parsed_data
+    }
+    pub fn prase_data_item(
+        data_item_elem: &XmlElement,
+        data_segment: &[u8],
+        index: usize,
+        need_delete: bool,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> Vec<Value> {
+        let mut result: Vec<Value> = Vec::new();
+
+        if data_segment.is_empty() {
+            return result;
+        }
+
+        let data_item_id = data_item_elem.get_attribute("id");
+        let data_item_name = data_item_elem.get_child_text("name");
+
+        let mut color: Option<String> = None;
+
+        let mut sub_data_item = data_item_elem.get_items("dataItem");
+        let mut sub_data_segment = data_segment;
+        let mut pos = 0;
+        let mut sub_item_result: Option<Vec<Value>> = Some(Vec::new());
+        let mut cur_length = data_segment.len();
+        let mut result_str = String::new();
+
+        let mut item_name = Self::get_item_name_str(data_item_id, data_item_name);
+
+        if !sub_data_item.is_empty() {
+            let (sub_result, length) = Self::process_all_item(
+                data_item_elem,
+                sub_data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+            sub_item_result = Some(sub_result);
+            cur_length = length;
+        } else if data_item_elem.get_child("unit").is_some()
+            && data_item_elem.get_child("value").is_some()
+        {
+            let (cur_result, sub_result, length) = Self::prase_value_item(
+                data_item_elem,
+                sub_data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+            result_str = cur_result;
+            sub_item_result = sub_result;
+            cur_length = length;
+        } else if data_item_elem.get_child("unit").is_some() {
+            let (cur_result, sub_result, length) = Self::prase_singal_item(
+                data_item_elem,
+                sub_data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+            result_str = cur_result;
+            sub_item_result = sub_result;
+            cur_length = length;
+        } else if data_item_elem.get_child("value").is_some() {
+            let (cur_result, sub_result, length) = Self::prase_value_item(
+                data_item_elem,
+                sub_data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+            result_str = cur_result;
+            sub_item_result = sub_result;
+            cur_length = length;
+        } else if data_item_elem.get_child("time").is_some() {
+            let (cur_result, sub_result, length) = Self::prase_time_item(
+                data_item_elem,
+                sub_data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+            result_str = cur_result;
+            sub_item_result = sub_result;
+            cur_length = length;
+        } else if data_item_elem.get_child("splitbit").is_some() {
+            let (sub_result, length) = Self::parse_bitwise_data(
+                data_item_elem,
+                sub_data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+            sub_item_result = Some(sub_result);
+            cur_length = length;
+        } else if data_item_elem.get_child("splitByLength").is_some() {
+            let (sub_result, length) = Self::prase_splitByLength_item(
+                &data_item_elem,
+                sub_data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+            sub_item_result = Some(sub_result);
+            cur_length = length;
+        } else if data_item_elem.get_child("itembox").is_some() {
+            let (sub_result, length) = Self::prase_item_box(
+                data_item_elem,
+                sub_data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+            sub_item_result = Some(sub_result);
+            cur_length = length;
+        } else if data_item_elem.get_child("indelength").is_some() {
+            let sub_result = Self::prase_data_item(
+                data_item_elem,
+                sub_data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+            sub_item_result = Some(sub_result);
+        } else if data_item_elem.get_child("type").is_some() {
+            let mut subitem_length = 0;
+            if data_item_elem.get_child("length").is_some() {
+                let sub_length_txt = data_item_elem.get_child_text("length");
+                match sub_length_txt {
+                    Some(sub_length_txt) => match sub_length_txt.to_uppercase().as_str() {
+                        "UNKNOWN" => {
+                            subitem_length = 0;
+                        }
+                        _ => {
+                            subitem_length = sub_length_txt.parse::<usize>().unwrap();
+                        }
+                    },
+                    _ => {
+                        let item_box = data_item_elem.get_items("item");
+                        if item_box.len() > 0 {
+                            subitem_length =
+                                Self::caculate_item_box_length(item_box, protocol, region, dir);
+                        }
+                    }
+                }
+            } else {
+                subitem_length = sub_data_segment.len();
+            }
+
+            let (cur_result, sub_result, length) = Self::prase_type_item(
+                &data_item_elem,
+                sub_data_segment,
+                index,
+                need_delete,
+                subitem_length,
+                protocol,
+                region,
+                dir,
+            );
+            result_str = cur_result;
+            sub_item_result = sub_result;
+            cur_length = length;
+        } else {
+            let (cur_result, sub_result, length) = Self::prase_singal_item(
+                data_item_elem,
+                sub_data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+            result_str = cur_result;
+            sub_item_result = sub_result;
+            cur_length = length;
+        }
+        FrameFun::add_data(
+            &mut result,
+            item_name,
+            FrameFun::get_data_str(&data_segment, false, false, false),
+            result_str,
+            vec![index, index + cur_length],
+            sub_item_result,
+            color,
+        );
+
+        result
+    }
+
+    pub fn process_all_item(
+        data_item_elem: &XmlElement,
+        data_segment: &[u8],
+        index: usize,
+        need_delete: bool,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> (Vec<Value>, usize) {
+        let mut sub_item_result: Vec<Value> = Vec::new();
+        let mut total_length: usize = 0;
+
+        if data_segment.is_empty() {
+            return (sub_item_result, total_length);
+        }
+        let data_item_id = data_item_elem.get_attribute("id");
+        let data_item_name = data_item_elem.get_child_text("name");
+
+        let mut color: Option<String> = None;
+
+        let mut sub_data_item = data_item_elem.get_items("dataItem");
+        let mut sub_data_segment = data_segment;
+        let mut pos = 0;
+        for data_item in sub_data_item {
+            let sub_data_item_id = data_item.get_attribute("id");
+            let sub_data_item_name = data_item.get_child_text("name");
+            let sub_item_length = data_item.get_child_text("length");
+            let mut description = String::new();
+
+            if let Some(sub_item_length_str) = sub_item_length {
+                let sub_item_length = match sub_item_length_str.parse::<usize>() {
+                    Ok(len) => len,
+                    Err(_) => continue, // 解析失败时跳过当前项
+                };
+
+                if sub_item_length > sub_data_segment.len() {
+                    break;
+                }
+
+                let mut sub_item_data = sub_data_segment[..sub_item_length].to_vec();
+                if data_item.get_child_text("name") == Some("splitByLength".to_string()) {
+                    sub_item_data.truncate(sub_item_length);
+                }
+
+                let cur_result = Self::prase_data_item(
+                    &data_item,
+                    &sub_item_data,
+                    index + pos,
+                    need_delete,
+                    protocol,
+                    region,
+                    dir,
+                );
+
+                if let Some(name) = sub_data_item_name {
+                    description.push_str(&name);
+                }
+                if let Some(id) = sub_data_item_id {
+                    if !description.is_empty() {
+                        description.push_str("-");
+                    }
+                    description.push_str(&id);
+                }
+
+                // FrameFun::add_data(
+                //     &mut sub_item_result, // Pass mutable reference
+                //     FrameFun::get_data_str(&sub_item_data, false, false, true),
+                //     FrameFun::get_data_str(&sub_item_data, false, false, false),
+                //     description, // Pass ownership of String
+                //     vec![index + pos, index + pos + sub_item_length],
+                //     Some(cur_result), // Wrap Vec<Value> in Some
+                //     color.clone() // Clone the color option
+                // );
+
+                sub_item_result.extend(cur_result);
+
+                total_length += sub_item_length; // Update total_length
+
+                sub_data_segment = &sub_data_segment[sub_item_length..];
+                pos += sub_item_length; // Ensure pos is updated
+            }
+        }
+        (sub_item_result, total_length) // Return both results
+    }
+
+    pub fn prase_value_item(
+        data_item_elem: &XmlElement,
+        data_segment: &[u8],
+        index: usize,
+        need_delete: bool,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> (String, Option<Vec<serde_json::Value>>, usize) {
+        // 使用 prase_singal_item 函数获取值
+        let mut item_length = 0;
+        let item_length_content = data_item_elem.get_child_text("length");
+        if let Some(item_length_content) = item_length_content {
+            if item_length_content.to_uppercase() == "UNKNOWN" {
+                item_length = FrameCsg::calculate_item_length(
+                    data_item_elem,
+                    data_segment,
+                    protocol,
+                    region,
+                    dir,
+                    None,
+                );
+            } else {
+                item_length = item_length_content.parse::<usize>().unwrap();
+            }
+        } else {
+            item_length = data_segment.len();
+        }
+        let (parse_value, sub_item_result, _len) = Self::prase_singal_item(
+            data_item_elem,
+            data_segment,
+            index,
+            need_delete,
+            protocol,
+            region,
+            dir,
+        );
+        let re = Regex::new(r"(\d+)").unwrap();
+        let value = if let Some(cap) = re.captures(&parse_value) {
+            cap.get(1)
+                .map_or_else(|| parse_value.clone(), |m| m.as_str().to_string())
+        } else {
+            parse_value
+        };
+
+        // 查找对应的 value 元素
+        let mut value_name = String::new();
+        let item_name = data_item_elem.get_child("name");
+        if let Some(item_name) = item_name {
+            let item_name = item_name.get_value().unwrap();
+            value_name = item_name
+        } else {
+            value_name = value.clone();
+        }
+
+        let mut color: Option<String> = None;
+
+        // 获取所有 `value` 子元素
+        let value_elements = data_item_elem.get_items("value");
+        let value_str = Self::find_value_from_elements(&value_elements, &value);
+
+        value_name = if value_str.is_empty() {
+            format!("[{}]-{}", value_name, value)
+        } else {
+            format!("[{}]-{}", value_name, value_str)
+        };
+        // 获取 color 属性并使用 `.cloned()` 将 Option<&String> 转换为 Option<String>
+        color = data_item_elem.get_attribute("color").cloned();
+
+        // Return a tuple matching the expected return type
+        (value_name, sub_item_result, item_length)
+    }
+
+    pub fn find_value_from_elements(value_elements: &[XmlElement], search_value: &str) -> String {
+        let mut found_value = search_value.to_string();
+
+        // First pass: Look for a key that matches `search_value`
+        for value_elem in value_elements.iter() {
+            if let Some(key) = value_elem.get_attribute("key") {
+                if key == search_value {
+                    // If a matching key is found, get the associated value
+                    found_value = value_elem
+                        .get_value()
+                        .unwrap_or_else(|| search_value.to_string());
+                    return found_value; // Return immediately upon finding a match
+                }
+            }
+        }
+
+        // Second pass: If no matching key was found, check for "other"
+        for value_elem in value_elements.iter() {
+            if let Some(key) = value_elem.get_attribute("key") {
+                if key == "other" {
+                    // If key is "other", use its associated value
+                    found_value = value_elem
+                        .get_value()
+                        .unwrap_or_else(|| search_value.to_string());
+                    break; // Found "other", so we break out of the loop
+                }
+            }
+        }
+
+        found_value
+    }
+
+    pub fn prase_singal_item(
+        data_item_elem: &XmlElement,
+        data_segment: &[u8],
+        index: usize,
+        need_delete: bool,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> (String, Option<Vec<Value>>, usize) {
+        let mut sub_item_result = Vec::new();
+
+        let subitem_name = data_item_elem.get_child_text("name").unwrap_or_default();
+        let splitbit_elem = data_item_elem.get_child("splitbit");
+
+        let mut subitem_value = String::new();
+        let mut pos = data_segment.len();
+        if data_item_elem.get_child("unit").is_some() {
+            // 解析有单位的数据
+            let subitem_unit = data_item_elem.get_child_text("unit").unwrap_or_default();
+            let subitem_value_option = Self::prase_simple_type_data(
+                data_item_elem,
+                data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+
+            if let Some(value) = subitem_value_option {
+                subitem_value = format!("{} {}", value, subitem_unit);
+            } else {
+                let subitem_decimal = data_item_elem.get_child_text("decimal");
+                let is_sign = data_item_elem.get_child_text("sign");
+
+                let decimal = subitem_decimal
+                    .as_deref()
+                    .unwrap_or("0")
+                    .parse::<usize>()
+                    .unwrap_or(0);
+                let sign = is_sign.as_deref().unwrap_or("no") == "yes";
+
+                subitem_value = FrameFun::bcd_to_decimal(data_segment, decimal, need_delete, sign);
+
+                if subitem_value != "无效数据" {
+                    subitem_value = format!("{} {}", subitem_value, subitem_unit);
+                }
+            }
+        } else if data_item_elem.get_child("time").is_some() {
+            // 解析时间数据
+            let subitem_time_format = data_item_elem.get_child_text("time").unwrap_or_default();
+            let subitem_type = data_item_elem.get_child_text("type").unwrap_or_default();
+
+            let time_data: &[u8];
+            let bcd_data: Vec<u8>;
+            if ["BIN", "Bin", "bin"].contains(&subitem_type.as_str()) {
+                // Store the result in a variable
+                bcd_data = FrameFun::binary_to_bcd(&data_segment[..6]);
+                // Create a slice from the stored vector
+                time_data = &bcd_data;
+            } else {
+                // Directly create a slice from data_segment
+                time_data = &data_segment[..6];
+            }
+
+            subitem_value = FrameFun::parse_time_data(time_data, &subitem_time_format, need_delete);
+        } else if let Some(splitbit_elem) = splitbit_elem {
+            // 解析按位数据
+            (sub_item_result, pos) = Self::parse_bitwise_data(
+                &splitbit_elem,
+                data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+        } else {
+            // 简单数据，直接转为十进制数
+            let subitem_decimal = data_item_elem.get_child_text("decimal");
+            let is_sign = data_item_elem.get_child_text("sign");
+
+            let decimal = subitem_decimal
+                .as_deref()
+                .unwrap_or("0")
+                .parse::<usize>()
+                .unwrap_or(0);
+            let sign = is_sign.as_deref().unwrap_or("no") == "yes";
+
+            let ret = Self::prase_simple_type_data(
+                data_item_elem,
+                data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+
+            if let Some(value) = ret {
+                subitem_value = value;
+            } else {
+                subitem_value = FrameFun::bcd_to_decimal(data_segment, decimal, need_delete, sign);
+            }
+        }
+        (subitem_value, Some(sub_item_result), pos)
+    }
+
+    pub fn prase_simple_type_data(
+        data_item_elem: &XmlElement,
+        data_segment: &[u8],
+        index: usize,
+        need_delete: bool,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> Option<String> {
+        let subitem_decimal = data_item_elem.get_child_text("decimal");
+        let is_sign = data_item_elem.get_child_text("sign");
+
+        let decimal = subitem_decimal
+            .as_deref()
+            .unwrap_or("0")
+            .parse::<usize>()
+            .unwrap_or(0);
+        let sign = is_sign.as_deref().unwrap_or("no") == "yes";
+
+        let subitem_type = data_item_elem
+            .get_child_text("type")
+            .unwrap_or_else(|| "BCD".to_string());
+        let subitem_value = match subitem_type.as_str() {
+            "BCD" | "Bcd" | "bcd" => {
+                FrameFun::bcd_to_decimal(data_segment, decimal, need_delete, sign)
+            }
+            "BIN" | "Bin" | "bin" => {
+                FrameFun::bin_to_decimal(data_segment, decimal, need_delete, sign, true)
+            }
+            "BIN_FF" => FrameFun::bin_to_decimal(data_segment, decimal, need_delete, sign, false),
+            "ASCII" | "ascii" => FrameFun::ascii_to_str(data_segment),
+            "PORT" => FrameFun::prase_port(data_segment),
+            "IP" => FrameFun::prase_ip_str(data_segment),
+            "NORMAL" => FrameFun::get_data_str(&data_segment, need_delete, true, false),
+            _ => return None, // 不支持的类型返回 None
+        };
+
+        Some(subitem_value)
+    }
+
+    pub fn parse_bitwise_data(
+        splitbit_elem: &XmlElement,
+        data_segment: &[u8],
+        index: usize,
+        need_delete: bool,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> (Vec<Value>, usize) {
+        let mut sub_item_result: Vec<Value> = Vec::new();
+        let pos = data_segment.len();
+
+        let all_bits = splitbit_elem.get_items("bit");
+
+        for bit_elem in all_bits.iter() {
+            let bit_id_attr = bit_elem.get_attribute("id").unwrap();
+            let bit_name_elem = bit_elem.get_child_text("name");
+
+            let (start_bit, end_bit) = if bit_id_attr.contains('-') {
+                let parts: Vec<&str> = bit_id_attr.split('-').collect();
+                (
+                    parts[0].parse::<usize>().unwrap(),
+                    parts[1].parse::<usize>().unwrap(),
+                )
+            } else {
+                let bit = bit_id_attr.parse::<usize>().unwrap();
+                (bit, bit)
+            };
+
+            let start_pos = start_bit / 8;
+            let end_pos = end_bit / 8 + 1;
+
+            let bit_value = FrameFun::extract_bits(
+                start_bit,
+                end_bit,
+                FrameFun::hex_array_to_int(data_segment, need_delete),
+            );
+
+            let mut value_name = bit_value.clone();
+            value_name = Self::find_value_from_elements(&all_bits, &bit_value);
+
+            let bit_id_attr = format!("bit{}", bit_id_attr);
+            FrameFun::add_data(
+                &mut sub_item_result, // Pass mutable reference here
+                bit_id_attr,
+                bit_value,
+                value_name,
+                vec![index + start_pos, index + end_pos],
+                None,
+                None, // Assuming you want `None` here
+            );
+        }
+
+        (sub_item_result, pos)
+    }
+
+    pub fn prase_time_item(
+        data_item_elem: &XmlElement,
+        data_segment: &[u8],
+        index: usize,
+        need_delete: bool,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> (String, Option<Vec<Value>>, usize) {
+        // 获取 time 格式和 type
+        let subitem_time_format = data_item_elem.get_child_text("time");
+        let subitem_type = data_item_elem.get_child_text("type");
+
+        let time_format = match subitem_time_format {
+            Some(ref subitem_time_format) => subitem_time_format.as_str(),
+            None => "ssmmhhWWDDMMYYCC",
+        };
+        // 默认为 "BCD" 类型
+        let data_type = match subitem_type {
+            Some(ref subitem_type) => subitem_type.as_str(),
+            None => "BCD",
+        };
+
+        // 确保 data_segment 长度足够处理时间数据
+        let time_data: &[u8] = if data_segment.len() >= 6 {
+            &data_segment[..6]
+        } else {
+            data_segment
+        };
+
+        // 判断 data_type 并根据类型转换数据
+        let processed_time_data = match data_type {
+            "BIN" | "Bin" | "bin" => FrameFun::binary_to_bcd(time_data),
+            _ => time_data.to_vec(), // 默认返回原始数据
+        };
+
+        // 解析时间数据
+        let result_str = FrameFun::parse_time_data(&processed_time_data, time_format, need_delete);
+
+        // 返回结果
+        let cur_length = data_segment.len(); // 假设时间数据占用6字节
+
+        (result_str, None, cur_length)
+    }
+
+    pub fn get_item_name_str(item_id: Option<&String>, item_name: Option<String>) -> String {
+        // name_str 为item_id_item_name的字符串
+        let mut name_str = String::new();
+        if let Some(id) = item_id {
+            name_str.push_str(id);
+        }
+        if let Some(name) = item_name {
+            if !name_str.is_empty() {
+                name_str.push_str("_");
+            }
+            name_str.push_str(&name);
+        }
+        name_str
+    }
+    pub fn prase_splitByLength_item(
+        data_item_elem: &XmlElement,
+        data_segment: &[u8],
+        index: usize,
+        need_delete: bool,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> (Vec<Value>, usize) {
+        let mut result: Vec<Value> = Vec::new();
+
+        if data_segment.is_empty() {
+            return (result, 0);
+        }
+
+        let data_item_id = data_item_elem.get_attribute("id");
+        let data_item_name = data_item_elem.get_child_text("name");
+
+        let item_name = Self::get_item_name_str(data_item_id, data_item_name);
+        let mut color: Option<String> = None;
+
+        let mut all_splitlength_items = data_item_elem.get_items("splitByLength");
+        let mut sub_data_segment = data_segment;
+        let mut pos = 0;
+        let mut sub_item_result: Option<Vec<Value>> = Some(Vec::new());
+        let mut cur_length = 0;
+        let mut result_str = String::new();
+
+        let mut subitem_length = 0;
+        if data_item_elem.get_child("splitbit").is_some() {
+            let (sub_result, length) = Self::parse_bitwise_data(
+                data_item_elem,
+                sub_data_segment,
+                index,
+                need_delete,
+                protocol,
+                region,
+                dir,
+            );
+            sub_item_result = Some(sub_result);
+            cur_length = length;
+
+            FrameFun::add_data(
+                &mut result, // Pass mutable reference here
+                item_name,
+                FrameFun::get_data_str(&data_segment, false, false, true),
+                FrameFun::get_data_str(&data_segment, false, false, false),
+                vec![index, index + data_segment.len()],
+                sub_item_result.clone(),
+                color.clone(), // Assuming you want `None` here
+            );
+        }
+
+        for mut splitlength_item in all_splitlength_items {
+            let sub_item_id = splitlength_item.get_attribute("id");
+            let sub_item_name = splitlength_item.get_child_text("name");
+            let sub_neme = Self::get_item_name_str(sub_item_id, sub_item_name);
+            let sub_item_length = splitlength_item.get_child_text("length");
+            subitem_length = sub_data_segment.len();
+            match sub_item_length {
+                Some(sub_item_length) => match sub_item_length.to_uppercase().as_str() {
+                    "UNKNOWN" => {
+                        subitem_length = 0;
+                    }
+                    _ => {
+                        subitem_length = sub_item_length.parse::<usize>().unwrap();
+                    }
+                },
+                _ => {
+                    let item_box = splitlength_item.get_items("item");
+                    if item_box.len() > 0 {
+                        subitem_length =
+                            Self::caculate_item_box_length(item_box, protocol, region, dir);
+                    }
+                }
+            }
+            splitlength_item.update_value("length", subitem_length.to_string());
+
+            let subitem_content = &sub_data_segment[..subitem_length];
+            if subitem_length > subitem_content.len() {
+                break;
+            }
+
+            if splitlength_item.get_child("unit").is_some()
+                && splitlength_item.get_child("value").is_some()
+            {
+                let (cur_result, sub_result, length) = Self::prase_value_item(
+                    &splitlength_item,
+                    subitem_content,
+                    index + pos,
+                    need_delete,
+                    protocol,
+                    region,
+                    dir,
+                );
+
+                result_str = cur_result;
+                sub_item_result = sub_result;
+                cur_length = length;
+            } else if splitlength_item.get_child("unit").is_some() {
+                let (cur_result, sub_result, length) = Self::prase_singal_item(
+                    &splitlength_item,
+                    subitem_content,
+                    index + pos,
+                    need_delete,
+                    protocol,
+                    region,
+                    dir,
+                );
+                result_str = cur_result;
+                sub_item_result = sub_result;
+                cur_length = length;
+            } else if splitlength_item.get_child("value").is_some() {
+                let (cur_result, sub_result, length) = Self::prase_value_item(
+                    &splitlength_item,
+                    subitem_content,
+                    index + pos,
+                    need_delete,
+                    protocol,
+                    region,
+                    dir,
+                );
+                result_str = cur_result;
+                sub_item_result = sub_result;
+                cur_length = length;
+            } else if splitlength_item.get_child("time").is_some() {
+                let (cur_result, sub_result, length) = Self::prase_time_item(
+                    &splitlength_item,
+                    subitem_content,
+                    index + pos,
+                    need_delete,
+                    protocol,
+                    region,
+                    dir,
+                );
+                result_str = cur_result;
+                sub_item_result = sub_result;
+                cur_length = length;
+            } else if splitlength_item.get_child("splitbit").is_some() {
+                let split_elem = splitlength_item.get_child("splitbit").unwrap();
+                let (sub_result, length) = Self::parse_bitwise_data(
+                    &split_elem,
+                    subitem_content,
+                    index + pos,
+                    need_delete,
+                    protocol,
+                    region,
+                    dir,
+                );
+                sub_item_result = Some(sub_result);
+                cur_length = length;
+            } else if splitlength_item.get_child("splitByLength").is_some() {
+                let (sub_result, length) = Self::prase_splitByLength_item(
+                    &splitlength_item,
+                    subitem_content,
+                    index + pos,
+                    need_delete,
+                    protocol,
+                    region,
+                    dir,
+                );
+                sub_item_result = Some(sub_result);
+                cur_length = length;
+            } else if splitlength_item.get_child("type").is_some() {
+                let (cur_result, sub_result, length) = Self::prase_type_item(
+                    &splitlength_item,
+                    subitem_content,
+                    index + pos,
+                    need_delete,
+                    subitem_length,
+                    protocol,
+                    region,
+                    dir,
+                );
+                result_str = cur_result;
+                sub_item_result = sub_result;
+                cur_length = length;
+            } else if splitlength_item.get_child("item").is_some() {
+                let (sub_result, length) = Self::prase_item_box(
+                    &splitlength_item,
+                    subitem_content,
+                    index + pos,
+                    need_delete,
+                    protocol,
+                    region,
+                    dir,
+                );
+                sub_item_result = Some(sub_result);
+                cur_length = length;
+            } else {
+                let (cur_result, sub_result, length) = Self::prase_singal_item(
+                    &splitlength_item,
+                    subitem_content,
+                    index + pos,
+                    need_delete,
+                    protocol,
+                    region,
+                    dir,
+                );
+                result_str = cur_result;
+                sub_item_result = sub_result;
+                cur_length = length;
+            }
+
+            if sub_item_result.is_none() {
+                // 说明是单一的结果
+                FrameFun::add_data(
+                    &mut result,
+                    sub_neme,
+                    FrameFun::get_data_str(&subitem_content, false, false, true),
+                    result_str.clone(),
+                    vec![index + pos, index + pos + subitem_length],
+                    sub_item_result.clone(),
+                    color.clone(),
+                );
+            } else {
+                // 存在子项
+                FrameFun::add_data(
+                    &mut result,
+                    sub_neme,
+                    FrameFun::get_data_str(&subitem_content, false, false, true),
+                    FrameFun::get_data_str(&subitem_content, false, false, false),
+                    vec![index + pos, index + pos + subitem_length],
+                    sub_item_result,
+                    color.clone(),
+                );
+            }
+            pos += subitem_length;
+            sub_data_segment = &sub_data_segment[subitem_length..]
+        }
+        (result, pos)
+    }
+
+    pub fn prase_item_box(
+        data_item_elem: &XmlElement,
+        data_segment: &[u8],
+        index: usize,
+        need_delete: bool,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> (Vec<Value>, usize) {
+        let mut item_result: Vec<Value> = Vec::new();
+        let mut pos = 0;
+        let mut sub_data_segment = data_segment;
+        let mut cur_length = 0;
+        let mut result_str = String::new();
+
+        let mut subitem_length = 0;
+        let mut subitem_content = sub_data_segment;
+
+        let all_items = data_item_elem.get_items("item");
+        for item in all_items {
+            let item_id = item.get_value();
+            let mut item_result_name = String::new();
+            let mut result: Vec<Value> = Vec::new();
+            if let Some(mut item_id) = item_id {
+                item_result_name = item_id.clone();
+                println!("prase_item_box item_id: {:?}", item_id);
+                let item_element =
+                    ProtocolConfigManager::get_config_xml(&item_id, protocol, region, dir);
+                let mut cur_length = 0;
+                if let Some(mut item_element) = item_element {
+                    let item_length = item_element.get_child_text("length");
+                    if let Some(item_length) = item_length {
+                        if item_length.to_uppercase().as_str() == "UNKNOWN" {
+                            cur_length = FrameCsg::calculate_item_length(
+                                &item_element,
+                                &subitem_content,
+                                protocol,
+                                region,
+                                dir,
+                                None,
+                            );
+                        } else {
+                            cur_length = item_length.parse::<usize>().unwrap();
+                        }
+                    }
+                    result = Self::prase_data_item(
+                        &item_element,
+                        subitem_content,
+                        index + pos,
+                        need_delete,
+                        protocol,
+                        region,
+                        dir,
+                    );
+                } else {
+                    cur_length = subitem_content.len();
+                }
+                let item_name = item.get_child_text("name");
+                if let Some(item_name) = item_name {
+                    item_result_name.push_str("_");
+                    item_result_name.push_str(&item_name);
+                }
+                // FrameFun::add_data(
+                //     &mut item_result,
+                //     item_result_name,
+                //     FrameFun::get_data_str(&subitem_content, false, false, true),
+                //     FrameFun::get_data_str(&subitem_content, false, false, false),
+                //     vec![index + pos , index + pos + cur_length],
+                //     Some(result),
+                //     None
+                // );
+                item_result.extend(result);
+                pos += cur_length;
+                subitem_content = &subitem_content[cur_length..];
+            }
+        }
+        (item_result, pos)
+    }
+
+    pub fn caculate_item_box_length(
+        all_items: Vec<XmlElement>,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> usize {
+        let mut pos: usize = 0;
+
+        // 遍历所有 `item` 子元素
+        for item_elem in all_items {
+            if let Some(item_id) = item_elem.get_value() {
+                // 调用 `ConfigManager` 获取与 item_id 相关的 XML 元素
+                println!("caculate_item_box_length item_id: {:?}", item_id);
+                if let Some(item) =
+                    ProtocolConfigManager::get_config_xml(&item_id, protocol, region, dir)
+                {
+                    // 获取 `length` 子元素
+                    if let Some(item_length) = item.get_child_text("length") {
+                        if let Ok(item_length) = item_length.parse::<usize>() {
+                            pos += item_length;
+                        }
+                    }
+                }
+            }
+        }
+        pos
+    }
+
+    pub fn prase_type_item(
+        item_element: &XmlElement,
+        data_segment: &[u8],
+        index: usize,
+        need_delete: bool,
+        singal_length: usize,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> (String, Option<Vec<Value>>, usize) {
+        let mut item_length = data_segment.len();
+        let mut result_str = String::new();
+        let mut sub_item_result: Option<Vec<Value>> = Some(Vec::new());
+        let mut is_singal = false;
+        let singal_content = item_element.get_child_text("single");
+        if let Some(singal_content) = singal_content {
+            if singal_content.to_lowercase() == "yes" {
+                is_singal = true;
+            } else {
+                is_singal = false;
+            }
+        } else {
+            is_singal = false;
+        }
+
+        let mut sub_type = item_element.get_child_text("type").unwrap();
+
+        let mut data_content = data_segment.to_vec();
+        if need_delete {
+            data_content = FrameFun::frame_delete_33h(data_segment);
+        }
+        let need_delete = false;
+        if let Some(parsed_value) = Self::prase_simple_type_data(
+            &item_element,
+            &data_segment,
+            index,
+            need_delete,
+            protocol,
+            region,
+            dir,
+        ) {
+            result_str = parsed_value;
+        } else {
+            match sub_type.as_str() {
+                "PN" => {
+                    let result_vec = Self::prase_pn_type(
+                        &data_content,
+                        index,
+                        singal_length as usize,
+                        protocol,
+                        region,
+                        dir,
+                    );
+                    sub_item_result = Some(result_vec);
+                }
+                "ITEM" => {
+                    let result_vec = Self::prase_item_type(
+                        &data_content,
+                        index,
+                        singal_length as usize,
+                        protocol,
+                        region,
+                        dir,
+                    );
+                    sub_item_result = Some(result_vec);
+                }
+                "FAME645" => {
+                    // Frame645::analysis_645_frame_by_afn(&data_content, result_vec, index, region);
+                }
+                "FRAMECSG13" => {
+                    // FrameCsg::analysis_csg_frame_by_afn(&data_content, result_vec, index, region);
+                }
+                "IPWITHPORT" => {
+                    let result_vec = Self::prase_ip_and_port(
+                        &data_content,
+                        index,
+                        singal_length as usize,
+                        protocol,
+                        region,
+                        dir,
+                    );
+                    sub_item_result = Some(result_vec);
+                }
+                _ => {
+                    let template_element = ProtocolConfigManager::get_template_element(
+                        &sub_type, protocol, region, dir,
+                    );
+                    if let Some(template_element) = template_element {
+                        let (result_vec, length) = Self::prase_template_type(
+                            &template_element,
+                            &data_content,
+                            singal_length as usize,
+                            need_delete,
+                            index,
+                            protocol,
+                            region,
+                            dir,
+                            is_singal,
+                        );
+                        sub_item_result = Some(result_vec);
+                        item_length = length;
+                    } else {
+                        let (cur_result, sub_result, length) = Self::prase_singal_item(
+                            &item_element,
+                            &data_content,
+                            index,
+                            need_delete,
+                            protocol,
+                            region,
+                            dir,
+                        );
+                        result_str = cur_result;
+                        sub_item_result = sub_result;
+                        item_length = length;
+                    }
+                }
+            }
+        }
+        (result_str, sub_item_result, item_length)
+    }
+
+    pub fn prase_pn_type(
+        data_segment: &[u8],
+        index: usize,
+        item_len: usize,
+        _protocol: &str,
+        _region: &str,
+        _dir: Option<u8>,
+    ) -> Vec<Value> {
+        let mut result_vec: Vec<Value> = Vec::new();
+        let mut i = 0;
+        let mut pos = 0;
+
+        if data_segment.len() % item_len == 0 {
+            while pos < data_segment.len() {
+                let sub_data = &data_segment[pos..pos + item_len];
+                let item_name = format!("第{}组信息点", i + 1);
+                let item_value = Self::prase_da_data(sub_data);
+                FrameFun::add_data(
+                    &mut result_vec,
+                    FrameFun::get_data_str(&data_segment, false, false, true),
+                    item_name,
+                    item_value,
+                    vec![index + pos, index + pos + item_len],
+                    None,
+                    None,
+                );
+
+                i += 1;
+                pos += item_len;
+            }
+        } else {
+            let item_name = "PN".to_string();
+            FrameFun::add_data(
+                &mut result_vec,
+                item_name,
+                FrameFun::get_data_str(&data_segment, false, false, true),
+                FrameFun::get_data_str(&data_segment, false, false, false),
+                vec![index + pos, index + pos + item_len],
+                None,
+                None,
+            );
+        }
+        result_vec
+    }
+
+    pub fn prase_da_data(da: &[u8]) -> String {
+        let mut point_str = String::new();
+
+        // 尝试计算测量点
+        let (total_measurement_points, measurement_points_array) =
+            FrameFun::calculate_measurement_points(da);
+        if total_measurement_points == 0 {
+            return "Pn解析失败".to_string();
+        }
+
+        // 判断测量点数组的第一个值
+        if total_measurement_points == 1 && measurement_points_array[0] == 0 {
+            point_str = "Pn=测量点:0(终端)".to_string();
+        } else if total_measurement_points == 1 && measurement_points_array[0] == 0xffff {
+            point_str = "Pn=测量点:FFFF(除了终端信息点以外的所有测量点)".to_string();
+        } else {
+            // 生成格式化字符串，将测量点数组转为字符串
+            let formatted_string = measurement_points_array
+                .iter()
+                .map(|&x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            point_str = format!("Pn=测量点{}", formatted_string);
+        }
+
+        point_str
+    }
+
+    pub fn prase_item_type(
+        data_segment: &[u8],
+        index: usize,
+        item_len: usize,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> Vec<Value> {
+        let mut result_vec: Vec<Value> = Vec::new();
+        let mut i = 0;
+        let mut pos = 0;
+
+        if data_segment.len() % item_len == 0 {
+            while pos < data_segment.len() {
+                let sub_data = &data_segment[pos..pos + item_len];
+                let item_name = format!("第{}组数据标识", i + 1);
+                let item_id = FrameFun::get_data_str(sub_data, false, true, false);
+                let mut item_description: String = item_id.clone();
+                println!("prase_item_type item_id: {:?}", item_id);
+                if let Some(item_element) =
+                    ProtocolConfigManager::get_config_xml(&item_id, protocol, region, dir)
+                {
+                    if let Some(element_name) = item_element.get_child_text("name") {
+                        item_description =
+                            format!("{} {}", item_description, element_name).to_string();
+                    }
+                }
+                FrameFun::add_data(
+                    &mut result_vec,
+                    item_name,
+                    FrameFun::get_data_str(&data_segment, false, false, true),
+                    item_description,
+                    vec![index + pos, index + pos + item_len],
+                    None,
+                    None,
+                );
+                i += 1;
+                pos += item_len;
+            }
+        } else {
+            let item_name = "ITEM".to_string();
+            FrameFun::add_data(
+                &mut result_vec,
+                item_name,
+                FrameFun::get_data_str(&data_segment, false, false, true),
+                FrameFun::get_data_str(&data_segment, false, false, false),
+                vec![index + pos, index + pos + item_len],
+                None,
+                None,
+            );
+        }
+
+        result_vec
+    }
+
+    pub fn prase_ip_and_port(
+        data_segment: &[u8],
+        index: usize,
+        _item_len: usize,
+        _protocol: &str,
+        _region: &str,
+        _dir: Option<u8>,
+    ) -> Vec<Value> {
+        let mut result_vec: Vec<Value> = Vec::new();
+
+        let port = data_segment[..2].to_vec();
+        let port_str = FrameFun::prase_port(&port);
+        let ip_str = FrameFun::prase_ip_str(&data_segment[2..]);
+
+        FrameFun::add_data(
+            &mut result_vec,
+            "IP地址".to_string(),
+            FrameFun::get_data_str(&data_segment[2..], false, false, true),
+            ip_str,
+            vec![index + 2, index + 2 + 8],
+            None,
+            None,
+        );
+        FrameFun::add_data(
+            &mut result_vec,
+            "端口号".to_string(),
+            FrameFun::get_data_str(&port, false, false, true),
+            port_str,
+            vec![index, index + 2],
+            None,
+            None,
+        );
+
+        result_vec
+    }
+
+    pub fn prase_template_type(
+        item_element: &XmlElement,
+        data_segment: &[u8],
+        item_len: usize,
+        need_delete: bool,
+        index: usize,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+        is_singal: bool,
+    ) -> (Vec<Value>, usize) {
+        let mut result_vec: Vec<Value> = Vec::new();
+        let mut i = 0;
+        let mut pos = 0;
+        let mut item_singal = false;
+        let singal_content = item_element.get_child_text("single");
+        if let Some(singal_content) = singal_content {
+            if singal_content.to_lowercase() == "yes" {
+                item_singal = true;
+            } else {
+                item_singal = false;
+            }
+        } else {
+            item_singal = false;
+        }
+
+        if is_singal && ((data_segment.len() / item_len) == 1) {
+            item_singal = true;
+        }
+
+        let element_name = item_element.get_child_text("name");
+        let template_name = element_name
+            .as_ref()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("第{}组数据内容", i + 1));
+
+        if data_segment.len() % item_len == 0 {
+            while pos < data_segment.len() {
+                let sub_data = &data_segment[pos..pos + item_len];
+
+                let item_name = element_name
+                    .as_ref()
+                    .map(|s| format!("第{}组{}", i + 1, s))
+                    .unwrap_or_else(|| format!("第{}组数据内容", i + 1));
+
+                let (mut item_value, length) = Self::prase_splitByLength_item(
+                    item_element,
+                    sub_data,
+                    index + pos,
+                    need_delete,
+                    protocol,
+                    region,
+                    dir,
+                );
+                let item_id = FrameFun::get_data_str(sub_data, false, true, false);
+                let mut item_description: String = item_id.clone();
+                // println!("prase_template_type item_id: {:?}", item_id);
+                // if let Some(item_element) = ProtocolConfigManager::get_config_xml(&item_id, protocol, region, dir) {
+                //     if let Some(element_name) = item_element.get_child_text("name") {
+                //         item_description = format!("{} {}", item_description, element_name);
+                //     }
+                // }
+
+                if item_singal {
+                    result_vec.extend(item_value);
+                } else {
+                    FrameFun::add_data(
+                        &mut result_vec,
+                        item_name,
+                        FrameFun::get_data_str(&data_segment, false, false, true),
+                        item_description,
+                        vec![index + pos, index + pos + item_len],
+                        Some(item_value),
+                        None,
+                    );
+                }
+                i += 1;
+                pos += item_len;
+            }
+        } else {
+            FrameFun::add_data(
+                &mut result_vec,
+                template_name,
+                FrameFun::get_data_str(&data_segment, false, false, true),
+                FrameFun::get_data_str(&data_segment, false, false, false),
+                vec![index, index + item_len],
+                None,
+                None,
+            );
+        }
+        (result_vec, pos)
+    }
+}
