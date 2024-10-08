@@ -53,7 +53,7 @@ tauri-plugin-shell = "2.0.1"
 tauri-plugin-fs = "2.0.1"
 tauri-plugin-dialog = "2.0.1"
 tauri-plugin-clipboard-manager = "2.0.1"
-
+dirs-next = "2.0"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

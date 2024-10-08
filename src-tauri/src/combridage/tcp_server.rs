@@ -4,8 +4,6 @@ use crate::global::get_app_handle;
 use async_trait::async_trait;
 use serde_json;
 use std::collections::HashMap;
-use std::os::windows::io::AsRawSocket;
-use std::os::windows::io::AsSocket;
 use socket2::{Socket, TcpKeepalive};
 use std::error::Error;
 use std::io::Error as IoError;
@@ -311,7 +309,7 @@ impl TcpServerChannel {
         
         self.clients.lock().await.clear();
         
-        let listener = self.listener.lock().await.as_raw_socket();
+        let listener = self.listener.lock().await;
         // socket.shutdown(Shutdown::Both)?;
         drop(listener);
 
