@@ -24,6 +24,8 @@ stages:
           - npm config set registry https://registry.npmmirror.com
           - ''
           - '# 执行编译命令'
+          - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+          - which cargo
           - npm install && cargo tauri build
         artifacts:
           - name: BUILD_ARTIFACT
