@@ -8,8 +8,8 @@ triggers:
       prefix:
         - ''
 stages:
-  - name: stage-2004abee
-    displayName: 构建
+  - name: cargo_build
+    displayName: cargo 构建
     strategy: naturally
     trigger: auto
     executor:
@@ -24,7 +24,7 @@ stages:
           - npm config set registry https://registry.npmmirror.com
           - ''
           - '# 执行编译命令'
-          - 'npm install && cargo tauri build && cp %BUILD_ARTIFACT/src-tauri/target/release/bundle/msi/EmbedTalk* %BUILD_ARTIFACT'
+          - npm install && cargo tauri build
         artifacts:
           - name: BUILD_ARTIFACT
             path:
