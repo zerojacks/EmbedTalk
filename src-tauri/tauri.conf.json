@@ -34,7 +34,7 @@
     "windows": [
       {
         "label": "main",
-        "decorations": false,
+        "decorations": true,
         "fullscreen": false,
         "resizable": true,
         "title": "EmbedTalk",
