@@ -6,6 +6,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use dirs_next;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {

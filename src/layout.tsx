@@ -14,7 +14,7 @@ export default function Layout() {
 
   return (
     <div className="flex flex-col h-screen border textarea-bordered shadow-lg">
-      <CustomTitleBar theme={theme} /> 
+      {/* <CustomTitleBar theme={theme} />  */}
       <div className="flex flex-row flex-grow overflow-hidden">
         <div className="w-10 bg-base-200 flex flex-col gap-3 px-2 pt-3">
           <Link className={linkClass} to="/">
