@@ -132,8 +132,9 @@ fn main() {
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 window.hide().unwrap();
-                // window.emit("clear-local-storage", ()).unwrap();
+                window.emit("clear-local-storage", ()).unwrap();
                 api.prevent_close();
+                std::process::exit(0);
             }
             _ => {}
         })
