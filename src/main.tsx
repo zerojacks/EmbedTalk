@@ -9,7 +9,7 @@ import { TauriProvider } from "./context/TauriProvider";
 import "./styles.css";
 import { SettingsProvider } from "./context/SettingsProvider";
 import { ToastProvider, initializeToast  } from './context/ToastProvider';
-
+import { Menu, MenuItem } from "@tauri-apps/api/menu";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -28,6 +28,19 @@ const router = createBrowserRouter([
   },
 ]);
 
+// async function creatmen() {
+//   const file = await MenuItem.new({
+//     text: "file",
+//     id: "file",
+//     action: async () => {
+//       console.log("file clicked");
+//     },
+//   });
+//   const appmenu = await Menu.new({items: [file]});
+//   await appmenu.setAsWindowMenu();
+// }
+
+// creatmen();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

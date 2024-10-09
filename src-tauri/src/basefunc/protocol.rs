@@ -1,6 +1,8 @@
 use crate::basefunc::frame_csg::FrameCsg;
 use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::frame_645::Frame645;
+use crate::basefunc::frame_cco::FrameCCO;
+use crate::basefunc::frame_tctask::TCMeterTask;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement};
 use num_traits::ToPrimitive;
 use regex::Regex;
@@ -40,7 +42,16 @@ impl FrameAnalisyic {
             }
         } else if Frame645::is_dlt645_frame(frame) {
             let result = Frame645::analysic_645_frame_by_afn(frame, &mut parsed_data, 0, region);
-        }
+        } else if FrameCCO::is_cco_frame(frame) {
+            FrameCCO::analysic_cco_frame_by_afn(frame, &mut parsed_data, 0, region);
+        } else if TCMeterTask::is_meter_task(frame) {
+            let result = TCMeterTask::analysic_meter_task(frame, &mut parsed_data, 0, region);
+            match result {
+                Ok(_) => {}
+                Err(_) => {}
+            }
+        } 
+
         parsed_data
     }
     pub fn prase_data(
@@ -98,9 +109,16 @@ impl FrameAnalisyic {
         let mut pos = 0;
         let mut sub_item_result: Option<Vec<Value>> = Some(Vec::new());
         let mut cur_length = data_segment.len();
-        let mut result_str = String::new();
 
-        let mut item_name = Self::get_item_name_str(data_item_id, data_item_name);
+        let item_name = Self::get_item_name_str(data_item_id, data_item_name.clone());
+
+        let data_str = FrameFun::get_data_str(&data_segment, need_delete, true, false);
+        let mut result_str = if let Some(item_name_text) = data_item_name.as_ref() {
+            format!("[{}]: {}", item_name_text, data_str)
+        } else {
+            data_str
+        };
+        
 
         if !sub_data_item.is_empty() {
             let (sub_result, length) = Self::process_all_item(
@@ -354,7 +372,6 @@ impl FrameAnalisyic {
                 //     Some(cur_result), // Wrap Vec<Value> in Some
                 //     color.clone() // Clone the color option
                 // );
-                println!("description {} cur_result:{:?}", description, cur_result);
                 sub_item_result.extend(cur_result);
 
                 total_length += sub_item_length; // Update total_length
@@ -425,7 +442,7 @@ impl FrameAnalisyic {
 
         // 获取所有 `value` 子元素
         let value_elements = data_item_elem.get_items("value");
-        let value_str = Self::find_value_from_elements(&value_elements, &value);
+        let (value_str, element) = Self::find_value_from_elements(&value_elements, &value);
 
         value_name = if value_str.is_empty() {
             format!("[{}]-{}", value_name, value)
@@ -439,7 +456,7 @@ impl FrameAnalisyic {
         (value_name, sub_item_result, item_length)
     }
 
-    pub fn find_value_from_elements(value_elements: &[XmlElement], search_value: &str) -> String {
+    pub fn find_value_from_elements(value_elements: &[XmlElement], search_value: &str) -> (String, Option<XmlElement>) {
         let mut found_value = search_value.to_string();
 
         // First pass: Look for a key that matches `search_value`
@@ -450,7 +467,7 @@ impl FrameAnalisyic {
                     found_value = value_elem
                         .get_value()
                         .unwrap_or_else(|| search_value.to_string());
-                    return found_value; // Return immediately upon finding a match
+                    return (found_value, Some(value_elem.clone())); // Return immediately upon finding a match
                 }
             }
         }
@@ -463,12 +480,12 @@ impl FrameAnalisyic {
                     found_value = value_elem
                         .get_value()
                         .unwrap_or_else(|| search_value.to_string());
-                    break; // Found "other", so we break out of the loop
+                    return (found_value, Some(value_elem.clone())); // Return immediately upon finding a match
                 }
             }
         }
 
-        found_value
+        (found_value, None)
     }
 
     pub fn prase_singal_item(
@@ -657,17 +674,32 @@ impl FrameAnalisyic {
 
             let start_pos = start_bit / 8;
             let end_pos = end_bit / 8 + 1;
-
+            let check_start_bit = start_bit % 8;
+            let check_end_bit = end_bit % 8;
             let bit_value = FrameFun::extract_bits(
-                start_bit,
-                end_bit,
-                FrameFun::hex_array_to_int(data_segment, need_delete),
+                check_start_bit,
+                check_end_bit,
+                FrameFun::hex_array_to_int(&data_segment[start_pos..end_pos], need_delete),
             );
 
-            let mut value_name = bit_value.clone();
-            value_name = Self::find_value_from_elements(&all_bits, &bit_value);
-
+            
+            let value_elements = bit_elem.get_items("value");
+            let (mut value_name, element) = Self::find_value_from_elements(&value_elements, &bit_value);
+            
             let bit_id_attr = format!("bit{}", bit_id_attr);
+            let name_str = if let Some(name_elem) = bit_name_elem {
+                name_elem
+            } else {
+                bit_id_attr.clone()
+            };
+            let coclor = if element.is_some() {
+                element.as_ref().unwrap().get_attribute("color").cloned()
+            } else {
+                None
+            };
+
+            value_name = format!("[{}]-{}", name_str, value_name);
+
             FrameFun::add_data(
                 &mut sub_item_result, // Pass mutable reference here
                 bit_id_attr,
@@ -675,7 +707,7 @@ impl FrameAnalisyic {
                 value_name,
                 vec![index + start_pos, index + end_pos],
                 None,
-                None, // Assuming you want `None` here
+                coclor, // Assuming you want `None` here
             );
         }
 

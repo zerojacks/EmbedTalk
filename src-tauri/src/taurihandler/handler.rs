@@ -1,3 +1,4 @@
+use rumqttc::tokio_rustls::rustls::internal::msgs::message::Message;
 use serde_json::Value;
 use std::time::Instant;
 use crate::config::appconfig::{GLOBAL_CONFIG_MANAGER,get_config_value_async, set_config_value_async};
@@ -6,6 +7,7 @@ use crate::basefunc::frame_fun::FrameFun;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement};
 use tracing::{debug, error, info, warn};
 use std::thread;
+use crate::config::oadmapconfig::TaskOadConfigManager;
 
 #[tauri::command]
 pub async fn get_region_value() -> String {
@@ -34,6 +36,12 @@ pub struct Response {
 #[tauri::command]
 pub async fn on_text_change(message: String, region: String) -> Response {
     use std::panic;
+    if message.is_empty() {
+        return Response {
+            data: Vec::new(),
+            error: Some("Invalid hex message".to_string()),
+        };
+    }
 
     let start_time = Instant::now();
     info!("Received message: {} {}", message, region);

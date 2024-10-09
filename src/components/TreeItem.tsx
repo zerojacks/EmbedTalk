@@ -43,6 +43,7 @@ const TreeItem: React.FC<TreeItemProps> = ({
   const isSelected = (selectedRowId === rowId) && (selectedCell.row === rowIndex); // 使用 uniqueId 作为比较标识符
   // 判断当前行是否展开
   const isRowExpanded = expandedRows.has(rowId);
+  const isRed = data.color?.toLowerCase() === '#ff0000';
 
   const handleClick = () => {
     onRowClick(data);
@@ -107,10 +108,11 @@ const TreeItem: React.FC<TreeItemProps> = ({
         </td>
         <td
           style={{
-            backgroundColor: selectedCell.row === rowIndex && selectedCell.column === 2 ? 'red' : 'transparent'
+            backgroundColor: selectedCell.row === rowIndex && selectedCell.column === 2 ? 'red' : 'transparent',
+            color: (isRed && (selectedCell.row === rowIndex && selectedCell.column === 2)) ? 'white' : data.color?.toLowerCase() || ''
           }}
           onClick={() => handleCellClick(2)}
-          className={`truncate ${data.color ? `text-[${data.color}]` : ''}`}
+          className="truncate"
         >
           {data.description}
         </td>

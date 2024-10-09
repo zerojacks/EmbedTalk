@@ -32,7 +32,7 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0 });
   const [progress, setProgress] = useState({ type: '', position: 'end', visible: false });
   const [expandedAll, setExpandedAll] = useState(true);
-  
+  const is_expand = selectedRowId? expandedRows.has(selectedRowId): false;
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     setContextMenu({ visible: true, x: e.clientX, y: e.clientY });
@@ -355,8 +355,13 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
     setExpandedRows(allExpanded);
     setExpandedAll(true);
   };
+  const ExpandCurHandler= () => {
+    if (selectedRowId) {
+      toggleRowExpansion(selectedRowId)
+    }
+  };
+  
   const ExpandAllHandler= () => {
-    console.log(expandedAll);
     if (expandedAll) {
       handleCollapseAll()
     } else {
@@ -476,7 +481,7 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
       </table>
       {contextMenu.visible && (
         <div
-          className="absolute bg-white border shadow-lg rounded-box"
+          className="fixed  bg-white border shadow-lg rounded-box"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onMouseLeave={closeContextMenu}
         >
@@ -490,6 +495,11 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
               <a>
                 <CopyImage className="h-5 w-5"></CopyImage>复制图片
                 </a>
+            </li>
+            <li className="cursor-pointer" onClick={ExpandCurHandler}>
+              <a>
+                <ExpandAll className="h-5 w-5"></ExpandAll> {is_expand? "折叠当前节点":"展开当前节点"}
+              </a>
             </li>
             <li className="cursor-pointer" onClick={ExpandAllHandler}>
               <a>

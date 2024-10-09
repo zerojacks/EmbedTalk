@@ -1,16 +1,9 @@
 use serde_json::Value;
-use tokio::time::error::Elapsed;
-use std::collections::HashMap;
-use std::f64::consts::E;
-use std::fmt;
-use std::error::Error;
-use std::sync::Mutex;
-use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement}; 
+use crate::config::xmlconfig::ProtocolConfigManager; 
 use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::frame_csg::FrameCsg;
 use crate::basefunc::protocol::{FrameAnalisyic, ProtocolInfo};
 
-use super::protocol;
 pub struct Frame645;
 
 impl Frame645 {
@@ -82,11 +75,11 @@ impl Frame645 {
 
     pub fn analysic_head_frame(frame: &[u8], result_list: &mut Vec<Value>, mut indx: usize) -> (usize, u8) {
         // 拷贝原始数据到一个新的Vec
-        let mut origin_array = frame.to_vec();
+        let origin_array = frame.to_vec();
         let pos = FrameFun::get_frame_fe_count(&frame);
         
         // 清空frame（实际是对Vec操作）
-        let mut frame_vec = Vec::from(&origin_array[pos..]);
+        let frame_vec = Vec::from(&origin_array[pos..]);
     
         let data_length = frame_vec[9];  // 数据长度
         let control_code = frame_vec[8];  // 控制码
@@ -100,7 +93,7 @@ impl Frame645 {
         }
     
         FrameFun::add_data(result_list, "帧起始符".to_string(), format!("{:02X}", frame_vec[0]), "电表规约：标识一帧信息的开始".to_string(), vec![indx + 0, indx + 1], None, None);
-        FrameFun::add_data(result_list, "地址域".to_string(), address_with_spaces, ("电表通信地址：".to_string() + &address_str), vec![indx + 1, indx + 7], None, None);
+        FrameFun::add_data(result_list, "地址域".to_string(), address_with_spaces, "电表通信地址：".to_string() + &address_str, vec![indx + 1, indx + 7], None, None);
     
         FrameFun::add_data(result_list, "帧起始符".to_string(), format!("{:02X}", frame_vec[7]), "电表规约：标识一帧信息的开始".to_string(), vec![indx + 7, indx + 8], None, None);
     
@@ -138,7 +131,7 @@ impl Frame645 {
         FrameFun::add_data(&mut afn_data, "D0~D4功能码".to_string(), hexadecimal, func_code_str.to_string(), vec![indx + 8, indx + 9], None, None);
     
         let afn_str = if binary_array[0] == 1 { "主站请求：" } else { "电表返回：" };
-        FrameFun::add_data(result_list, "控制码".to_string(), format!("{:02X}", control_code), (afn_str.to_string() + func_code_str), vec![indx + 8, indx + 9], Some(afn_data), None);
+        FrameFun::add_data(result_list, "控制码".to_string(), format!("{:02X}", control_code), afn_str.to_string() + func_code_str, vec![indx + 8, indx + 9], Some(afn_data), None);
         FrameFun::add_data(result_list, "数据长度".to_string(), format!("{:02X}", data_length), format!("长度={}, 总长度={}(总长度=长度+12)", data_length, data_length + 12), vec![indx + 9, indx + 10], None, None);
     
         (pos, binary_array[0])
@@ -166,12 +159,11 @@ impl Frame645 {
         let mut data_list: Vec<Value> = Vec::new();
         if let Some(data_item) = ProtocolConfigManager::get_config_xml(&data_item_str, protocol, region, Some(dir)) {
             let name_text = data_item.get_child_text("name");
-            let mut data_identifier_str = String::new();
-            if let Some(name_text) = name_text {
-                data_identifier_str = format!("数据标识编码：[{}] - {}", data_item_str, name_text);
+            let data_identifier_str = if let Some(name_text) = name_text {
+                format!("数据标识编码：[{}] - {}", data_item_str, name_text)
             } else {
-                data_identifier_str = format!("数据标识编码：[{}]", data_item_str);
-            }
+                format!("数据标识编码：[{}]", data_item_str)
+            };
 
                 
             FrameFun::add_data(&mut data_list, "数据标识编码".to_string(), FrameFun::get_data_str_with_space(data_identifier), data_identifier_str, vec![indx + 10, indx + 14], None, None);
@@ -277,8 +269,7 @@ impl Frame645 {
     pub fn analysic_read_err_frame(frame: &[u8], result_list: &mut Vec<Value>, indx: usize, protocol: &str, region: &str, dir: u8) {
         let length = frame.len();
         let err_code = frame[10];
-        let mut binary_array = Vec::new();
-        binary_array = FrameFun::get_bit_array((err_code - 0x33) & 0xFF);
+        let binary_array = FrameFun::get_bit_array((err_code - 0x33) & 0xFF);
         let reversed_array: Vec<_> = binary_array[..8].iter().rev().collect();
     
         let err_str = if reversed_array[1] == &1 {
@@ -441,8 +432,7 @@ impl Frame645 {
     pub fn analysic_write_baud_rate_frame(frame: &[u8], result_list: &mut Vec<Value>, indx: usize, protocol: &str, region: &str, dir: u8) {
         let communication_rate = frame[10];
         let mut data_list = Vec::new();
-        let mut binary_array = Vec::new();
-        binary_array = FrameFun::get_bit_array((communication_rate - 0x33) & 0xFF);
+        let binary_array = FrameFun::get_bit_array((communication_rate - 0x33) & 0xFF);
         let reversed_array: Vec<_> = binary_array[..8].iter().rev().collect();
     
         let rate = if !FrameFun::is_only_one_bit_set((communication_rate - 0x33) & 0xFF) {

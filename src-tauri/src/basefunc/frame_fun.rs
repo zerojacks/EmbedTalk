@@ -1,17 +1,9 @@
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::error::Error;
 extern crate regex;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement};
 use regex::Regex;
 use serde_json::Value;
-
-enum Fun_Value {
-    Int(i64),
-    Str(String),
-    List(Vec<u8>),
-}
-
 pub struct FrameFun;
 
 impl FrameFun {
@@ -139,7 +131,6 @@ impl FrameFun {
         judge_ff: bool,
     ) -> String {
         // Convert BCD array to integer
-        let mut int_value: u64 = 0;
         let mut is_sign = false;
         let trans_array = bcd_array.to_vec().clone();
         let mut new_array = trans_array.clone();
@@ -162,7 +153,7 @@ impl FrameFun {
             }
         }
 
-        int_value = Self::bintodecimal(&new_array);
+        let int_value = Self::bintodecimal(&new_array);
 
         // Format integer value as a string with decimal places
         let decimal_string = format!(
@@ -219,7 +210,7 @@ impl FrameFun {
         let mut int_value: u64 = 0;
         let mut is_sign = false;
         // 复制数组
-        let mut trans_array = bcd_array.to_vec();
+        let trans_array = bcd_array.to_vec();
         let mut new_array = trans_array.clone();
 
         // 如果数组全是 0xFF，则返回无效数据
@@ -857,4 +848,14 @@ impl FrameFun {
         // Return the number of bytes added
         cleaned_string.len() / 2
     }
+
+    pub fn cosem_bin2_int32u(bin: &[u8]) -> u32 {
+        let mut val: u32 = 0;
+        for &byte in bin {
+            val <<= 8;
+            val += byte as u32;
+        }
+        val
+    }
+    
 }

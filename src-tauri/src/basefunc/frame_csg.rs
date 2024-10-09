@@ -5,11 +5,11 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::fmt;
 use std::error::Error;
 use std::sync::Mutex;
 use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::frame_645::Frame645;
+use crate::basefunc::frame_err::CustomError;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement}; // 引入 FrameFun 模块
 use crate::basefunc::protocol::{FrameAnalisyic, ProtocolInfo};
 
@@ -40,26 +40,6 @@ lazy_static! {
     static ref GLOBAL_VAR: Mutex<u8> = Mutex::new(0);
     static ref LOCK: Mutex<()> = Mutex::new(());
 }
-
-#[derive(Debug)]
-struct CustomError {
-    code: u32,
-    message: String,
-}
-
-impl CustomError {
-    fn new(code: u32, message: String) -> Self {
-        CustomError { code, message }
-    }
-}
-
-impl fmt::Display for CustomError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[Error Code: {}] {}", self.code, self.message)
-    }
-}
-
-impl Error for CustomError {}
 
 pub struct FrameCsg;
 
@@ -1084,10 +1064,13 @@ impl FrameCsg {
         region: &str,
         dir: Option<u8>,
     ) -> bool {
-        if length < 16 {
+        if length <= 16 {
             return false;
         }
-        if FrameFun::is_array_all_zeros(&data_segment[length - 16..]) {
+        if data_segment.len() < 16 {
+            return false;
+        }
+        if FrameFun::is_array_all_zeros(&data_segment[data_segment.len() - 16..]) {
             return true;
         } else {
             return Self::judge_is_exit_pw(
