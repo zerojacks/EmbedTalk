@@ -1,10 +1,8 @@
-import { useState, useEffect, useRef } from "react";
-import reactLogo from "../assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect, useCallback } from "react";
 import { TreeTableView, Column } from "../components/treeview";
 import { TreeItem } from '../components/TreeItem';
-import Split from 'react-split';
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 
 interface Response {
   data: TreeItem[];
@@ -12,38 +10,79 @@ interface Response {
 }
 
 export default function Home() {
-  const [splitSizes, setSplitSizes] = useState([30, 70]); // 初始化拆分比例
+  const [isResizing, setIsResizing] = useState(false);
+  const [splitPosition, setSplitPosition] = useState(30); // 默认30%
   const [message, setMessage] = useState("");
-  const [tableData, setTableData] = useState<TreeItem[]>([]); // 初始化表格data
+  const [tableData, setTableData] = useState<TreeItem[]>([]);
+
+  useEffect(() => {
+    // 加载保存的拆分位置
+    const savedPosition = localStorage.getItem('split-position');
+    if (savedPosition) {
+      setSplitPosition(Number(savedPosition));
+    }
+
+    // 加载其他保存的数据
+    const savedData = localStorage.getItem('cachedData');
+    if (savedData) {
+      setTableData(JSON.parse(savedData));
+    }
+    const savedMessage = localStorage.getItem('framemessage');
+    if (savedMessage) {
+      setMessage(JSON.parse(savedMessage));
+    }
+  }, []);
+
+  const startResize = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    setIsResizing(true);
+    e.preventDefault();
+  }, []);
+
+  const stopResize = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (isResizing) {
+      const container = e.currentTarget;
+      const containerRect = container.getBoundingClientRect();
+      const newPosition = ((e.clientY - containerRect.top) / containerRect.height) * 100;
+      const clampedPosition = Math.min(Math.max(newPosition, 20), 80); // 限制在20%-80%之间
+      setSplitPosition(clampedPosition);
+      localStorage.setItem('split-position', clampedPosition.toString());
+    }
+  }, [isResizing]);
 
   const handleInputChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     const formattedValue = newValue
-    .replace(/\s+/g, '') // Remove all whitespace
-    .replace(/(.{2})/g, '$1 ') // Add a space after every two characters
-    .trim(); // Remove any trailing space
+      .replace(/\s+/g, '')
+      .replace(/(.{2})/g, '$1 ')
+      .trim();
 
     clearTableData();
     setMessage(formattedValue);
-    console.log(formattedValue);
+    
     let currentRegion = localStorage.getItem('currentRegion');
     if (!currentRegion) {
       try {
-        const region = await invoke<string>("get_region_value"); // 调用后端接口获取选中的省份
+        const region = await invoke<string>("get_region_value");
         localStorage.setItem('currentRegion', JSON.stringify(region));
         currentRegion = region;
       } catch (error) {
-        currentRegion="南网";
+        currentRegion = "南网";
       }
     }
     
-    // 调用后端 Rust 函数，传递文本框内容
     try {
-      const result = await invoke<Response>('on_text_change', { message: newValue, region: currentRegion});
+      const result = await invoke<Response>('on_text_change', { 
+        message: newValue, 
+        region: currentRegion
+      });
       if (result.error) {
         console.log("错误信息：", result.error);
       } else {
-        setTableData(result.data); // 直接将结果设置为 TreeItem 类型
+        setTableData(result.data);
       }
     } catch (error) {
       console.error("调用后端函数出错：", error);
@@ -51,9 +90,9 @@ export default function Home() {
   };
 
   const clearTableData = () => {
-    setTableData([]); // Clear the table data
-    setMessage(""); // Clear the input message
-    localStorage.setItem('cachedData', JSON.stringify([])); // Save empty array to localStorage
+    setTableData([]);
+    setMessage("");
+    localStorage.setItem('cachedData', JSON.stringify([]));
     localStorage.setItem('framemessage', JSON.stringify(""));
   };
 
@@ -64,18 +103,16 @@ export default function Home() {
   ];
 
   useEffect(() => {
-    // 监听自定义事件 "clear-local-storage"
     const unlisten = listen("clear-local-storage", () => {
-      localStorage.clear(); // 清空所有本地存储
+      localStorage.clear();
       console.log("Local storage cleared.");
     });
 
-    // 返回清理函数
     return () => {
       (async () => {
         try {
-          const unlistenFn = await unlisten; // 等待 Promise 解析
-          unlistenFn(); // 调用 UnlistenFn 移除事件监听器
+          const unlistenFn = await unlisten;
+          unlistenFn();
         } catch (error) {
           console.error("Error while removing event listener:", error);
         }
@@ -83,110 +120,93 @@ export default function Home() {
     };
   }, []);
 
-  
-  useEffect(() => {
-    // 加载本地存储中的拆分比例
-    const savedSizes = JSON.parse(localStorage.getItem('split-sizes') as string);
-    if (savedSizes) {
-      setSplitSizes(savedSizes);
-    }
-    const savedData = localStorage.getItem('cachedData');
-    if (savedData) {
-      console.log("加载本地缓存数据：", JSON.parse(savedData));
-      setTableData(JSON.parse(savedData));
-    }
-    const savedMessage = localStorage.getItem('framemessage');
-    if (savedMessage) {
-      setMessage(JSON.parse(savedMessage));
-    }
-  }, []);
-
   useEffect(() => {
     if(tableData.length > 0) {
-      console.log("保存数据到本地存储：", tableData.length);
       localStorage.setItem('cachedData', JSON.stringify(tableData));
     }
   }, [tableData]);
 
   useEffect(() => {
-    // 保存拆分比例到本地存储
     if (message.length > 0) {
       localStorage.setItem('framemessage', JSON.stringify(message));
     }
   }, [message]);
 
-  const handleSplitChange = (sizes: Array<number>) => {
-    setSplitSizes(sizes);
-    localStorage.setItem('split-sizes', JSON.stringify(sizes)); // 保存拆分比例到本地存储
-  };
-
   const handleRowClick = (item: TreeItem) => {
     const textarea = document.querySelector('textarea');
     if (textarea && item.position && item.position.length === 2) {
-      let start = item.position[0]; // 开始索引
-      let end = item.position[1]; // 结束索引
+      let start = item.position[0];
+      let end = item.position[1];
       let length = end - start;
       length = length * 2 + (length - 1);
-      start = start * 2 + start
-      end = start + length
+      start = start * 2 + start;
+      end = start + length;
       textarea.setSelectionRange(start, end);
-      textarea.focus(); // 聚焦到 textarea
+      textarea.focus();
 
-      // 获取字符宽度和行高
       const computedStyle = getComputedStyle(textarea);
-      const charWidth = parseInt(computedStyle.fontSize, 10); // 字符宽度
-      const lineHeight = parseInt(computedStyle.lineHeight, 10); // 行高
-      const lineSpacing = lineHeight - parseInt(computedStyle.fontSize, 10); // 行间距
-      // 计算行数
+      const charWidth = parseInt(computedStyle.fontSize, 10);
+      const lineHeight = parseInt(computedStyle.lineHeight, 10);
+      const lineSpacing = lineHeight - parseInt(computedStyle.fontSize, 10);
       const lineCount = Math.floor(textarea.clientWidth / charWidth) * 2;
       const startLine = Math.floor(start / lineCount);
-      // 设置滚动位置，确保整个字符可见
       textarea.scrollTop = (startLine - 1) * (lineHeight + lineSpacing);
 
-      // 计算并设置水平滚动位置
       const startCharIndex = start % lineCount;
       const scrollLeft = startCharIndex * charWidth;
-
-      // 增加偏移量确保字符可见
-      textarea.scrollLeft = scrollLeft; // 调整偏移量
+      textarea.scrollLeft = scrollLeft;
     }
   };
-  
 
   return (
-    <div className="w-full h-full">
-      <Split
-        className="w-full h-full"
-        sizes={splitSizes}
-        direction="vertical"
-        minSize={100}
-        expandToMin={false}
-        gutterSize={10}
-        gutterAlign="center"
-        snapOffset={30}
-        dragInterval={1}
-        cursor="col-resize"
-        onDragEnd={handleSplitChange} // 当用户调整拆分时保存比例
+    <div 
+      className="w-full h-full relative"
+      onMouseMove={resize}
+      onMouseUp={stopResize}
+      onMouseLeave={stopResize}
+    >
+      <div
+        className="absolute w-full overflow-auto"
+        style={{ height: `calc(${splitPosition}% - 4px)` }}
       >
-        <div className="flex flex-col w-full h-full p-[5px] space-y-4">
-          <div className="h-full">
-            <textarea 
-              className="textarea w-full h-full text-sm textarea-bordered" 
-              placeholder="请输入报文...."
-              value={message}
-              onChange={handleInputChange}  // 监听内容变化
-            ></textarea>
-          </div>
+        <div className="p-[5px] h-full">
+          <textarea 
+            className="textarea w-full h-full text-sm textarea-bordered" 
+            placeholder="请输入报文...."
+            value={message}
+            onChange={handleInputChange}
+          />
         </div>
-        {/* <div className="flex flex-col w-full h-full p-[5px] space-y-4">
+      </div>
 
-        </div> */}
-        <div className="flex flex-col w-full h-full p-[5px] space-y-4">
-            <TreeTableView 
-              data={tableData} initialColumns={initialColumns} onRowClick={handleRowClick}
-            />
+      {/* 增加分割线的可点击区域和视觉反馈 */}
+      <div
+        className="absolute left-0 right-0 h-[8px] bg-transparent cursor-row-resize group"
+        style={{ 
+          top: `calc(${splitPosition}% - 4px)`,
+          transition: 'background-color 0.2s'
+        }}
+        onMouseDown={startResize}
+      >
+        {/* 实际的分割线 */}
+        <div className="absolute left-0 right-0 h-[1px] top-[3.5px] group-hover:bg-blue-500 group-active:bg-blue-600" />
+      </div>
+
+      <div
+        className="absolute w-full overflow-auto"
+        style={{ 
+          top: `calc(${splitPosition}% + 4px)`,
+          height: `calc(${100 - splitPosition}% - 4px)`
+        }}
+      >
+        <div className="p-[5px] h-full">
+          <TreeTableView 
+            data={tableData}
+            initialColumns={initialColumns}
+            onRowClick={handleRowClick}
+          />
         </div>
-      </Split>
+      </div>
     </div>
   );
 }

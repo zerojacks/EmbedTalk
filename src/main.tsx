@@ -10,6 +10,8 @@ import "./styles.css";
 import { SettingsProvider } from "./context/SettingsProvider";
 import { ToastProvider, initializeToast  } from './context/ToastProvider';
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
+import Itemconfig from "./routes/itemconfig"
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -19,6 +21,10 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <Home />,
+      },
+      {
+        path: "/itemconfig",
+        element: <Itemconfig />
       },
       {
         path: "/settings",

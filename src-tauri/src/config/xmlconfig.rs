@@ -8,7 +8,7 @@ use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::time::Instant;
 use tracing::{debug, error, info, warn}; // Add rayon for parallel iterators
 
@@ -31,6 +31,9 @@ pub struct QframeConfig {
 }
 
 impl XmlElement {
+    pub fn get_children(&self) -> Vec<XmlElement> {
+        self.children.clone()
+    }
     pub fn get_child(&self, name: &str) -> Option<&XmlElement> {
         self.children.iter().find(|child| child.name == name)
     }
@@ -341,10 +344,15 @@ impl QframeConfig {
         // 返回结果
         result
     }
+
+    pub fn get_config(&self) -> RwLockReadGuard<Option<XmlConfig>> {
+        self.config.read().unwrap() // 返回 RwLock 的读锁
+    }
+    
 }
 
 lazy_static! {
-    static ref GLOBAL_CSG13: Result<QframeConfig, Arc<dyn std::error::Error + Send + Sync>> = {
+    pub static ref GLOBAL_CSG13: Result<QframeConfig, Arc<dyn std::error::Error + Send + Sync>> = {
         let config = QframeConfig::new();
         match config.load(Path::new("./resources/protocolconfig/CSG13.xml")) {
             Ok(_) => {
@@ -357,7 +365,7 @@ lazy_static! {
             }
         }
     };
-    static ref GLOBAL_645: Result<QframeConfig, Arc<dyn std::error::Error + Send + Sync>> = {
+    pub static ref GLOBAL_645: Result<QframeConfig, Arc<dyn std::error::Error + Send + Sync>> = {
         let config = QframeConfig::new();
         match config.load(Path::new("./resources/protocolconfig/DLT645.xml")) {
             Ok(_) => {
@@ -370,7 +378,7 @@ lazy_static! {
             }
         }
     };
-    static ref GLOBAL_CSG16: Result<QframeConfig, Arc<dyn std::error::Error + Send + Sync>> = {
+    pub static ref GLOBAL_CSG16: Result<QframeConfig, Arc<dyn std::error::Error + Send + Sync>> = {
         let config = QframeConfig::new();
         match config.load(Path::new("./resources/protocolconfig/CSG16.xml")) {
             Ok(_) => {

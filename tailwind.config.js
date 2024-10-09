@@ -2,7 +2,11 @@
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
-    extend: {},
+    extend: {
+      backgroundColor: {
+        'splize': 'var(--fallback-bc, oklch(var(--bc)/0.2))',
+      },
+    },
   },
   daisyui: {
     themes: [
