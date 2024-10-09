@@ -35,7 +35,16 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
   const is_expand = selectedRowId? expandedRows.has(selectedRowId): false;
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    setContextMenu({ visible: true, x: e.clientX, y: e.clientY });
+    // 需要判断设置的位置是否在当前视口内，每一个方向都需要判断
+    let x = e.clientX;
+    let y = e.clientY;
+    if (x + 200 > window.innerWidth) {
+      x = e.clientX - 200;
+    }
+    if (y + 150 > window.innerHeight) {
+      y = e.clientY - 150;
+    }
+    setContextMenu({ visible: true, x: x, y: y });
   };
   // 单独的异步函数来处理图片生成
   const generateImage = async (element: HTMLElement, extensions: string[] = ['svg']): Promise<string> => {
