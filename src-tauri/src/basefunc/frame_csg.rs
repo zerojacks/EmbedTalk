@@ -1,25 +1,17 @@
 use chrono::{
-    DateTime, Datelike, Duration as ChronoDuration, NaiveDate, NaiveDateTime, NaiveTime, Timelike,
-    Utc,
+    Duration as ChronoDuration, NaiveDate, NaiveDateTime, NaiveTime
 };
 use lazy_static::lazy_static;
 use regex::Regex;
-use serde_json::{to_string, Value};
+use serde_json::Value;
 use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::error::Error;
 use std::fmt;
+use std::error::Error;
 use std::sync::Mutex;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use std::vec::Vec;
-
 use crate::basefunc::frame_fun::FrameFun;
+use crate::basefunc::frame_645::Frame645;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement}; // 引入 FrameFun 模块
-                                                                   // use crate::basefunc::frame_645::Frame645;
 use crate::basefunc::protocol::{FrameAnalisyic, ProtocolInfo};
-use crate::config::appconfig::GLOBAL_CONFIG_MANAGER;
-
-use super::protocol;
 
 const ITEM_ACK_NAK: u32 = 0xE0000000;
 const MASK_FIR: u8 = 0x40;
@@ -27,18 +19,18 @@ const MASK_FIN: u8 = 0x20;
 
 #[derive(Debug)]
 pub enum FramePos {
-    POS_START0 = 0,
-    POS_DATALEN = 1,
-    POS_START1 = 5,
-    POS_CTRL = 6,
-    POS_RTUA = 7,
-    POS_UID = 10,
-    POS_MSA = 13,
-    POS_AFN = 14,
-    POS_SEQ = 15,
-    POS_DATA = 16,
-    POS_ITEM = 18,
-    POS_ITEM_DATA = 22,
+    PosStart0 = 0,
+    PosDatalen = 1,
+    PosStart1 = 5,
+    PosCtrl = 6,
+    PosRtua = 7,
+    PosUid = 10,
+    PosMsa = 13,
+    PosAfn = 14,
+    PosSeq = 15,
+    PosData = 16,
+    PosItem = 18,
+    PosItemData = 22,
 }
 
 const ACK: u8 = 0x00;
@@ -80,13 +72,13 @@ impl FrameCsg {
     }
 
     pub fn init_frame(ctrl: u8, afn: u8, adress: &[u8], msa: u8, seq: u8, frame: &mut [u8]) {
-        frame[FramePos::POS_START0 as usize] = 0x68;
-        frame[FramePos::POS_START1 as usize] = 0x68;
-        frame[FramePos::POS_CTRL as usize] = ctrl;
-        frame[FramePos::POS_RTUA as usize..FramePos::POS_RTUA as usize + 6].copy_from_slice(adress);
-        frame[FramePos::POS_MSA as usize] = msa;
-        frame[FramePos::POS_AFN as usize] = afn;
-        frame[FramePos::POS_SEQ as usize] = seq;
+        frame[FramePos::PosStart0 as usize] = 0x68;
+        frame[FramePos::PosStart1 as usize] = 0x68;
+        frame[FramePos::PosCtrl as usize] = ctrl;
+        frame[FramePos::PosRtua as usize..FramePos::PosRtua as usize + 6].copy_from_slice(adress);
+        frame[FramePos::PosMsa as usize] = msa;
+        frame[FramePos::PosAfn as usize] = afn;
+        frame[FramePos::PosSeq as usize] = seq;
     }
 
     pub fn get_meter_task_len(frame: &[u8]) -> usize {
@@ -297,7 +289,7 @@ impl FrameCsg {
 
     pub fn set_frame_finish(data: &mut Vec<u8>, frame: &mut Vec<u8>) -> usize {
         let mut frame_len = 0;
-        if frame[FramePos::POS_AFN as usize] == 0x04 {
+        if frame[FramePos::PosAfn as usize] == 0x04 {
             let pw = [0x00; 16];
             frame.extend_from_slice(&pw);
             data.extend_from_slice(&pw);
@@ -315,10 +307,10 @@ impl FrameCsg {
     }
 
     pub fn set_frame_len(length: usize, frame: &mut Vec<u8>) {
-        frame[FramePos::POS_DATALEN as usize] = (length & 0x00FF) as u8;
-        frame[FramePos::POS_DATALEN as usize + 1] = (length >> 8) as u8;
-        frame[FramePos::POS_DATALEN as usize + 2] = (length & 0x00FF) as u8;
-        frame[FramePos::POS_DATALEN as usize + 3] = (length >> 8) as u8;
+        frame[FramePos::PosDatalen as usize] = (length & 0x00FF) as u8;
+        frame[FramePos::PosDatalen as usize + 1] = (length >> 8) as u8;
+        frame[FramePos::PosDatalen as usize + 2] = (length & 0x00FF) as u8;
+        frame[FramePos::PosDatalen as usize + 3] = (length >> 8) as u8;
     }
 
     pub fn is_contoine_custom_head(frame: &[u8]) -> bool {
@@ -570,8 +562,8 @@ impl FrameCsg {
     pub fn get_frame_info(frame: &[u8]) -> (u8, u8, u8, u8, String) {
         let control_data = frame[6];
         let adress_data = &frame[7..14];
-        let afn = frame[FramePos::POS_AFN as usize];
-        let seq = frame[FramePos::POS_SEQ as usize] & 0x0f;
+        let afn = frame[FramePos::PosAfn as usize];
+        let seq = frame[FramePos::PosSeq as usize] & 0x0f;
         let (contro_result, result_str, dir, prm) = Self::get_control_code_str(control_data, 0);
         let (adress_result, ertu_adress) = Self::get_adress_result(adress_data, 7);
 
@@ -613,39 +605,39 @@ impl FrameCsg {
         let tpv_area = &frame[frame.len() - 7..frame.len() - 2];
 
         if control_code == 9 {
-            replay_frame[FramePos::POS_CTRL as usize] = 0x0B;
+            replay_frame[FramePos::PosCtrl as usize] = 0x0B;
         } else {
-            replay_frame[FramePos::POS_CTRL as usize] = 0x08;
+            replay_frame[FramePos::PosCtrl as usize] = 0x08;
         }
 
-        replay_frame[FramePos::POS_MSA as usize] = 0x0A;
-        replay_frame[FramePos::POS_AFN as usize] = 0x00;
+        replay_frame[FramePos::PosMsa as usize] = 0x0A;
+        replay_frame[FramePos::PosAfn as usize] = 0x00;
 
-        let tpv = if replay_frame[FramePos::POS_SEQ as usize] & 0x80 != 0 {
+        let tpv = if replay_frame[FramePos::PosSeq as usize] & 0x80 != 0 {
             true
         } else {
             false
         };
-        replay_frame[FramePos::POS_SEQ as usize] &= 0x7F;
-        replay_frame[FramePos::POS_SEQ as usize] |= MASK_FIR | MASK_FIN;
-        replay_frame[FramePos::POS_DATA as usize] = frame[FramePos::POS_DATA as usize];
-        replay_frame[FramePos::POS_DATA as usize + 1] = frame[FramePos::POS_DATA as usize + 1];
-        replay_frame[FramePos::POS_DATA as usize + 2] = (ITEM_ACK_NAK & 0xFF) as u8;
-        replay_frame[FramePos::POS_DATA as usize + 3] = ((ITEM_ACK_NAK >> 8) & 0xFF) as u8;
-        replay_frame[FramePos::POS_DATA as usize + 4] = ((ITEM_ACK_NAK >> 16) & 0xFF) as u8;
-        replay_frame[FramePos::POS_DATA as usize + 5] = ((ITEM_ACK_NAK >> 24) & 0xFF) as u8;
-        replay_frame[FramePos::POS_DATA as usize + 6] = ACK;
-        let mut pos = FramePos::POS_DATA as usize + 7;
+        replay_frame[FramePos::PosSeq as usize] &= 0x7F;
+        replay_frame[FramePos::PosSeq as usize] |= MASK_FIR | MASK_FIN;
+        replay_frame[FramePos::PosData as usize] = frame[FramePos::PosData as usize];
+        replay_frame[FramePos::PosData as usize + 1] = frame[FramePos::PosData as usize + 1];
+        replay_frame[FramePos::PosData as usize + 2] = (ITEM_ACK_NAK & 0xFF) as u8;
+        replay_frame[FramePos::PosData as usize + 3] = ((ITEM_ACK_NAK >> 8) & 0xFF) as u8;
+        replay_frame[FramePos::PosData as usize + 4] = ((ITEM_ACK_NAK >> 16) & 0xFF) as u8;
+        replay_frame[FramePos::PosData as usize + 5] = ((ITEM_ACK_NAK >> 24) & 0xFF) as u8;
+        replay_frame[FramePos::PosData as usize + 6] = ACK;
+        let mut pos = FramePos::PosData as usize + 7;
         if tpv {
-            replay_frame[FramePos::POS_SEQ as usize] |= 0x80;
+            replay_frame[FramePos::PosSeq as usize] |= 0x80;
             replay_frame.extend_from_slice(tpv_area);
             pos += 5;
         }
-        pos -= FramePos::POS_CTRL as usize;
-        replay_frame[FramePos::POS_DATALEN as usize] = pos as u8;
-        replay_frame[FramePos::POS_DATALEN as usize + 1] = (pos >> 8) as u8;
-        replay_frame[FramePos::POS_DATALEN as usize + 2] = pos as u8;
-        replay_frame[FramePos::POS_DATALEN as usize + 3] = (pos >> 8) as u8;
+        pos -= FramePos::PosCtrl as usize;
+        replay_frame[FramePos::PosDatalen as usize] = pos as u8;
+        replay_frame[FramePos::PosDatalen as usize + 1] = (pos >> 8) as u8;
+        replay_frame[FramePos::PosDatalen as usize + 2] = pos as u8;
+        replay_frame[FramePos::PosDatalen as usize + 3] = (pos >> 8) as u8;
 
         let caculate_cs = FrameFun::calculate_cs(&replay_frame[6..replay_frame.len() - 2]);
         let length = replay_frame.len();
@@ -4205,7 +4197,7 @@ impl FrameCsg {
                         None,
                     );
                     let mut frame_result: Vec<Value> = Vec::new();
-                    // Frame645::analysis_645_frame_by_afn(&data_segment[pos + 5 + sub_length..pos + 5 + frame_len + sub_length], &mut frame_result, pos + 5 + sub_length + index)?;
+                    Frame645::analysic_645_frame_by_afn(&data_segment[pos + 5 + sub_length..pos + 5 + frame_len + sub_length], &mut frame_result, pos + 5 + sub_length + index, region);
                     FrameFun::add_data(
                         &mut item_data,
                         "中继应答内容".to_string(),

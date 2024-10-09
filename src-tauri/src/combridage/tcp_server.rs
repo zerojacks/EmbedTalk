@@ -58,6 +58,13 @@ impl TcpClientOfServer {
         //     .set_tcp_keepalive(&std_stream.try_clone()?)
         //     .await;
 
+        // 启动发送任务
+        let channelclone = channel.clone();
+        let send_handle = tokio::spawn(async move {
+            if let Err(e) = channelclone.send_task(writer, rx_send).await {
+                eprintln!("Send task error: {}", e);
+            }
+        });
         
         // 启动接收任务
         let channelsend = channel.clone();
@@ -72,13 +79,6 @@ impl TcpClientOfServer {
         // 在某处等待任务完成
         // handle.await?;
         
-        // 启动发送任务
-        let channelclone = channel.clone();
-        let send_handle = tokio::spawn(async move {
-            if let Err(e) = channelclone.send_task(writer, rx_send).await {
-                eprintln!("Send task error: {}", e);
-            }
-        });
         // send_handle.await?;
         tokio::time::sleep(Duration::from_millis(100)).await;
         Ok(channel)
@@ -189,6 +189,7 @@ impl TcpClientOfServer {
                     return Ok(()); // 收到关闭信号时正常退出
                 }
                 result = reader.read(&mut buffer) => {
+                    println!("TcpClientOfServer receive result {:?}", result);
                     match result {
                         Ok(n) if n > 0 => {
                             let received_data = buffer[..n].to_vec();

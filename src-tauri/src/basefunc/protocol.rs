@@ -1,13 +1,14 @@
 use crate::basefunc::frame_csg::FrameCsg;
 use crate::basefunc::frame_fun::FrameFun;
+use crate::basefunc::frame_645::Frame645;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement};
 use num_traits::ToPrimitive;
 use regex::Regex;
 use serde::de::value;
 use serde_json::Value;
+use std::any;
 use std::{collections::HashMap, ptr::null};
 
-// use crate::basefunc::frame_645::Frame645;
 #[derive(Debug)]
 pub enum ProtocolInfo {
     ProtocolCSG13,
@@ -37,6 +38,8 @@ impl FrameAnalisyic {
                 Ok(_) => {}
                 Err(_) => {}
             }
+        } else if Frame645::is_dlt645_frame(frame) {
+            let result = Frame645::analysic_645_frame_by_afn(frame, &mut parsed_data, 0, region);
         }
         parsed_data
     }
@@ -57,6 +60,7 @@ impl FrameAnalisyic {
             ProtocolConfigManager::get_config_xml(data_item_id, protocol, region, dir)
         {
             let need_delete = protocol == ProtocolInfo::ProtocolDLT64507.name();
+            println!("need_delete: {:?}", need_delete);
             parsed_data = Self::prase_data_item(
                 &data_item_elem,
                 data_segment,
@@ -110,6 +114,7 @@ impl FrameAnalisyic {
             );
             sub_item_result = Some(sub_result);
             cur_length = length;
+            println!("sub_item_result {:?} cur_length: {:?}", sub_item_result, cur_length);
         } else if data_item_elem.get_child("unit").is_some()
             && data_item_elem.get_child("value").is_some()
         {
@@ -122,7 +127,7 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
-            result_str = cur_result;
+            result_str = format!("[{}]: {}", item_name, cur_result);
             sub_item_result = sub_result;
             cur_length = length;
         } else if data_item_elem.get_child("unit").is_some() {
@@ -135,7 +140,7 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
-            result_str = cur_result;
+            result_str = format!("[{}]: {}", item_name, cur_result);
             sub_item_result = sub_result;
             cur_length = length;
         } else if data_item_elem.get_child("value").is_some() {
@@ -148,7 +153,7 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
-            result_str = cur_result;
+            result_str = format!("[{}]: {}", item_name, cur_result);
             sub_item_result = sub_result;
             cur_length = length;
         } else if data_item_elem.get_child("time").is_some() {
@@ -246,7 +251,7 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
-            result_str = cur_result;
+            result_str = format!("[{}]: {}", item_name, cur_result);
             sub_item_result = sub_result;
             cur_length = length;
         } else {
@@ -259,7 +264,7 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
-            result_str = cur_result;
+            result_str = format!("[{}]: {}", item_name, cur_result);
             sub_item_result = sub_result;
             cur_length = length;
         }
@@ -349,7 +354,7 @@ impl FrameAnalisyic {
                 //     Some(cur_result), // Wrap Vec<Value> in Some
                 //     color.clone() // Clone the color option
                 // );
-
+                println!("description {} cur_result:{:?}", description, cur_result);
                 sub_item_result.extend(cur_result);
 
                 total_length += sub_item_length; // Update total_length
@@ -475,7 +480,7 @@ impl FrameAnalisyic {
         region: &str,
         dir: Option<u8>,
     ) -> (String, Option<Vec<Value>>, usize) {
-        let mut sub_item_result = Vec::new();
+        let mut sub_item_result: Option<Vec<Value>> = None;
 
         let subitem_name = data_item_elem.get_child_text("name").unwrap_or_default();
         let splitbit_elem = data_item_elem.get_child("splitbit");
@@ -494,10 +499,12 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
-
+            println!("subitem_value_option: {:?}", subitem_value_option);
             if let Some(value) = subitem_value_option {
                 subitem_value = format!("{} {}", value, subitem_unit);
+                println!("subitem_value : {:?}", subitem_value);
             } else {
+                println!("normal change: {:?}", subitem_value);
                 let subitem_decimal = data_item_elem.get_child_text("decimal");
                 let is_sign = data_item_elem.get_child_text("sign");
 
@@ -514,6 +521,7 @@ impl FrameAnalisyic {
                     subitem_value = format!("{} {}", subitem_value, subitem_unit);
                 }
             }
+            sub_item_result = None;
         } else if data_item_elem.get_child("time").is_some() {
             // 解析时间数据
             let subitem_time_format = data_item_elem.get_child_text("time").unwrap_or_default();
@@ -532,9 +540,10 @@ impl FrameAnalisyic {
             }
 
             subitem_value = FrameFun::parse_time_data(time_data, &subitem_time_format, need_delete);
+            sub_item_result = None;
         } else if let Some(splitbit_elem) = splitbit_elem {
             // 解析按位数据
-            (sub_item_result, pos) = Self::parse_bitwise_data(
+            let (result, length) = Self::parse_bitwise_data(
                 &splitbit_elem,
                 data_segment,
                 index,
@@ -543,6 +552,8 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
+            sub_item_result = Some(result);
+            pos = length;
         } else {
             // 简单数据，直接转为十进制数
             let subitem_decimal = data_item_elem.get_child_text("decimal");
@@ -564,14 +575,15 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
-
+            println!("ret: {:?}", ret);
             if let Some(value) = ret {
                 subitem_value = value;
             } else {
                 subitem_value = FrameFun::bcd_to_decimal(data_segment, decimal, need_delete, sign);
             }
+            sub_item_result = None;
         }
-        (subitem_value, Some(sub_item_result), pos)
+        (subitem_value, sub_item_result, pos)
     }
 
     pub fn prase_simple_type_data(
@@ -610,7 +622,7 @@ impl FrameAnalisyic {
             "NORMAL" => FrameFun::get_data_str(&data_segment, need_delete, true, false),
             _ => return None, // 不支持的类型返回 None
         };
-
+        println!("subitem_value: {:?}", subitem_value);
         Some(subitem_value)
     }
 
@@ -805,12 +817,14 @@ impl FrameAnalisyic {
                     }
                 }
             }
+            println!("sub_data_segment:{:?} subitem_length:{}", sub_data_segment, subitem_length);
             splitlength_item.update_value("length", subitem_length.to_string());
 
-            let subitem_content = &sub_data_segment[..subitem_length];
-            if subitem_length > subitem_content.len() {
+            if subitem_length > sub_data_segment.len() {
                 break;
             }
+
+            let subitem_content = &sub_data_segment[..subitem_length];
 
             if splitlength_item.get_child("unit").is_some()
                 && splitlength_item.get_child("value").is_some()
@@ -841,6 +855,7 @@ impl FrameAnalisyic {
                 result_str = cur_result;
                 sub_item_result = sub_result;
                 cur_length = length;
+                println!("cur_result:{:?} sub_result:{:?} length:{:?}", result_str, sub_item_result, length);
             } else if splitlength_item.get_child("value").is_some() {
                 let (cur_result, sub_result, length) = Self::prase_value_item(
                     &splitlength_item,
@@ -934,12 +949,14 @@ impl FrameAnalisyic {
             }
 
             if sub_item_result.is_none() {
+
+                let result_str = format!("[{}]: {}", sub_neme, result_str);
                 // 说明是单一的结果
                 FrameFun::add_data(
                     &mut result,
                     sub_neme,
                     FrameFun::get_data_str(&subitem_content, false, false, true),
-                    result_str.clone(),
+                    result_str,
                     vec![index + pos, index + pos + subitem_length],
                     sub_item_result.clone(),
                     color.clone(),
