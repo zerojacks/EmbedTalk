@@ -5,121 +5,91 @@ import React, {
   useContext,
   ReactNode,
   useCallback,
-  useRef,
 } from "react";
-
 import { setTheme as setTauriTheme } from '@tauri-apps/api/app';
-import { Theme } from '@tauri-apps/api/window'
+import { Theme } from '@tauri-apps/api/window';
 import { invoke } from "@tauri-apps/api/core";
+
 export type ThemeType = "light" | "dark" | "system";
 
 interface SettingsContextInterface {
-  theme: ThemeType;
-  setTheme: (theme: ThemeType) => void;
-  effectiveTheme: "light" | "dark";
+  theme: string;
+  setTheme: (theme: string) => void;
 }
 
 export const SettingsContext = createContext<SettingsContextInterface>({
-  theme: (localStorage.getItem("theme") as ThemeType) || "dark",
-  effectiveTheme: "dark",
-  setTheme: () => {},
+  theme: localStorage.getItem("theme") || "dark",
+  setTheme: () => { },
 });
 
 export const useSettingsContext = () => useContext(SettingsContext);
+const themeMedia = window.matchMedia("(prefers-color-scheme: dark)");
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setThemeState] = useState<ThemeType>(
-    (localStorage.getItem("theme") as ThemeType) || "system"
-  );
-  const [effectiveTheme, setEffectiveTheme] = useState<"light" | "dark">("dark");
-  const isSettingTheme = useRef(false);
-  const mediaQueryList = useRef<MediaQueryList | null>(null);
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
+  const [curtheme, setCurTheme] = useState(theme);
 
   useEffect(() => {
     async function getconfigTheme() {
-        let theme = await invoke<string>("get_config_value_async", {section: "MainWindow", key: "theme"});
-        if (!theme.length) {
-            theme = "system";
-        }
-        console.log("theme getconfigTheme", theme);
-        setTheme(theme as ThemeType); // 设置主题
+      let theme = await invoke<string>("get_config_value_async", { section: "MainWindow", key: "theme" });
+      if (!theme.length) {
+        theme = "system";
+      }
+      console.log("getconfigTheme", theme);
+      setTheme(theme);
     };
     getconfigTheme();
 
-}, [])
+  }, [])
 
-  const getSystemTheme = useCallback((): "light" | "dark" => {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const getSystemTheme = () => {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  };
+
+  const handleSystemThemeChange = useCallback(async (event: MediaQueryListEvent) => {
+    console.log("systemtheme event", event, theme);
+    if (curtheme !== "system") {
+      return;
+    }
+
+    const isDark = event.matches;
+    applytheme(isDark ? "dark" : "light");
+  }, [curtheme, theme]);
+
+  const setSysTheme = useCallback(async (theme: ThemeType) => {
+    console.log("setsystem", theme);
+    let currentTheme = theme;
+    if (theme === "system") {
+      currentTheme = getSystemTheme();
+      themeMedia.addEventListener('change', handleSystemThemeChange);
+      console.error("add listen")
+    } else {
+      themeMedia.removeEventListener('change', handleSystemThemeChange);
+      console.error("remove listen")
+    }
+    await applytheme(currentTheme);
   }, []);
 
-  const updateEffectiveTheme = useCallback(async (newTheme: ThemeType) => {
-    if (isSettingTheme.current) return;
-    isSettingTheme.current = true;
-
-    try {
-      let effective: "light" | "dark";
-      
-      if (newTheme === "system") {
-        // 暂时移除事件监听器
-        const currentMediaQueryList = mediaQueryList.current;
-        if (currentMediaQueryList) {
-          const currentListener = currentMediaQueryList.onchange;
-          currentMediaQueryList.onchange = null;
-
-          // 设置为系统主题
-          await setTauriTheme('system' as Theme);
-          
-          // 短暂延迟，让系统有时间响应
-          await new Promise(resolve => setTimeout(resolve, 50));
-          
-          effective = getSystemTheme();
-          
-          // 恢复事件监听器
-          currentMediaQueryList.onchange = currentListener;
-        } else {
-          effective = getSystemTheme();
-        }
-      } else {
-        effective = newTheme;
-      }
-
-      setEffectiveTheme(effective);
-      document.body.setAttribute("data-theme", effective);
-      if (newTheme !== "system") {
-        await setTauriTheme(effective as Theme);
-      }
-    } finally {
-      isSettingTheme.current = false;
-    }
-  }, [getSystemTheme]);
-
-  const setTheme = useCallback((newTheme: ThemeType) => {
-    setThemeState(newTheme);
-    localStorage.setItem("theme", newTheme);
-    updateEffectiveTheme(newTheme);
-  }, [updateEffectiveTheme]);
-
   useEffect(() => {
-    mediaQueryList.current = window.matchMedia("(prefers-color-scheme: dark)");
-    
-    const handleChange = () => {
-      if (theme === "system" && !isSettingTheme.current) {
-        updateEffectiveTheme("system");
-      }
-    };
+    localStorage.setItem("theme", theme);
+    console.log("theme", theme);
+    setCurTheme(theme);
+    setSysTheme(theme as ThemeType);
+  }, [theme]);
 
-    mediaQueryList.current.addEventListener("change", handleChange);
-    
-    // 初始化主题
-    updateEffectiveTheme(theme);
+  const applytheme = async (theme: ThemeType) => {
+    console.log("act theme", theme, themeMedia);
 
-    return () => {
-      mediaQueryList.current?.removeEventListener("change", handleChange);
-    };
-  }, [theme, updateEffectiveTheme]);
+    await new Promise(resolve => setTimeout(resolve, 50));
+    document.body.setAttribute("data-theme", theme);
+    setTauriTheme(theme as Theme);
+    console.log("add listen");
+  };
 
   return (
-    <SettingsContext.Provider value={{ theme, setTheme, effectiveTheme }}>
+    <SettingsContext.Provider value={{ theme, setTheme }}>
       {children}
     </SettingsContext.Provider>
   );

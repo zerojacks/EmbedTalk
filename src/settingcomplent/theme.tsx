@@ -25,12 +25,11 @@ const ThemeChange = () => {
             }
             console.log("getconfigTheme", theme);
             setSelectTheme(theme);
-            setTheme(theme as ThemeType)
         };
         getconfigTheme();
 
     }, [])
-    
+
     async function setcurrentTheme(theme: string) {
         console.log("curenttheme", theme);
         setTheme(theme as ThemeType);
