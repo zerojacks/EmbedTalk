@@ -1,6 +1,6 @@
 import { Outlet } from "react-router-dom";
 import themes from "../utils/themes";
-import { useSettingsContext } from "../context/SettingsProvider";
+import { ThemeType, useSettingsContext } from "../context/SettingsProvider";
 import { ThemeIcon } from '../components/Icons';
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -19,41 +19,21 @@ const ThemeChange = () => {
 
     useEffect(() => {
         async function getconfigTheme() {
-            const theme = await invoke<string>("get_config_value_async", {section: "MainWindow", key: "theme"});
-            if (theme) {
-                setSelectTheme(theme);
-            } else {
-                setSelectTheme("system");
+            let theme = await invoke<string>("get_config_value_async", {section: "MainWindow", key: "theme"});
+            if (!theme.length) {
+                theme = "system";
             }
+            console.log("getconfigTheme", theme);
+            setSelectTheme(theme);
+            setTheme(theme as ThemeType)
         };
         getconfigTheme();
 
-    }, []);
-
-    async function handleSystemThemeChange(event: MediaQueryListEvent) {
-        console.log("systemtheme event", event);
-        const isDark = event.matches;
-        if (isDark) {
-            setTheme("dark");
-        } else {
-            setTheme("light");
-        }
-    }
+    }, [])
     
     async function setcurrentTheme(theme: string) {
-        let curenttheme = theme;
-        if (theme === "system") {
-            const isDark = window.matchMedia('(prefers-color-scheme: dark)')
-            if (isDark.matches) {
-                curenttheme = "dark";
-            } else {
-                curenttheme = "light";
-            }
-            const themeMedia = window.matchMedia("(prefers-color-scheme: dark)");
-            themeMedia.addEventListener('change', handleSystemThemeChange);
-        } 
-
-        setTheme(curenttheme);
+        console.log("curenttheme", theme);
+        setTheme(theme as ThemeType);
         await invoke("set_config_value_async", {section: "MainWindow", key: "theme", value: JSON.stringify(theme)});
         setSelectTheme(theme);
     };

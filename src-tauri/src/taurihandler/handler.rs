@@ -1,13 +1,11 @@
-use rumqttc::tokio_rustls::rustls::internal::msgs::message::Message;
-use serde_json::{Number, Value};
+use serde_json::Value;
 use std::time::Instant;
-use crate::config::appconfig::{GLOBAL_CONFIG_MANAGER,get_config_value_async, set_config_value_async};
-use crate::basefunc::protocol::FrameAnalisyic;
+use crate::config::appconfig::GLOBAL_CONFIG_MANAGER;
+use crate::basefunc::protocol::{FrameAnalisyic,ProtocolInfo};
 use crate::basefunc::frame_fun::FrameFun;
-use crate::config::xmlconfig::{GLOBAL_CSG13, GLOBAL_645, GLOBAL_CSG16, XmlElement};
-use tracing::{debug, error, info, warn};
+use crate::config::xmlconfig::{GLOBAL_CSG13, GLOBAL_645, GLOBAL_CSG16, ItemConfigList, ProtocolConfigManager, XmlElement};
+use tracing::{error, info};
 use std::thread;
-use crate::config::oadmapconfig::TaskOadConfigManager;
 
 #[tauri::command]
 pub async fn get_region_value() -> String {
@@ -127,38 +125,73 @@ pub async fn get_com_list() -> Vec<String> {
     com_list
 }
 
+#[tauri::command]
+pub async fn get_all_config_item_lists() -> Result<Vec<ItemConfigList>, String> {
+    // 获取配置项并提取数据
+    let csg13 = GLOBAL_CSG13.as_ref().map_err(|e| format!("Failed to get GLOBAL_CSG13: {}", e))?;
+    let csg645 = GLOBAL_645.as_ref().map_err(|e| format!("Failed to get GLOBAL_645: {}", e))?;
+    let csg16 = GLOBAL_CSG16.as_ref().map_err(|e| format!("Failed to get GLOBAL_CSG16: {}", e))?;
 
-#[derive(Clone, Debug)]
-struct ItemConfigList {
-    id: Number,
-    item: String,
-    protocol: String,
-    region: String,
-};
+    // 在异步之前提取数据
+    let (csg13_items, csg645_items, csg16_items) = tokio::join!(
+        csg13.get_all_item(),
+        csg645.get_all_item(),
+        csg16.get_all_item()
+    );
 
-pub async fn traverse_element(element: &XmlElement, result: &mut Vec<ItemConfigList>) {
-    // 检查当前元素是否有 id 属性
-    if let Some(id_str) = element.get_attribute("id") {
-        // 如果有 id 属性，将其解析并添加到结果中
-        if let Ok(id) = id_str.parse::<usize>() {
-            let item = DataItem {
-                id,
-                name: element.name.clone(),
-            };
-            result.push(item);
-        }
-        // 只有当前元素有 id，才继续遍历其子元素
-        let childrean = element.get_children();
-        for child in  childrean {
-            traverse_element(child, result);
-        }
+    // 收集结果
+    let mut all_items = csg13_items;
+    all_items.extend(csg645_items);
+    all_items.extend(csg16_items);
+
+    if all_items.is_empty() {
+        Err(format!("Failed to get any items."))
+    } else {
+        Ok(all_items)
     }
 }
 
-#[tauri::command]
-pub async fn get_all_config_item_lists() -> Vec<ItemConfigList> {
-    let mut result = Vec::new();
-    let config = GLOBAL_CSG13.as_ref().ok()?.get_config();
 
-    result
+#[derive(serde::Serialize, Debug, Clone, serde::Deserialize)]
+struct ProtoConfigParams {
+    item: String,
+    name: Option<String>,
+    protocol: Option<String>,
+    region: Option<String>,
+    dir: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_protocol_config_item(value: &str) -> Result<XmlElement, String> {
+    // 将传入的 JSON 字符串解析为 ProtoConfigParams
+    let value_json: ProtoConfigParams = serde_json::from_str(value)
+        .map_err(|e| format!("Failed to parse value: {}", e))?;
+
+    // 提取参数
+    let item_id = value_json.item;
+    let protocol = if let Some(protocol) = value_json.protocol {
+        protocol
+    } else {
+        ProtocolInfo::ProtocolCSG13.name().to_string()
+    };
+        
+    let region = if let Some(region) = value_json.region {
+        region
+    } else {
+        GLOBAL_CONFIG_MANAGER.global_region.get_value().to_string()
+    };
+
+    let dir = if let Some(dir) = value_json.dir {
+        // 转换为 u8
+        Some(dir.parse::<u8>().map_err(|e| format!("Failed to parse dir: {}", e))?)
+    } else {
+        None
+    };
+
+    // 调用 ProtocolConfigManager 的方法
+    let element = ProtocolConfigManager::get_config_xml(&item_id, &protocol, &region, dir);
+    match element {
+        Some(element) => Ok(element),
+        _ => Err(format!("Failed to get protocol config item")),
+    }
 }

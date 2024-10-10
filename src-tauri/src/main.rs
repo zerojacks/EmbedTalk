@@ -23,6 +23,7 @@ use crate::config::appconfig::{get_config_value_async, set_config_value_async};
 use crate::taurihandler::handler::{
     app_close, check_update, get_app_info, get_com_list,
     get_region_value, on_text_change, save_file, set_region_value,
+    get_all_config_item_lists,get_protocol_config_item
 };
 use crate::taurihandler::ChannelHandler::{connect_channel, disconnect_channel};
 // 用来格式化日志的输出时间格式
@@ -151,6 +152,8 @@ fn main() {
             get_com_list,
             connect_channel,
             disconnect_channel,
+            get_all_config_item_lists,
+            get_protocol_config_item,
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

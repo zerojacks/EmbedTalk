@@ -1,21 +1,22 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FixedSizeList, ListChildComponentProps } from 'react-window';
 
 interface DataItem {
-  id: number;
-  name: string;
+  item: string,
+  name?: string,
+  protocol?: string,
+  region?: string,
+  dir?: string,
 }
 
-const DATA: DataItem[] = [
-  { id: 1, name: 'Item 1' },
-  { id: 2, name: 'Item 2' },
-  { id: 3, name: 'Item 3' },
-  { id: 4, name: 'Item 4' },
-  { id: 5, name: 'Different 5' },
-  { id: 6, name: 'Something 6' },
-  { id: 7, name: 'Another 7' },
-  { id: 8, name: 'Last 8' },
-];
+
+export interface XmlElement {
+  name: string;
+  attributes: { [key: string]: string };
+  value: string | null;
+  children: XmlElement[];
+}
 
 export default function Itemconfig() {
   const [isResizing, setIsResizing] = useState<boolean>(false);
@@ -23,23 +24,51 @@ export default function Itemconfig() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
   const [filteredData, setFilteredData] = useState<DataItem[]>([]);
-  const [selectedItem, setSelectedItem] = useState<string>('');
+  const [selectedItem, setSelectedItem] = useState<DataItem>({} as DataItem);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [allitemlist, setAllitemlist] = useState<DataItem[]>([]);
+  
+  // Add a ref to track whether the search term change is from selection
+  const isSelecting = useRef(false);
 
-  // 模拟异步搜索函数
   const asyncSearch = async (term: string): Promise<DataItem[]> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        const results = DATA.filter(item => 
-          item.name.toLowerCase().includes(term.toLowerCase())
-        );
+        const isHex = /^[0-9a-fA-F]+$/.test(term);
+  
+        const results = allitemlist.filter(item => {
+          if (isHex) {
+            const regex = new RegExp(`^${term}`, 'i');
+            return regex.test(item.item);
+          } else {
+            return item.name && item.name.toLowerCase().includes(term.toLowerCase());
+          }
+        });
+  
         resolve(results);
-      }, 300); // 模拟网络延迟
+      }, 300);
     });
   };
 
-  // 使用防抖进行异步搜索
   useEffect(() => {
+    async function getallitemlist() {
+      try {
+        const allitemlist = await invoke<DataItem[]>('get_all_config_item_lists');
+        setAllitemlist(allitemlist);
+      } catch (error) {
+        console.error('get_all_config_item_lists error:', error);
+      }
+    }
+    getallitemlist();
+  }, []);
+
+  // Modified search effect to use isSelecting ref
+  useEffect(() => {
+    if (isSelecting.current) {
+      isSelecting.current = false;
+      return;
+    }
+
     let debounceTimeout: NodeJS.Timeout;
 
     const performSearch = async () => {
@@ -75,16 +104,31 @@ export default function Itemconfig() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      setSelectedItem(searchTerm);
-      setShowDropdown(false);
+      selectItem({ item: searchTerm });
     }
   };
 
   const selectItem = (item: DataItem) => {
-    setSearchTerm(item.name);
-    setSelectedItem(item.name);
+    isSelecting.current = true; // Set the ref before updating state
+    setSearchTerm(item.item);
+    setSelectedItem(item);
     setShowDropdown(false);
   };
+
+
+  useEffect(() => {
+    async function get_selected_config_item() {
+      try {
+        console.log(selectedItem);
+        const element = await invoke<XmlElement>('get_protocol_config_item', { value: JSON.stringify(selectedItem) });
+        console.log(element);
+      } catch (error) {
+          console.error('get_selected_config_item error:', error);
+        }
+      }
+      get_selected_config_item();
+  }, [selectedItem]);
+
 
   const startResize = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     setIsResizing(true);
@@ -104,15 +148,22 @@ export default function Itemconfig() {
     }
   }, [isResizing]);
 
-  const Row: React.FC<ListChildComponentProps> = ({ index, style }) => (
-    <div 
-      className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-      style={style}
-      onClick={() => selectItem(filteredData[index])}
-    >
-      {filteredData[index].name}
-    </div>
-  );
+  const Row: React.FC<ListChildComponentProps> = ({ index, style }) => {
+    const item = filteredData[index];
+  
+    return (
+      <div
+        className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
+        style={style}
+        onClick={() => selectItem(item)}
+      >
+        <span className="mr-2">{item.item}</span>
+        {item.name && <span className="mr-2">{item.name}</span>}
+        {item.protocol && <span className="mr-2">{item.protocol}</span>}
+        {item.region && <span>{item.region}</span>}
+      </div>
+    );
+  };
 
   return (
     <div className="w-full h-full">
@@ -158,7 +209,7 @@ export default function Itemconfig() {
                   )}
                 </label>
                 {showDropdown && filteredData.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg">
+                  <div className="absolute z-10 w-full mt-1 bg-transparent border rounded-md shadow-lg">
                     <FixedSizeList
                       height={Math.min(200, filteredData.length * 40)}
                       itemCount={filteredData.length}
@@ -175,7 +226,7 @@ export default function Itemconfig() {
         </div>
 
         <div
-          className="absolute top-0 bottom-0 w-px bg-gray-200 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+          className="absolute top-0 bottom-0 w-0.5 bg-gray-200 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
           style={{ left: `${splitPosition}%` }}
           onMouseDown={startResize}
         />
@@ -187,7 +238,7 @@ export default function Itemconfig() {
           <div className="p-4">
             <h2 className="text-lg font-semibold mb-2">选中的内容</h2>
             {selectedItem ? (
-              <p className="p-2 bg-gray-100 rounded">{selectedItem}</p>
+              <p className="p-2  rounded">{selectedItem.item}</p>
             ) : (
               <p className="text-gray-500">尚未选择任何内容</p>
             )}

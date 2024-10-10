@@ -23,6 +23,7 @@
         "${TAURI_FS_SCOPE}"
       ]
     },
+    "core:app:allow-set-app-theme",
     "core:window:allow-create",
     "core:window:allow-center",
     "core:window:allow-request-user-attention",

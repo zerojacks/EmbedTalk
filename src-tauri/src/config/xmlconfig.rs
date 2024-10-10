@@ -11,8 +11,9 @@ use std::path::Path;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::time::Instant;
 use tracing::{debug, error, info, warn}; // Add rayon for parallel iterators
+use serde::{Serialize, Deserialize};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct XmlElement {
     pub name: String,
     attributes: HashMap<String, String>,
@@ -104,6 +105,15 @@ impl Cache {
     pub fn insert(&mut self, key: String, value: Option<XmlElement>) {
         self.results.insert(key, value);
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ItemConfigList {
+    item: String,
+    name: Option<String>,
+    protocol: Option<String>,
+    region: Option<String>,
+    dir: Option<String>,
 }
 
 impl QframeConfig {
@@ -348,6 +358,66 @@ impl QframeConfig {
     pub fn get_config(&self) -> RwLockReadGuard<Option<XmlConfig>> {
         self.config.read().unwrap() // 返回 RwLock 的读锁
     }
+    
+    pub async fn get_all_item(&self) -> Vec<ItemConfigList> {
+        let mut result = Vec::new();
+    
+        let config_read = self.config.read().unwrap(); // 在这个作用域中获取读锁
+        if let Some(xml_config) = config_read.as_ref() {
+            // 传递 xml_config 的引用到异步函数
+            self.traverse_element(&xml_config.root, &mut result, true, None, None, None);
+        }
+        result
+    }
+    
+    
+    
+    fn traverse_element(
+        &self,
+        element: &XmlElement,
+        result: &mut Vec<ItemConfigList>,
+        skip_id_check: bool,
+        parent_protocol: Option<&String>,
+        parent_region: Option<&String>,
+        parent_dir: Option<&String>,
+    ) {
+        // 如果 skip_id_check 为 true，则跳过 id 检查
+        if !skip_id_check && element.get_attribute("id").is_none() {
+            return; // 如果不是 root 节点且没有 id 属性，则返回
+        }
+    
+        // 处理当前元素
+        if let Some(id_str) = element.get_attribute("id") {
+            // 如果有 id 属性，将其解析并添加到结果中
+            let protocol = element.get_attribute("protocol").or(parent_protocol);
+            let region = element.get_attribute("region").or(parent_region);
+            let name = element.get_child_text("name");
+            let dir = element.get_attribute("dir").or(parent_dir);
+
+            let item = ItemConfigList {
+                item: id_str.clone(),
+                name: name.clone(),
+                protocol: protocol.cloned(),
+                region: region.cloned(),
+                dir: dir.cloned(),
+            };
+            result.push(item);
+        }
+    
+        // 遍历子元素
+        for child in element.get_children() {
+            // 对子元素进行递归调用，并设置 skip_id_check 为 false
+            self.traverse_element(
+                &child,
+                result,
+                false,
+                element.get_attribute("protocol"),
+                element.get_attribute("region"),
+                element.get_attribute("dir"),
+            );
+        }
+    }
+    
     
 }
 
