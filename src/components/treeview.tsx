@@ -456,7 +456,7 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
             <col key={index} style={{ width: `${column.width}px` }} />
           ))}
         </colgroup>
-        <thead className="sticky top-0 bg-gray-100 z-10">
+        <thead className="sticky top-0 dark:bg-gray-100 z-10">
           <tr>
             {columns.map((column, index) => (
               <th key={index} style={{ position: 'relative', width: `${column.width}px` }}>

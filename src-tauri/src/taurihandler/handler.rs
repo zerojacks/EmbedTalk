@@ -195,3 +195,48 @@ pub async fn get_protocol_config_item(value: &str) -> Result<XmlElement, String>
         _ => Err(format!("Failed to get protocol config item")),
     }
 }
+
+
+#[cfg(target_os = "windows")]
+use windows::UI::ViewManagement::{UISettings, UIColorType};
+
+#[cfg(target_os = "macos")]
+use core_foundation::{
+    base::TCFType,
+    string::CFString,
+    preferences::{CFPreferences, kCFPreferencesAnyUser, kCFPreferencesCurrentHost},
+};
+
+#[tauri::command]
+pub async fn get_system_theme() -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let ui_settings = UISettings::new().map_err(|e| e.to_string())?;
+        let is_light_theme = unsafe { ui_settings.GetColorValue(UIColorType::Background).map_err(|e| e.to_string())? };
+        Ok(if is_light_theme.R == 0 { "dark".to_string() } else { "light".to_string() })
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let key = unsafe { CFString::from_static_string("AppleInterfaceStyle") };
+        let value = unsafe {
+            CFPreferences::copy_app_value(key, CFString::from_static_string("Apple Global Domain"))
+        };
+        Ok(if value.is_none() { "light".to_string() } else { "dark".to_string() })
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        use std::process::Command;
+        let output = Command::new("gsettings")
+            .args(["get", "org.gnome.desktop.interface", "gtk-theme"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        let theme = String::from_utf8(output.stdout).map_err(|e| e.to_string())?;
+        Ok(if theme.to_lowercase().contains("dark") {
+            "dark".to_string()
+        } else {
+            "light".to_string()
+        })
+    }
+}

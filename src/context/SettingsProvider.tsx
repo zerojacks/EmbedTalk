@@ -4,61 +4,83 @@ import React, {
   useEffect,
   useContext,
   ReactNode,
-  useCallback,
 } from "react";
-import { setTheme as setTauriTheme } from '@tauri-apps/api/app';
-import { Theme } from '@tauri-apps/api/window';
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, Theme } from "@tauri-apps/api/window";
 
 export type ThemeType = "light" | "dark" | "auto";
 
 interface SettingsContextInterface {
-  theme: string;
-  setTheme: (theme: string) => void;
+  theme: ThemeType;
+  setTheme: (theme: ThemeType) => void;
 }
 
 export const SettingsContext = createContext<SettingsContextInterface>({
-  theme: localStorage.getItem("theme") || "dark",
+  theme: (localStorage.getItem("theme") as ThemeType) || "dark",
   setTheme: () => { },
 });
 
 export const useSettingsContext = () => useContext(SettingsContext);
 
-
-const themeMedia = window.matchMedia("(prefers-color-scheme: dark)");
-themeMedia.addEventListener("change", async (e) => {
-  console.log("themeMedia", e);
-  const systheme = await invoke<ThemeType>("plugin:theme|get_theme");
-  applytheme(systheme as ThemeType);
-});
-
-const applytheme = async (theme: ThemeType) => {
-  console.log("act theme", theme);
-  await invoke("plugin:theme|set_theme", {
-    theme: theme,
-  });
-  document.body.setAttribute("data-theme", theme);
-};
-
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
-  
-  useEffect(() => {
-    async function getconfigTheme() {
-      let theme = await invoke<string>("get_config_value_async", { section: "MainWindow", key: "theme" });
-      if (!theme.length) {
-        theme = "auto";
+  const [theme, setThemeState] = useState<ThemeType>(
+    (localStorage.getItem("theme") as ThemeType) || "auto"
+  );
+  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light');
+
+  const applyTheme = async (newTheme: ThemeType) => {
+    let effectiveTheme = newTheme;
+    if (newTheme === 'auto') {
+      effectiveTheme = await invoke<ThemeType>("get_system_theme");
+    }
+    await getCurrentWindow().setTheme(effectiveTheme as Theme);
+    document.body.setAttribute("data-theme", effectiveTheme);
+  };
+
+  const setTheme = async (newTheme: ThemeType) => {
+    setThemeState(newTheme);
+    localStorage.setItem("theme", newTheme);
+    await applyTheme(newTheme);
+  };
+
+  const updateSystemTheme = async () => {
+    try {
+      const newSystemTheme = await invoke<string>("get_system_theme");
+      setSystemTheme(newSystemTheme as 'light' | 'dark');
+      if (theme === 'auto') {
+        await applyTheme('auto');
       }
-      setTheme(theme);
-    };
-    getconfigTheme();
-  }, [])
+    } catch (error) {
+      console.error("Failed to get system theme:", error);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem("theme", theme);
-    console.log("theme", theme);
-    applytheme(theme as ThemeType);
+    async function initTheme() {
+      try {
+        await updateSystemTheme();
+
+        const savedTheme = await invoke<string>("get_config_value_async", {
+          section: "MainWindow",
+          key: "theme",
+        });
+
+        const initialTheme: ThemeType = savedTheme as ThemeType || "auto";
+        setThemeState(initialTheme);
+        await applyTheme(initialTheme);
+      } catch (error) {
+        console.error("Failed to initialize theme:", error);
+      }
+    }
+
+    initTheme();
+
+    // 设置定时器定期检查系统主题
+    const intervalId = setInterval(updateSystemTheme, 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [theme]);
 
   return (

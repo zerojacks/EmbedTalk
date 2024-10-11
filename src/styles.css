@@ -116,7 +116,7 @@ thead {
   border-radius: var(--rounded-btn, 0.5rem /* 8px */);
   border-width: 1px;
   --tw-bg-opacity: 1;
-  background-color: var(--fallback-b1,oklch(var(--b1)/var(--tw-bg-opacity)));
+  /* background-color: var(--fallback-b1,oklch(var(--b1)/var(--tw-bg-opacity))); */
 }
 
 .toast-container {

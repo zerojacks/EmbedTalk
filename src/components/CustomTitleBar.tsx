@@ -5,6 +5,7 @@ import { FiMinimize, FiMaximize, FiX } from "react-icons/fi";
 import reactLogo from "../assets/icons/icon.png";
 import { useSettingsContext } from "../context/SettingsProvider"; // 假设上下文在这个路径
 import { invoke } from "@tauri-apps/api/core";
+import { Theme } from '@tauri-apps/api/window';
 const appWindow = getCurrentWebviewWindow()
 
 export interface CustomTitleBarProps {
@@ -50,7 +51,7 @@ export const ThemeControl: React.FC = () => {
           const themeMedia = window.matchMedia("(prefers-color-scheme: dark)");
           themeMedia.addEventListener('change', handleSystemThemeChange);
       } 
-      setTheme(curenttheme);
+      setTheme(curenttheme as Theme);
   };
 
   useEffect(() => {
