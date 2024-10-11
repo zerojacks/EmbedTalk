@@ -1,11 +1,13 @@
-use serde_json::Value;
-use std::time::Instant;
-use crate::config::appconfig::GLOBAL_CONFIG_MANAGER;
-use crate::basefunc::protocol::{FrameAnalisyic,ProtocolInfo};
 use crate::basefunc::frame_fun::FrameFun;
-use crate::config::xmlconfig::{GLOBAL_CSG13, GLOBAL_645, GLOBAL_CSG16, ItemConfigList, ProtocolConfigManager, XmlElement};
-use tracing::{error, info};
+use crate::basefunc::protocol::{FrameAnalisyic, ProtocolInfo};
+use crate::config::appconfig::GLOBAL_CONFIG_MANAGER;
+use crate::config::xmlconfig::{
+    ItemConfigList, ProtocolConfigManager, XmlElement, GLOBAL_645, GLOBAL_CSG13, GLOBAL_CSG16,
+};
+use serde_json::Value;
 use std::thread;
+use std::time::Instant;
+use tracing::{error, info};
 
 #[tauri::command]
 pub async fn get_region_value() -> String {
@@ -17,13 +19,11 @@ pub async fn set_region_value(region: String) {
     GLOBAL_CONFIG_MANAGER.global_region.set_value(&region);
 }
 
-
 #[tauri::command]
 pub fn app_close() {
     println!("app_close");
     std::process::exit(0);
 }
-
 
 #[derive(serde::Serialize)]
 pub struct Response {
@@ -55,10 +55,14 @@ pub async fn on_text_change(message: String, region: String) -> Response {
         }
 
         let frame = FrameFun::get_frame_list_from_str(&message_cleaned);
-        info!("Frame: {:?} duration: {:?}", frame, start_time.elapsed().as_millis());
+        info!(
+            "Frame: {:?} duration: {:?}",
+            frame,
+            start_time.elapsed().as_millis()
+        );
         let processed_result = FrameAnalisyic::process_frame(&frame, &region);
         info!("Result: {:?}", processed_result);
-        
+
         Response {
             data: processed_result,
             error: None,
@@ -88,7 +92,9 @@ pub async fn save_file(file_path: String, buffer: Vec<u8>) -> Result<(), String>
     println!("save_file: {:?} len: {:?}", file_path, buffer.len());
     // 创建新的线程
     thread::spawn(move || {
-        std::fs::write(file_path, buffer).map_err(|e| e.to_string()).unwrap();
+        std::fs::write(file_path, buffer)
+            .map_err(|e| e.to_string())
+            .unwrap();
     });
 
     Ok(())
@@ -128,9 +134,15 @@ pub async fn get_com_list() -> Vec<String> {
 #[tauri::command]
 pub async fn get_all_config_item_lists() -> Result<Vec<ItemConfigList>, String> {
     // 获取配置项并提取数据
-    let csg13 = GLOBAL_CSG13.as_ref().map_err(|e| format!("Failed to get GLOBAL_CSG13: {}", e))?;
-    let csg645 = GLOBAL_645.as_ref().map_err(|e| format!("Failed to get GLOBAL_645: {}", e))?;
-    let csg16 = GLOBAL_CSG16.as_ref().map_err(|e| format!("Failed to get GLOBAL_CSG16: {}", e))?;
+    let csg13 = GLOBAL_CSG13
+        .as_ref()
+        .map_err(|e| format!("Failed to get GLOBAL_CSG13: {}", e))?;
+    let csg645 = GLOBAL_645
+        .as_ref()
+        .map_err(|e| format!("Failed to get GLOBAL_645: {}", e))?;
+    let csg16 = GLOBAL_CSG16
+        .as_ref()
+        .map_err(|e| format!("Failed to get GLOBAL_CSG16: {}", e))?;
 
     // 在异步之前提取数据
     let (csg13_items, csg645_items, csg16_items) = tokio::join!(
@@ -151,7 +163,6 @@ pub async fn get_all_config_item_lists() -> Result<Vec<ItemConfigList>, String> 
     }
 }
 
-
 #[derive(serde::Serialize, Debug, Clone, serde::Deserialize)]
 struct ProtoConfigParams {
     item: String,
@@ -164,8 +175,8 @@ struct ProtoConfigParams {
 #[tauri::command]
 pub async fn get_protocol_config_item(value: &str) -> Result<XmlElement, String> {
     // 将传入的 JSON 字符串解析为 ProtoConfigParams
-    let value_json: ProtoConfigParams = serde_json::from_str(value)
-        .map_err(|e| format!("Failed to parse value: {}", e))?;
+    let value_json: ProtoConfigParams =
+        serde_json::from_str(value).map_err(|e| format!("Failed to parse value: {}", e))?;
 
     // 提取参数
     let item_id = value_json.item;
@@ -174,7 +185,7 @@ pub async fn get_protocol_config_item(value: &str) -> Result<XmlElement, String>
     } else {
         ProtocolInfo::ProtocolCSG13.name().to_string()
     };
-        
+
     let region = if let Some(region) = value_json.region {
         region
     } else {
@@ -183,46 +194,60 @@ pub async fn get_protocol_config_item(value: &str) -> Result<XmlElement, String>
 
     let dir = if let Some(dir) = value_json.dir {
         // 转换为 u8
-        Some(dir.parse::<u8>().map_err(|e| format!("Failed to parse dir: {}", e))?)
+        Some(
+            dir.parse::<u8>()
+                .map_err(|e| format!("Failed to parse dir: {}", e))?,
+        )
     } else {
         None
     };
 
     // 调用 ProtocolConfigManager 的方法
     let element = ProtocolConfigManager::get_config_xml(&item_id, &protocol, &region, dir);
+    println!("get item{:?}", element);
     match element {
         Some(element) => Ok(element),
         _ => Err(format!("Failed to get protocol config item")),
     }
 }
 
-
 #[cfg(target_os = "windows")]
-use windows::UI::ViewManagement::{UISettings, UIColorType};
+use windows::UI::ViewManagement::{UIColorType, UISettings};
 
 #[cfg(target_os = "macos")]
-use core_foundation::{
-    base::TCFType,
-    string::CFString,
-    preferences::{CFPreferences, kCFPreferencesAnyUser, kCFPreferencesCurrentHost},
-};
+use std::process::Command;
 
 #[tauri::command]
 pub async fn get_system_theme() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
         let ui_settings = UISettings::new().map_err(|e| e.to_string())?;
-        let is_light_theme = unsafe { ui_settings.GetColorValue(UIColorType::Background).map_err(|e| e.to_string())? };
-        Ok(if is_light_theme.R == 0 { "dark".to_string() } else { "light".to_string() })
+        let is_light_theme = unsafe {
+            ui_settings
+                .GetColorValue(UIColorType::Background)
+                .map_err(|e| e.to_string())?
+        };
+        Ok(if is_light_theme.R == 0 {
+            "dark".to_string()
+        } else {
+            "light".to_string()
+        })
     }
 
     #[cfg(target_os = "macos")]
     {
-        let key = unsafe { CFString::from_static_string("AppleInterfaceStyle") };
-        let value = unsafe {
-            CFPreferences::copy_app_value(key, CFString::from_static_string("Apple Global Domain"))
+        let output = Command::new("defaults")
+        .args(&["read", "-g", "AppleInterfaceStyle"])
+        .output()
+        .expect("Failed to execute command");
+
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let theme = if stdout.is_empty() {
+            "light".to_string()
+        } else {
+            "dark".to_string()
         };
-        Ok(if value.is_none() { "light".to_string() } else { "dark".to_string() })
+        Ok(theme)
     }
 
     #[cfg(target_os = "linux")]

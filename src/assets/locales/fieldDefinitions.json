@@ -1,0 +1,13 @@
+{
+    "dataItem": "数据项",
+    "name": "名称",
+    "length": "长度",
+    "unit": "单位",
+    "decimal": "小数位",
+    "bit": "字节",
+    "value": "值",
+    "time": "时间格式",
+    "splitByLength": "长度拆分",
+    "splitbit": "字节拆分"
+
+  }

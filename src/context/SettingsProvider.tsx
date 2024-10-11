@@ -78,7 +78,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     applyTheme(theme);
 
     // 设置定时器定期检查系统主题
-    const intervalId = setInterval(updateSystemTheme, 1000);
+    const intervalId = setInterval(updateSystemTheme, 100);
 
     return () => {
       clearInterval(intervalId);

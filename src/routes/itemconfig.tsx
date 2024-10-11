@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FixedSizeList, ListChildComponentProps } from 'react-window';
+import XmlTree from '../components/xmltree';
 
 interface DataItem {
   item: string,
@@ -27,7 +28,7 @@ export default function Itemconfig() {
   const [selectedItem, setSelectedItem] = useState<DataItem>({} as DataItem);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [allitemlist, setAllitemlist] = useState<DataItem[]>([]);
-  
+  const [selectXml, setSelectXml] = useState<XmlElement>({} as XmlElement );
   // Add a ref to track whether the search term change is from selection
   const isSelecting = useRef(false);
 
@@ -122,6 +123,7 @@ export default function Itemconfig() {
         console.log(selectedItem);
         const element = await invoke<XmlElement>('get_protocol_config_item', { value: JSON.stringify(selectedItem) });
         console.log(element);
+        setSelectXml(element);
       } catch (error) {
           console.error('get_selected_config_item error:', error);
         }
@@ -153,7 +155,7 @@ export default function Itemconfig() {
   
     return (
       <div
-        className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
+        className="flex items-center px-4 py-2 hover:bg-base-300 cursor-pointer"
         style={style}
         onClick={() => selectItem(item)}
       >
@@ -209,7 +211,9 @@ export default function Itemconfig() {
                   )}
                 </label>
                 {showDropdown && filteredData.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-transparent border rounded-md shadow-lg">
+                  <div className="absolute z-10 w-full mt-1 bg-transparent border rounded-md shadow-lg"
+                  onMouseLeave={() => setShowDropdown(false)}
+                  >
                     <FixedSizeList
                       height={Math.min(200, filteredData.length * 40)}
                       itemCount={filteredData.length}
@@ -242,6 +246,7 @@ export default function Itemconfig() {
             ) : (
               <p className="text-gray-500">尚未选择任何内容</p>
             )}
+            <XmlTree data={selectXml}/>
           </div>
         </div>
       </div>
