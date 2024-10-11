@@ -28,6 +28,25 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   );
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light');
 
+  useEffect(() => {
+    async function initTheme() {
+      try {
+        const savedTheme = await invoke<string>("get_config_value_async", {
+          section: "MainWindow",
+          key: "theme",
+        });
+
+        const initialTheme: ThemeType = savedTheme as ThemeType || "auto";
+        setThemeState(initialTheme);
+        await applyTheme(initialTheme);
+      } catch (error) {
+        console.error("Failed to initialize theme:", error);
+      }
+    }
+
+    initTheme();
+  }, []);
+
   const applyTheme = async (newTheme: ThemeType) => {
     let effectiveTheme = newTheme;
     if (newTheme === 'auto') {
@@ -56,24 +75,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    async function initTheme() {
-      try {
-        await updateSystemTheme();
-
-        const savedTheme = await invoke<string>("get_config_value_async", {
-          section: "MainWindow",
-          key: "theme",
-        });
-
-        const initialTheme: ThemeType = savedTheme as ThemeType || "auto";
-        setThemeState(initialTheme);
-        await applyTheme(initialTheme);
-      } catch (error) {
-        console.error("Failed to initialize theme:", error);
-      }
-    }
-
-    initTheme();
+    applyTheme(theme);
 
     // 设置定时器定期检查系统主题
     const intervalId = setInterval(updateSystemTheme, 1000);
