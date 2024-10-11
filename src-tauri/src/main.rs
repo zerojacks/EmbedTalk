@@ -63,73 +63,19 @@ fn main() {
     //     .add_item(quit)
     //     .add_native_item(SystemTrayMenuItem::Separator)
     //     .add_item(hide);
-
+    let mut ctx = tauri::generate_context!();
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_theme::init(ctx.config_mut()))
         .setup(|app| {
             let handle = app.app_handle();
             global::set_app_handle(handle.clone()); // Set the global app handle
             Ok(())
         })
-        // .system_tray(SystemTray::new().with_menu(tray_menu))
-        // .on_system_tray_event(|app, event| match event {
-        //     SystemTrayEvent::LeftClick {
-        //         position: _,
-        //         size: _,
-        //         ..
-        //     } => {
-        //         println!("system tray received a left click");
-        //         let window = app.get_window("EmbedTalk").unwrap();
-        //         window.show().unwrap();
-        //         window.set_focus().unwrap();
-        //         let id = String::from("hide");
-        //         let item_handle = app.tray_handle().get_item(&id);
-        //         item_handle.set_title("Hide").unwrap();
-        //     }
-        //     SystemTrayEvent::RightClick {
-        //         position: _,
-        //         size: _,
-        //         ..
-        //     } => {
-        //         println!("system tray received a right click");
-        //     }
-        //     SystemTrayEvent::DoubleClick {
-        //         position: _,
-        //         size: _,
-        //         ..
-        //     } => {
-        //         println!("system tray received a double click");
-        //         // let window = app.get_window("EmbedTalk").unwrap();
-        //         // window.show().unwrap();
-        //     }
-        //     SystemTrayEvent::MenuItemClick { id, .. } => {
-        //         let item_handle = app.tray_handle().get_item(&id);
-        //         let window = app.get_window("EmbedTalk").unwrap();
-
-        //         match id.as_str() {
-        //             "quit" => {
-        //                 window.emit("clear-local-storage", ()).unwrap();
-        //                 std::process::exit(0);
-        //             }
-        //             "hide" => {
-        //                 if window.is_visible().unwrap() {
-        //                     window.hide().unwrap();
-        //                     item_handle.set_title("显示窗口").unwrap();
-        //                 } else {
-        //                     window.show().unwrap();
-        //                     window.set_focus().unwrap();
-        //                     item_handle.set_title("隐藏窗口").unwrap();
-        //                 }
-        //             }
-        //             _ => {}
-        //         }
-        //     }
-        //     _ => {}
-        // })
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 window.hide().unwrap();
@@ -155,7 +101,7 @@ fn main() {
             get_all_config_item_lists,
             get_protocol_config_item,
         ])
-        .build(tauri::generate_context!())
+        .build(ctx)
         .expect("error while running tauri application")
         .run(|_app_handle, event| match event {
             tauri::RunEvent::ExitRequested { api, .. } => {

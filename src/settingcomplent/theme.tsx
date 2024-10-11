@@ -8,7 +8,7 @@ import { invoke } from "@tauri-apps/api/core";
 const themesMap = {
     light: "明亮",
     dark: "黑暗",
-    system: "系统",
+    auto: "系统",
 };
 
 
@@ -21,7 +21,7 @@ const ThemeChange = () => {
         async function getconfigTheme() {
             let theme = await invoke<string>("get_config_value_async", {section: "MainWindow", key: "theme"});
             if (!theme.length) {
-                theme = "system";
+                theme = "auto";
             }
             console.log("getconfigTheme", theme);
             setSelectTheme(theme);

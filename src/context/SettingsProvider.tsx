@@ -9,8 +9,9 @@ import React, {
 import { setTheme as setTauriTheme } from '@tauri-apps/api/app';
 import { Theme } from '@tauri-apps/api/window';
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
-export type ThemeType = "light" | "dark" | "system";
+export type ThemeType = "light" | "dark" | "auto";
 
 interface SettingsContextInterface {
   theme: string;
@@ -23,70 +24,42 @@ export const SettingsContext = createContext<SettingsContextInterface>({
 });
 
 export const useSettingsContext = () => useContext(SettingsContext);
+
+
 const themeMedia = window.matchMedia("(prefers-color-scheme: dark)");
+themeMedia.addEventListener("change", async (e) => {
+  console.log("themeMedia", e);
+  const systheme = await invoke<ThemeType>("plugin:theme|get_theme");
+  applytheme(systheme as ThemeType);
+});
+
+const applytheme = async (theme: ThemeType) => {
+  console.log("act theme", theme);
+  await invoke("plugin:theme|set_theme", {
+    theme: theme,
+  });
+  document.body.setAttribute("data-theme", theme);
+};
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
-  const [curtheme, setCurTheme] = useState(theme);
-
+  
   useEffect(() => {
     async function getconfigTheme() {
       let theme = await invoke<string>("get_config_value_async", { section: "MainWindow", key: "theme" });
       if (!theme.length) {
-        theme = "system";
+        theme = "auto";
       }
-      console.log("getconfigTheme", theme);
       setTheme(theme);
     };
     getconfigTheme();
-
   }, [])
-
-  const getSystemTheme = () => {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  };
-
-  const handleSystemThemeChange = useCallback(async (event: MediaQueryListEvent) => {
-    console.log("systemtheme event", event, theme);
-    if (curtheme !== "system") {
-      return;
-    }
-
-    const isDark = event.matches;
-    applytheme(isDark ? "dark" : "light");
-  }, [curtheme, theme]);
-
-  const setSysTheme = useCallback(async (theme: ThemeType) => {
-    console.log("setsystem", theme);
-    let currentTheme = theme;
-    if (theme === "system") {
-      currentTheme = getSystemTheme();
-      themeMedia.addEventListener('change', handleSystemThemeChange);
-      console.error("add listen")
-    } else {
-      themeMedia.removeEventListener('change', handleSystemThemeChange);
-      console.error("remove listen")
-    }
-    await applytheme(currentTheme);
-  }, []);
 
   useEffect(() => {
     localStorage.setItem("theme", theme);
     console.log("theme", theme);
-    setCurTheme(theme);
-    setSysTheme(theme as ThemeType);
+    applytheme(theme as ThemeType);
   }, [theme]);
-
-  const applytheme = async (theme: ThemeType) => {
-    console.log("act theme", theme, themeMedia);
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-    document.body.setAttribute("data-theme", theme);
-    setTauriTheme(theme as Theme);
-    console.log("add listen");
-  };
 
   return (
     <SettingsContext.Provider value={{ theme, setTheme }}>
