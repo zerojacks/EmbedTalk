@@ -32,7 +32,7 @@ export const CardTitle: React.FC<{ element: XmlElement }> = ({ element }) => {
   const title = getDisplayName(element.name) + (element.attributes?.id ? ` (${element.attributes.id})` : '');
 
   return (
-    <div className="flex items-center space-x-2 bg-transparent"> {/* 使用space-x-2来添加横向间距 */}
+    <div className="flex items-center space-x-2"> {/* 使用space-x-2来添加横向间距 */}
       <h3 className="text-lg font-semibold">
         {title}
       </h3>
