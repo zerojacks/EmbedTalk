@@ -13,6 +13,7 @@ export interface XmlElement {
 
 interface TreeNodeProps {
   node: XmlElement | undefined;
+  onUpdate: (updatedNode: XmlElement) => void;
 }
 
 const Card: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -27,11 +28,11 @@ const CardHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </div>
 );
 
-const CardTitle: React.FC<{ element: XmlElement }> = ({ element }) => {
+export const CardTitle: React.FC<{ element: XmlElement }> = ({ element }) => {
   const title = getDisplayName(element.name) + (element.attributes?.id ? ` (${element.attributes.id})` : '');
 
   return (
-    <div className="flex items-center space-x-2"> {/* 使用space-x-2来添加横向间距 */}
+    <div className="flex items-center space-x-2 bg-transparent"> {/* 使用space-x-2来添加横向间距 */}
       <h3 className="text-lg font-semibold">
         {title}
       </h3>
@@ -87,7 +88,8 @@ const getDisplayName = (name: string, id?: string) => {
   }
   return definitions[name] || name;
 };
-const TreeNode: React.FC<TreeNodeProps> = ({ node }) => {
+
+const TreeNode: React.FC<TreeNodeProps> = ({ node, onUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   if (!node || !node.name) {
@@ -99,6 +101,18 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node }) => {
 
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
+  };
+
+  const handleChildUpdate = (updatedChild: XmlElement, index: number) => {
+    const updatedChildren = [...node.children];
+    updatedChildren[index] = updatedChild;
+    const updatedNode = { ...node, children: updatedChildren };
+    onUpdate(updatedNode);
+  };
+
+  const handleValueChange = (newValue: string) => {
+    const updatedNode = { ...node, value: newValue };
+    onUpdate(updatedNode);
   };
 
   const renderExpandIcon = () => {
@@ -132,25 +146,33 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node }) => {
             {isExpanded && hasChildren && (
               <CardContent>
                 {node.children.map((child, index) => (
-                  <TreeNode key={`${child.name}-${index}`} node={child} />
+                  <TreeNode 
+                    key={`${child.name}-${index}`} 
+                    node={child} 
+                    onUpdate={(updatedChild) => handleChildUpdate(updatedChild, index)}
+                  />
                 ))}
               </CardContent>
             )}
           </Card>
         );
-        case 'bit':
-          return (
-            <div>
-              <SplitBit element={node} />
-              {isExpanded && hasChildren && (
-                <CardContent>
-                  {node.children.map((child, index) => (
-                    <TreeNode key={`${child.name}-${index}`} node={child} />
-                  ))}
-                </CardContent>
-              )}
-            </div>
-          );
+      case 'bit':
+        return (
+          <div>
+            <SplitBit element={node} />
+            {isExpanded && hasChildren && (
+              <CardContent>
+                {node.children.map((child, index) => (
+                  <TreeNode 
+                    key={`${child.name}-${index}`} 
+                    node={child} 
+                    onUpdate={(updatedChild) => handleChildUpdate(updatedChild, index)}
+                  />
+                ))}
+              </CardContent>
+            )}
+          </div>
+        );
       default:
         if (hasChildren) {
           return (
@@ -164,23 +186,24 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node }) => {
               {isExpanded && (
                 <div className="pl-4">
                   {node.children.map((child, index) => (
-                    <TreeNode key={`${child.name}-${index}`} node={child} />
+                    <TreeNode 
+                      key={`${child.name}-${index}`} 
+                      node={child} 
+                      onUpdate={(updatedChild) => handleChildUpdate(updatedChild, index)}
+                    />
                   ))}
                 </div>
               )}
             </div>
           );
         } else {
-          switch (node.name) {
-            default:
-              return (
-                <HorizontalInput
-                  label={getDisplayName(node.name)}
-                  value={node.value || ''}
-                  onChange={(value) => console.log(`Changed ${node.name} to ${value}`)}
-                />
-              );
-          }
+          return (
+            <HorizontalInput
+              label={getDisplayName(node.name)}
+              value={node.value || ''}
+              onChange={handleValueChange}
+            />
+          );
         }
     }
   };
@@ -188,10 +211,10 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node }) => {
   return renderContent();
 };
 
-const XmlTree: React.FC<{ data: XmlElement }> = ({ data }) => {
+const XmlTree: React.FC<{ data: XmlElement; onUpdate: (updatedData: XmlElement) => void }> = ({ data, onUpdate }) => {
   return (
-    <div className="p-4">
-      <TreeNode node={data} />
+    <div>
+      <TreeNode node={data} onUpdate={onUpdate} />
     </div>
   );
 };

@@ -12,11 +12,13 @@ export type ThemeType = "light" | "dark" | "auto";
 
 interface SettingsContextInterface {
   theme: ThemeType;
+  efffectiveTheme: ThemeType;
   setTheme: (theme: ThemeType) => void;
 }
 
 export const SettingsContext = createContext<SettingsContextInterface>({
   theme: (localStorage.getItem("theme") as ThemeType) || "dark",
+  efffectiveTheme: (localStorage.getItem("theme") as ThemeType) || "dark",
   setTheme: () => { },
 });
 
@@ -27,6 +29,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     (localStorage.getItem("theme") as ThemeType) || "auto"
   );
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light');
+  const [efffectiveTheme, setEffeectiveTheme] = useState<ThemeType>(theme);
 
   useEffect(() => {
     async function initTheme() {
@@ -54,6 +57,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
     await getCurrentWindow().setTheme(effectiveTheme as Theme);
     document.body.setAttribute("data-theme", effectiveTheme);
+    setEffeectiveTheme(effectiveTheme);
   };
 
   const setTheme = async (newTheme: ThemeType) => {
@@ -86,7 +90,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   }, [theme]);
 
   return (
-    <SettingsContext.Provider value={{ theme, setTheme }}>
+    <SettingsContext.Provider value={{ theme, efffectiveTheme, setTheme }}>
       {children}
     </SettingsContext.Provider>
   );

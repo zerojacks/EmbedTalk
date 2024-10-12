@@ -11656,13 +11656,13 @@
 			<unit>V</unit>
 			<decimal>1</decimal>
 		</dataItem>
-	    <dataItem id="02010400">
+		<dataItem id="02010400">
 			<name>AB线电压</name>
 			<length>2</length>
 			<unit>V</unit>
 			<decimal>1</decimal>
 		</dataItem>
-	    <dataItem id="02010500">
+		<dataItem id="02010500">
 			<name>BC线电压</name>
 			<length>2</length>
 			<unit>V</unit>

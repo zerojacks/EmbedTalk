@@ -159,3 +159,21 @@ export const AlertSuccessIcon: React.FC<IconProps> = ({ className }) => (
     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
 </svg>
 )
+
+export const CodeIcon: React.FC<IconProps> = ({ className }) => (
+  <svg viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <path d="M31 16l-7 7l-1.41-1.41L28.17 16l-5.58-5.59L24 9l7 7z" fill="currentColor"></path>
+    <path d="M1 16l7-7l1.41 1.41L3.83 16l5.58 5.59L8 23l-7-7z" fill="currentColor"></path>
+    <path d="M12.419 25.484L17.639 6l1.932.518L14.35 26z" fill="currentColor"></path>
+  </svg>
+)
+
+
+export const ComponentsIcon: React.FC<IconProps> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+    <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12l3 3l3-3l-3-3z"></path><path d="M15 12l3 3l3-3l-3-3z"></path><path d="M9 6l3 3l3-3l-3-3z"></path>
+      <path d="M9 18l3 3l3-3l-3-3z"></path>
+    </g>
+  </svg>
+)

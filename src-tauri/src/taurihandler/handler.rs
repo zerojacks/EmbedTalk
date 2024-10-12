@@ -204,7 +204,6 @@ pub async fn get_protocol_config_item(value: &str) -> Result<XmlElement, String>
 
     // 调用 ProtocolConfigManager 的方法
     let element = ProtocolConfigManager::get_config_xml(&item_id, &protocol, &region, dir);
-    println!("get item{:?}", element);
     match element {
         Some(element) => Ok(element),
         _ => Err(format!("Failed to get protocol config item")),

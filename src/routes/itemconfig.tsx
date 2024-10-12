@@ -1,7 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FixedSizeList, ListChildComponentProps } from 'react-window';
-import XmlTree from '../components/xmltree';
+import XmlTree, {CardTitle} from '../components/xmltree';
+import XmlConverter from '../components/xmlconvert';
+import { CodeIcon, ComponentsIcon } from '../components/Icons';
 
 interface DataItem {
   item: string,
@@ -19,6 +21,8 @@ export interface XmlElement {
   children: XmlElement[];
 }
 
+type DisplayType = "compents" | "xml";
+
 export default function Itemconfig() {
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const [splitPosition, setSplitPosition] = useState<number>(50);
@@ -28,7 +32,10 @@ export default function Itemconfig() {
   const [selectedItem, setSelectedItem] = useState<DataItem>({} as DataItem);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [allitemlist, setAllitemlist] = useState<DataItem[]>([]);
-  const [selectXml, setSelectXml] = useState<XmlElement>({} as XmlElement );
+  const [selectXml, setSelectXml] = useState<XmlElement>({} as XmlElement);
+  const [displaytype, setDisplaytype] = useState<DisplayType>('xml');
+  const [allSelectItems, setAllSelectItems] = useState<DataItem[]>([]);
+
   // Add a ref to track whether the search term change is from selection
   const isSelecting = useRef(false);
 
@@ -36,7 +43,7 @@ export default function Itemconfig() {
     return new Promise((resolve) => {
       setTimeout(() => {
         const isHex = /^[0-9a-fA-F]+$/.test(term);
-  
+
         const results = allitemlist.filter(item => {
           if (isHex) {
             const regex = new RegExp(`^${term}`, 'i');
@@ -45,7 +52,7 @@ export default function Itemconfig() {
             return item.name && item.name.toLowerCase().includes(term.toLowerCase());
           }
         });
-  
+
         resolve(results);
       }, 300);
     });
@@ -114,6 +121,7 @@ export default function Itemconfig() {
     setSearchTerm(item.item);
     setSelectedItem(item);
     setShowDropdown(false);
+    allSelectItems.push(item);
   };
 
 
@@ -125,10 +133,10 @@ export default function Itemconfig() {
         console.log(element);
         setSelectXml(element);
       } catch (error) {
-          console.error('get_selected_config_item error:', error);
-        }
+        console.error('get_selected_config_item error:', error);
       }
-      get_selected_config_item();
+    }
+    get_selected_config_item();
   }, [selectedItem]);
 
 
@@ -152,7 +160,7 @@ export default function Itemconfig() {
 
   const Row: React.FC<ListChildComponentProps> = ({ index, style }) => {
     const item = filteredData[index];
-  
+
     return (
       <div
         className="flex items-center px-4 py-2 hover:bg-base-300 cursor-pointer"
@@ -165,6 +173,35 @@ export default function Itemconfig() {
         {item.region && <span>{item.region}</span>}
       </div>
     );
+  };
+
+
+  const ItemConfigRow: React.FC<ListChildComponentProps> = ({ index, style }) => {
+    const item = allSelectItems[index];
+
+    return (
+      <div
+        className="flex items-center px-4 py-2 hover:bg-base-300 cursor-pointer"
+        style={style}
+        onClick={() => selectItem(item)}
+      >
+        <span className="mr-2">{item.item}</span>
+        {item.name && <span className="mr-2">{item.name}</span>}
+        {item.protocol && <span className="mr-2">{item.protocol}</span>}
+        {item.region && <span>{item.region}</span>}
+      </div>
+    );
+  };
+
+  const handleXmlUpdate = (updatedData: XmlElement) => {
+    setSelectXml(updatedData);
+    // 这里您可以执行其他需要的操作，比如保存到后端等
+    console.log("xml数据更新:", updatedData);
+  };
+
+  const handleXmlElementChange = (newXmlElement: XmlElement) => {
+    setSelectXml(newXmlElement);
+    console.log('Updated XmlElement:', newXmlElement);
   };
 
   return (
@@ -181,56 +218,74 @@ export default function Itemconfig() {
         >
           <div className="p-4">
             <div className="flex items-center gap-2 m-2 relative">
-              <label className="flex-shrink-0">数据标识</label>
-              <div className="relative flex-grow">
-                <label className="input input-bordered flex items-center gap-2 w-full">
-                  <input 
-                    type="text" 
-                    className="grow" 
-                    placeholder="Search" 
-                    value={searchTerm}
-                    onChange={handleTextChange}
-                    onKeyDown={handleKeyDown}
-                    onFocus={() => searchTerm.trim() !== '' && setShowDropdown(true)}
-                  />
-                  {isLoading ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 16 16"
-                      fill="currentColor"
-                      className="h-4 w-4 opacity-70"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
-                        clipRule="evenodd"
+              <div className="flex flex-col w-full">
+                <div className="relative flex mb-2">
+                  <label className="flex-shrink-0">数据标识</label>
+                  <div className="relative flex-grow">
+                    <label className="input input-bordered flex items-center gap-2 w-full">
+                      <input
+                        type="text"
+                        className="grow"
+                        placeholder="Search"
+                        value={searchTerm}
+                        onChange={handleTextChange}
+                        onKeyDown={handleKeyDown}
+                        onFocus={() => searchTerm.trim() !== '' && setShowDropdown(true)}
                       />
-                    </svg>
-                  )}
-                </label>
-                {showDropdown && filteredData.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-transparent border rounded-md shadow-lg"
-                  onMouseLeave={() => setShowDropdown(false)}
-                  >
+                      {isLoading ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
+                      ) : (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 16 16"
+                          fill="currentColor"
+                          className="h-4 w-4 opacity-70"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                    </label>
+                    {showDropdown && filteredData.length > 0 && (
+                      <div
+                        className="absolute z-10 w-full mt-1 bg-base-200 border select-primary rounded-md shadow-lg textarea-bordered"
+                        onMouseLeave={() => setShowDropdown(false)}
+                      >
+                        <FixedSizeList
+                          height={Math.min(200, filteredData.length * 40)}
+                          itemCount={filteredData.length}
+                          itemSize={40}
+                          width="100%"
+                        >
+                          {Row}
+                        </FixedSizeList>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="w-full h-full p-4">
+                  <p>已选择数据项</p>
+                  <div className="w-full h-full p-4 border rounded-md textarea-bordered">
                     <FixedSizeList
-                      height={Math.min(200, filteredData.length * 40)}
-                      itemCount={filteredData.length}
+                      height={Math.min(200, allSelectItems.length * 40)}
+                      itemCount={allSelectItems.length}
                       itemSize={40}
                       width="100%"
                     >
-                      {Row}
+                      {ItemConfigRow}
                     </FixedSizeList>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <div
-          className="absolute top-0 bottom-0 w-0.5 bg-gray-200 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+          className="absolute top-0 bottom-0 w-px bg-splize cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
           style={{ left: `${splitPosition}%` }}
           onMouseDown={startResize}
         />
@@ -239,14 +294,33 @@ export default function Itemconfig() {
           className="h-full overflow-auto"
           style={{ width: `${100 - splitPosition}%` }}
         >
-          <div className="p-4">
-            <h2 className="text-lg font-semibold mb-2">选中的内容</h2>
-            {selectedItem ? (
-              <p className="p-2  rounded">{selectedItem.item}</p>
-            ) : (
-              <p className="text-gray-500">尚未选择任何内容</p>
+          <div className="p-4 w-full h-full flex flex-col">
+            {selectXml.name && (
+              <div className="flex mb-4 flex-row justify-between items-center sticky top-0 z-10 bg-base-200 shadow-md">
+                <CardTitle element={selectXml} />
+                <div role="tablist" className="tabs tabs-boxed">
+                  <label role="tab" className={`tab ${displaytype === 'compents' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('compents')}>
+                    <CodeIcon className="w-5 h-5" />
+                  </label>                
+                  <label role="tab" className={`tab ${displaytype === 'xml' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('xml')}>
+                    <ComponentsIcon  className="w-5 h-5" />
+                  </label>  
+                </div>
+              </div>
             )}
-            <XmlTree data={selectXml}/>
+            <div className="flex-1 overflow-y-auto">
+              {selectXml.name && (displaytype === 'compents') && (
+                <XmlTree data={selectXml} onUpdate={handleXmlUpdate}/>
+              )}
+              {selectXml.name && (displaytype === 'xml') && (
+                <div className="relative w-full h-full">
+                  <XmlConverter
+                    initialXml={selectXml}
+                    onXmlElementChange={handleXmlElementChange}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
