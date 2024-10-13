@@ -28,27 +28,29 @@ const CardHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </div>
 );
 
-export const CardTitle: React.FC<{ element: XmlElement }> = ({ element }) => {
+export const CardTitle: React.FC<{ element: XmlElement; className?: string }> = ({ element, className }) => {
   const title = getDisplayName(element.name) + (element.attributes?.id ? ` (${element.attributes.id})` : '');
 
   return (
-    <div className="flex items-center space-x-2"> {/* 使用space-x-2来添加横向间距 */}
+    <div className={`flex items-center space-x-2 ${className || ''}`}> {/* 将传入的className应用到最外层div */}
       <h3 className="text-lg font-semibold">
         {title}
       </h3>
       {element.attributes.region && (
-        <div className="badge badge-success">
-          {element.attributes.region}
-        </div>
+        <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {element.attributes.region}
+      </div>
       )}
       {element.attributes.protocol && ( // 确保这里检查的是protocol属性，而不是重复region
-        <div className="badge badge-success">
+        <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {element.attributes.protocol}
         </div>
       )}
     </div>
   );
 };
+
+
 const SplitBit: React.FC<{ element: XmlElement }> = ({ element }) => {
   const title = getDisplayName(element.name) + (element.attributes?.id ? ` (${element.attributes.id})` : '');
   return (

@@ -117,13 +117,20 @@ export default function Itemconfig() {
   };
 
   const selectItem = (item: DataItem) => {
-    isSelecting.current = true; // Set the ref before updating state
+    isSelecting.current = true;
     setSearchTerm(item.item);
     setSelectedItem(item);
     setShowDropdown(false);
-    allSelectItems.push(item);
+    
+    // Check if the item already exists in allSelectItems
+    setAllSelectItems(prevItems => {
+      const itemExists = prevItems.some(existingItem => existingItem.item === item.item);
+      if (!itemExists) {
+        return [...prevItems, item];
+      }
+      return prevItems;
+    });
   };
-
 
   useEffect(() => {
     async function get_selected_config_item() {
@@ -219,8 +226,8 @@ export default function Itemconfig() {
           <div className="p-4">
             <div className="flex items-center gap-2 m-2 relative">
               <div className="flex flex-col w-full">
-                <div className="relative flex mb-2">
-                  <label className="flex-shrink-0">数据标识</label>
+                <div className="flex items-center mb-2">
+                  <label className="flex-shrink-0 mr-2">数据标识</label>
                   <div className="relative flex-grow">
                     <label className="input input-bordered flex items-center gap-2 w-full">
                       <input
@@ -266,7 +273,7 @@ export default function Itemconfig() {
                     )}
                   </div>
                 </div>
-                <div className="w-full h-full p-4">
+                <div className="flex items-start w-full flex-col mt-4">
                   <p>已选择数据项</p>
                   <div className="w-full h-full p-4 border rounded-md textarea-bordered">
                     <FixedSizeList
@@ -297,7 +304,7 @@ export default function Itemconfig() {
           <div className="p-4 w-full h-full flex flex-col">
             {selectXml.name && (
               <div className="flex mb-4 flex-row justify-between items-center sticky top-0 z-10 bg-base-200 shadow-md">
-                <CardTitle element={selectXml} />
+                <CardTitle element={selectXml} className="ml-2"/>
                 <div role="tablist" className="tabs tabs-boxed">
                   <label role="tab" className={`tab ${displaytype === 'compents' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('compents')}>
                     <CodeIcon className="w-5 h-5" />
