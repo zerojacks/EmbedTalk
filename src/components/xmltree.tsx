@@ -36,12 +36,12 @@ export const CardTitle: React.FC<{ element: XmlElement; className?: string }> = 
       <h3 className="text-lg font-semibold">
         {title}
       </h3>
-      {element.attributes.region && (
+      {element.attributes?.region && (
         <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {element.attributes.region}
+        {element.attributes.id ? ` (${element.attributes.id})` : ''}
       </div>
       )}
-      {element.attributes.protocol && ( // 确保这里检查的是protocol属性，而不是重复region
+      {element.attributes?.protocol && ( // 确保这里检查的是protocol属性，而不是重复region
         <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {element.attributes.protocol}
         </div>
@@ -87,6 +87,8 @@ const HorizontalInput: React.FC<{
 const getDisplayName = (name: string, id?: string) => {
   if (id && definitions[id]) {
     return definitions[id];
+  } else if(!name) {
+    return ''
   }
   return definitions[name] || name;
 };

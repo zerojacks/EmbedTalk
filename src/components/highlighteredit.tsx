@@ -2,33 +2,23 @@ import React, { useRef, useEffect, useState } from 'react';
 import * as monaco from 'monaco-editor';
 import Editor, { EditorProps, Monaco, Theme } from '@monaco-editor/react';
 import { useSettingsContext } from "../context/SettingsProvider";
+import { toast } from "../context/ToastProvider";
 
 // 自定义弹出确认框组件
 const SaveChangesDialog: React.FC<{ onConfirm: (save: boolean) => void, onCancel: () => void }> = ({ onConfirm, onCancel }) => {
-  console.log("show dialog");
+  console.log('save changes dialog');
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg z-50">
-        <p className="text-lg mb-4">Do you want to save your changes?</p>
-        <div className="flex justify-end space-x-4">
-          <button 
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-700"
-            onClick={() => onConfirm(true)}>
-            Save
-          </button>
-          <button 
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-700"
-            onClick={() => onConfirm(false)}>
-            Don't Save
-          </button>
-          <button 
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-700"
-            onClick={onCancel}>
-            Cancel
-          </button>
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+      <div className="modal-box space-x-4">
+        <p className="py-4">是否保存当前更改</p>
+        <div className="modal-action flex">
+          <button className="btn flex items-center justify-center rounded hover:bg-blue-700" onClick={() => onConfirm(true)}>是</button>
+          <button className="btn flex items-center justify-center rounded hover:bg-gray-700" onClick={() => onConfirm(false)}>否</button>
+          <button className="btn flex items-center justify-center rounded hover:bg-red-700" onClick={() => onCancel()}>取消</button>
         </div>
       </div>
     </div>
+
   );
 };
 
@@ -36,7 +26,7 @@ const SaveChangesDialog: React.FC<{ onConfirm: (save: boolean) => void, onCancel
 interface MonacoEditorProps {
   initialValue: string;
   language: string;
-  onEditorChange: (value: string) => void;
+  onEditorChange: (value: string) => Promise<string | null>;
 }
 
 const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language, onEditorChange }) => {
@@ -45,6 +35,8 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [isChange, setIsChange] = useState<boolean>(false);
   const [showDialog, setShowDialog] = useState<boolean>(false); // 控制是否显示对话框
+  const [textvalue, setTextvalue] = useState<string>(initialValue);
+  const editvalueRef = useRef<string>(initialValue);
 
   const handleOnMount = (editor: monaco.editor.IStandaloneCodeEditor, monaco: Monaco) => {
     editorRef.current = editor;
@@ -52,62 +44,73 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
 
   useEffect(() => {
     if (editorRef.current) {
-      if(isChange) {
-        setShowDialog(true);
+      if (isChange) {
+        console.log("Change detected!", initialValue, editvalueRef.current);
+        if (editvalueRef.current !== initialValue) {
+          setShowDialog(true);
+        }
       } else {
-        if(editorRef.current) {
+        if (editorRef.current) {
           editorRef.current.setValue(initialValue);
         }
       }
     }
   }, [initialValue]);
 
-  const handleOnChange = (value: string | undefined) => {
+  async function  handleOnChange (value: string | undefined) {
     if (editorRef.current) {
       if (initialValue !== value) {
-        onEditorChange(value!);
         setIsChange(true);
       } else {
         setIsChange(false);
       }
+      editvalueRef.current = value!;
+      onEditorChange(value!);
     }
   };
 
-  // // 监听用户试图离开页面时的逻辑
-  // useEffect(() => {
-  //   const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
-  //     if (isChange) {
-  //       event.preventDefault();
-  //       setShowDialog(true);  // 显示自定义的弹出框
-  //       return (event.returnValue = ''); // 显示默认提示
-  //     }
-  //   };
-
-  //   window.addEventListener('beforeunload', beforeUnloadHandler);
-
-  //   return () => {
-  //     window.removeEventListener('beforeunload', beforeUnloadHandler);
-  //   };
-  // }, [isChange]);
-
-  const handleDialogConfirm = (save: boolean) => {
+  async function handleDialogConfirm(save: boolean) {
     if (save) {
-      // 保存文件的逻辑
       console.log("Saving changes...");
-      // 例如：保存文件后可以重置 isChange 状态
-      if(editorRef.current) {
+      if (editorRef.current) {
         const value = editorRef.current.getValue();
-        onEditorChange(value);
-        editorRef.current.setValue(initialValue);
+
+        try {
+          const result = await onEditorChange(value);
+          
+          if (result) {
+            // If result is not null, an error occurred
+            // console.error("Error parsing XML:", result);
+            toast.error("XML 格式错误");
+          } else {
+            // Success, reset editor to initial value
+            editorRef.current.setValue(initialValue);
+          }
+        } catch (error) {
+          console.error("Error saving changes:", error);
+        }
       }
       setIsChange(false);
+      // Mark changes as saved
+    } else {
+      setIsChange(false);
+      if (editorRef.current) {
+        editorRef.current.setValue(initialValue);
+      }
     }
-    setShowDialog(false); // 关闭对话框
-  };
-
+    // Close the dialog
+    setShowDialog(false);
+  }
+  
+  
   const handleDialogCancel = () => {
     setShowDialog(false); // 用户选择取消，关闭对话框
     setIsChange(false);
+    console.log("Canceling changes...", initialValue);
+    if (editorRef.current) {
+      editorRef.current.setValue(initialValue);
+      // setTextvalue(initialValue);
+    }
   };
 
   useEffect(() => {
@@ -115,7 +118,7 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
   }, [efffectiveTheme]);
 
   const editorOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
-    minimap: { enabled: false },
+    minimap: { enabled: true },
     automaticLayout: true,
     folding: true,
     foldingStrategy: 'indentation',
@@ -130,7 +133,7 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
         language={language}
         theme={edtheme}
         defaultLanguage="xml"
-        value={initialValue}
+        value={textvalue}
         onMount={handleOnMount}
         onChange={handleOnChange}
         options={editorOptions}

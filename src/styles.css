@@ -130,3 +130,9 @@ thead {
     flex-direction: column; /* Stack toasts vertically */
     pointer-events: auto; /* Allow interaction within the group */
 }
+
+/* .split-flex-column {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+} */
