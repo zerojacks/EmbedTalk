@@ -51,7 +51,9 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
         }
       } else {
         if (editorRef.current) {
-          editorRef.current.setValue(initialValue);
+          if(initialValue !== editvalueRef.current) {
+            editorRef.current.setValue(initialValue);
+          }
         }
       }
     }
@@ -65,7 +67,18 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
         setIsChange(false);
       }
       editvalueRef.current = value!;
-      onEditorChange(value!);
+      
+      try {
+        const result = await onEditorChange(value!);
+        if (result) {
+          // If result is not null, an error occurred
+          setIsChange(true);
+        } else {
+          setIsChange(false);
+        }
+      } catch (error) {
+        setIsChange(true);
+      }
     }
   };
 
