@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FixedSizeList, ListChildComponentProps } from 'react-window';
-import XmlTree, { CardTitle } from '../components/xmltree';
+import XmlTree, { getDisplayName } from '../components/xmltree';
 import XmlConverter from '../components/xmlconvert';
 import { CodeIcon, ComponentsIcon } from '../components/Icons';
 
@@ -22,6 +22,28 @@ export interface XmlElement {
 }
 
 type DisplayType = "compents" | "xml";
+
+export const CardTitle: React.FC<{ element: XmlElement; className?: string }> = ({ element, className }) => {
+  const title = getDisplayName(element.name) + (element.attributes?.id ? ` (${element.attributes.id})` : '');
+
+  return (
+    <div className={`flex items-center space-x-2 ${className || ''}`}> {/* 将传入的className应用到最外层div */}
+      <h3 className="text-lg font-semibold">
+        {title}
+      </h3>
+      {element.attributes?.region && (
+        <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {element.attributes.id ? ` (${element.attributes.id})` : ''}
+      </div>
+      )}
+      {element.attributes?.protocol && ( // 确保这里检查的是protocol属性，而不是重复region
+        <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {element.attributes.protocol}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function Itemconfig() {
   const [isResizing, setIsResizing] = useState<boolean>(false);
