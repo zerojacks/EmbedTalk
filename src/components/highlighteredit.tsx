@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as monaco from 'monaco-editor';
 import Editor, { EditorProps, Monaco, Theme } from '@monaco-editor/react';
 import { useSettingsContext } from "../context/SettingsProvider";
@@ -37,6 +37,7 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
   const [showDialog, setShowDialog] = useState<boolean>(false); // 控制是否显示对话框
   const [textvalue, setTextvalue] = useState<string>(initialValue);
   const editvalueRef = useRef<string>(initialValue);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleOnMount = (editor: monaco.editor.IStandaloneCodeEditor, monaco: Monaco) => {
     editorRef.current = editor;
@@ -44,8 +45,8 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
 
   useEffect(() => {
     if (editorRef.current) {
+      console.log("Change detected!", initialValue, editvalueRef.current);
       if (isChange) {
-        console.log("Change detected!", initialValue, editvalueRef.current);
         if (editvalueRef.current !== initialValue) {
           setShowDialog(true);
         }
@@ -59,7 +60,7 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
     }
   }, [initialValue]);
 
-  async function  handleOnChange (value: string | undefined) {
+  const handleOnChange = useCallback(async (value: string | undefined) => {
     if (editorRef.current) {
       if (initialValue !== value) {
         setIsChange(true);
@@ -67,20 +68,28 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
         setIsChange(false);
       }
       editvalueRef.current = value!;
-      
-      try {
-        const result = await onEditorChange(value!);
-        if (result) {
-          // If result is not null, an error occurred
-          setIsChange(true);
-        } else {
-          setIsChange(false);
-        }
-      } catch (error) {
-        setIsChange(true);
+
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
+
+      // Set a new timeout
+      timeoutRef.current = setTimeout(async () => {
+        try {
+          const result = await onEditorChange(value!);
+          if (result) {
+            // If result is not null, an error occurred
+            setIsChange(true);
+          } else {
+            setIsChange(false);
+          }
+        } catch (error) {
+          setIsChange(true);
+        }
+      }, 1000); // 1000ms delay, adjust as needed
     }
-  };
+  }, [initialValue, onEditorChange]);
 
   async function handleDialogConfirm(save: boolean) {
     if (save) {
