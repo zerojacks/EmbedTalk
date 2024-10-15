@@ -355,10 +355,10 @@ export default function Itemconfig() {
                 <CardTitle element={selectXml} className="ml-2"/>
                 <div role="tablist" className="tabs tabs-boxed">
                   <label role="tab" className={`tab ${displaytype === 'compents' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('compents')}>
-                    <CodeIcon className="w-5 h-5" />
+                    <ComponentsIcon className="w-5 h-5" />
                   </label>                
                   <label role="tab" className={`tab ${displaytype === 'xml' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('xml')}>
-                    <ComponentsIcon  className="w-5 h-5" />
+                    <CodeIcon  className="w-5 h-5" />
                   </label>  
                 </div>
               </div>

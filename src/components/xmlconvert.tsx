@@ -2,13 +2,7 @@ import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import MonacoEditorArea from './highlighteredit';
 import { ChevronRight, ChevronDown } from './Icons';
 import Split from 'react-split';
-
-export interface XmlElement {
-  name: string;
-  attributes: { [key: string]: string };
-  value: string | null;
-  children: XmlElement[];
-}
+import { XmlElement } from '../routes/itemconfig';
 
 interface EnhancedXmlEditorProps {
   initialXml: XmlElement;
