@@ -4,24 +4,7 @@ import { FixedSizeList, ListChildComponentProps } from 'react-window';
 import XmlTree, { getDisplayName } from '../components/xmltree';
 import XmlConverter from '../components/xmlconvert';
 import { CodeIcon, ComponentsIcon } from '../components/Icons';
-
-interface DataItem {
-  item: string;
-  name?: string;
-  protocol?: string;
-  region?: string;
-  dir?: string;
-  xmlElement?: XmlElement;
-}
-
-export interface XmlElement {
-  name: string;
-  attributes: { [key: string]: string };
-  value: string | null;
-  children: XmlElement[];
-}
-
-type DisplayType = "compents" | "xml";
+import { useItemConfigStore, XmlElement, DataItem } from '../stores/useItemConfigStore';
 
 export const CardTitle: React.FC<{ element: XmlElement; className?: string }> = ({ element, className }) => {
   const title = getDisplayName(element.name) + (element.attributes?.id ? ` (${element.attributes.id})` : '');
@@ -46,17 +29,30 @@ export const CardTitle: React.FC<{ element: XmlElement; className?: string }> = 
 };
 
 export default function Itemconfig() {
-  const [isResizing, setIsResizing] = useState<boolean>(false);
-  const [splitPosition, setSplitPosition] = useState<number>(50);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showDropdown, setShowDropdown] = useState<boolean>(false);
-  const [filteredData, setFilteredData] = useState<DataItem[]>([]);
-  const [selectedItem, setSelectedItem] = useState<DataItem>({} as DataItem);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [allitemlist, setAllitemlist] = useState<DataItem[]>([]);
-  const [selectXml, setSelectXml] = useState<XmlElement>({} as XmlElement);
-  const [displaytype, setDisplaytype] = useState<DisplayType>('xml');
-  const [allSelectItems, setAllSelectItems] = useState<DataItem[]>([]);
+  const {
+    isResizing,
+    splitPosition,
+    searchTerm,
+    showDropdown,
+    filteredData,
+    selectedItem,
+    isLoading,
+    allitemlist,
+    selectXml,
+    displaytype,
+    allSelectItems,
+    setIsResizing,
+    setSplitPosition,
+    setSearchTerm,
+    setShowDropdown,
+    setFilteredData,
+    setSelectedItem,
+    setIsLoading,
+    setAllitemlist,
+    setSelectXml,
+    setDisplaytype,
+    setAllSelectItems,
+  } = useItemConfigStore();
 
   const isSelecting = useRef(false);
 
@@ -137,6 +133,7 @@ export default function Itemconfig() {
   };
 
   const selectItem = async (item: DataItem) => {
+    console.log("select item", item);
     isSelecting.current = true;
     setSearchTerm(item.item);
     setSelectedItem(item);
@@ -173,9 +170,9 @@ export default function Itemconfig() {
     }
   }, [isResizing]);
 
-  const Row: React.FC<ListChildComponentProps> = ({ index, style }) => {
-    const item = filteredData[index];
-
+  const SearchList: React.FC<ListChildComponentProps> = ({ index, style, data}) => {
+    const item = data[index];
+    console.log("Row", item, data);
     return (
       <div
         className="flex items-center px-4 py-2 hover:bg-base-300 cursor-pointer"
@@ -191,22 +188,23 @@ export default function Itemconfig() {
   };
 
   const updateItemIntoAllselectItem = (item: DataItem) => {
-    setAllSelectItems(prevItems => {
-      const itemIndex = prevItems.findIndex(existingItem => 
-        existingItem.item === item.item &&
-        existingItem.protocol === item.protocol &&
-        existingItem.region === item.region
-      );
-      
-      if (itemIndex === -1) {
-        return [...prevItems, item];
-      } else {
-        const newItems = [...prevItems];
-        newItems[itemIndex] = item;
-        return newItems;
-      }
-    });
+    const itemIndex = allSelectItems.findIndex(existingItem => 
+      existingItem.item === item.item &&
+      existingItem.protocol === item.protocol &&
+      existingItem.region === item.region
+    );
+    
+    if (itemIndex === -1) {
+      // 如果没有找到，添加新项
+      setAllSelectItems([...allSelectItems, item]);
+    } else {
+      // 如果找到了，更新该项
+      const newItems = [...allSelectItems];
+      newItems[itemIndex] = item;
+      setAllSelectItems(newItems);
+    }
   };
+  
 
   const itemConfigSelect = async (item: DataItem) => {
     console.log("itemConfigSelect:", item);
@@ -228,8 +226,8 @@ export default function Itemconfig() {
     }
   }
 
-  const ItemConfigRow: React.FC<ListChildComponentProps> = ({ index, style }) => {
-    const item = allSelectItems[index];
+  const ItemConfigRow: React.FC<ListChildComponentProps> = ({ index, style, data }) => {
+    const item = data[index];
 
     return (
       <div
@@ -246,16 +244,9 @@ export default function Itemconfig() {
   };
 
   const handleXmlElementChange = (newXmlElement: XmlElement) => {
-    setSelectXml(newXmlElement);
-    setAllSelectItems(prevItems => {
-      const updatedItems = prevItems.map(item => 
-        (item.item === selectedItem.item 
-          && item.protocol === selectedItem.protocol
-        && item.region === selectedItem.region) 
-        ? { ...item, xmlElement: newXmlElement } : item
-      );
-      return updatedItems;
-    });
+    setSelectXml(newXmlElement); // 假设 setSelectXml 是一个有效的更新函数
+    selectedItem.xmlElement = newXmlElement;
+    updateItemIntoAllselectItem(selectedItem)
     console.log('Updated XmlElement:', newXmlElement);
   };
 
@@ -314,8 +305,9 @@ export default function Itemconfig() {
                           itemCount={filteredData.length}
                           itemSize={40}
                           width="100%"
+                          itemData={filteredData}
                         >
-                          {Row}
+                          {SearchList}
                         </FixedSizeList>
                       </div>
                     )}
@@ -329,6 +321,7 @@ export default function Itemconfig() {
                       itemCount={allSelectItems.length}
                       itemSize={40}
                       width="100%"
+                      itemData={allSelectItems}
                     >
                       {ItemConfigRow}
                     </FixedSizeList>

@@ -8,5 +8,11 @@
     "value": "值",
     "time": "时间格式",
     "splitByLength": "长度拆分",
-    "splitbit": "字节拆分"
+    "splitbit": "字节拆分",
+    "type": "类型",
+    "single": "单个类型",
+    "template": "模版",
+    "item": "数据项",
+    "itembox": "数据项组合",
+    "lengthrule": "计算规则"
   }
