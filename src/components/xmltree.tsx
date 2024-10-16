@@ -38,7 +38,7 @@ export const CardTitle: React.FC<{ element: XmlElement; className?: string }> = 
       </h3>
       {element.attributes?.region && (
         <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {element.attributes.id ? ` (${element.attributes.id})` : ''}
+        {element.attributes.region ? ` (${element.attributes.region})` : ''}
       </div>
       )}
       {element.attributes?.protocol && ( // 确保这里检查的是protocol属性，而不是重复region
@@ -84,6 +84,30 @@ const HorizontalInput: React.FC<{
   </div>
 );
 
+const ValueInput: React.FC<{
+  label: string;
+  valuekey: string;
+  value: string;
+  onKeyChange: (key: string) => void;
+  onValueChange: (value: string) => void;
+}> = ({ label, valuekey, value, onKeyChange, onValueChange }) => (
+  <div className="flex items-center mb-4">
+    <label className="w-1/4 text-sm font-medium">
+      {label}
+    </label>
+    <input
+      className="input input-bordered min-w-0.5 max-w-xs"
+      value={valuekey}
+      onChange={(e) => onKeyChange(e.target.value)}
+    />
+    <input
+      className="input input-bordered w-full max-w-xs"
+      value={value}
+      onChange={(e) => onValueChange(e.target.value)}
+    />
+  </div>
+);
+
 export const getDisplayName = (name: string, id?: string) => {
   if (id && definitions[id]) {
     return definitions[id];
@@ -116,6 +140,17 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, onUpdate }) => {
 
   const handleValueChange = (newValue: string) => {
     const updatedNode = { ...node, value: newValue };
+    onUpdate(updatedNode);
+  };
+
+  const handleKeyChange = (newValue: string) => {
+    const updatedNode: XmlElement = {
+      ...node,
+      attributes: {
+        ...node.attributes,
+        key: newValue
+      }
+    };
     onUpdate(updatedNode);
   };
 
@@ -177,6 +212,16 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, onUpdate }) => {
             )}
           </div>
         );
+      case 'value':
+        return (
+          <ValueInput
+          label={getDisplayName(node.name)}
+          valuekey={node.attributes.key}
+          value={node.value || ''}
+          onKeyChange={handleKeyChange}
+          onValueChange={handleValueChange}
+        />
+        )
       default:
         if (hasChildren) {
           return (

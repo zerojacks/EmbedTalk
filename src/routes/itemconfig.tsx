@@ -8,22 +8,22 @@ import { useItemConfigStore, XmlElement, DataItem } from '../stores/useItemConfi
 import SearchList from '../components/serachlist';
 import ItemConfigRow from '../components/ItemConfigRow';
 
-export const CardTitle: React.FC<{ element: XmlElement; className?: string }> = ({ element, className }) => {
-  const title = getDisplayName(element.name) + (element.attributes?.id ? ` (${element.attributes.id})` : '');
+export const CompentTitle: React.FC<{ dataitem: DataItem; className?: string }> = ({ dataitem, className }) => {
+  const title = getDisplayName(dataitem.xmlElement?.name!) + (dataitem.item ? ` (${dataitem.item})` : '');
 
   return (
-    <div className={`flex items-center space-x-2 ${className || ''}`}> {/* 将传入的className应用到最外层div */}
+    <div className={`flex items-center space-x-2 ${className || ''}`}> 
       <h3 className="text-lg font-semibold">
         {title}
       </h3>
-      {element.attributes?.region && (
+      {dataitem.protocol && (
         <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {element.attributes.region ? ` (${element.attributes.region})` : ''}
-      </div>
+          {dataitem.protocol}
+        </div>
       )}
-      {element.attributes?.protocol && ( // 确保这里检查的是protocol属性，而不是重复region
-        <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {element.attributes.protocol}
+      {dataitem.region && (
+        <div className="badge badge-info" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {dataitem.region}
         </div>
       )}
     </div>
@@ -56,23 +56,46 @@ export default function Itemconfig() {
   const isSelecting = useRef(false);
   const allSelectItemsRef = useRef(allSelectItems);
   const inputRef = useRef<HTMLInputElement>(null);
-
+  const listRef = useRef<FixedSizeList>(null);
+  const prevItemsLengthRef = useRef(allSelectItems.length);
   allSelectItemsRef.current = allSelectItems;
+
+  const scrollToBottom = useCallback(() => {
+    if (listRef.current) {
+      listRef.current.scrollToItem(allSelectItems.length - 1);
+    }
+  }, [allSelectItems.length]);
+
+  useEffect(() => {
+    if (allSelectItems.length > prevItemsLengthRef.current) {
+      scrollToBottom();
+    }
+    prevItemsLengthRef.current = allSelectItems.length;
+  }, [allSelectItems.length, scrollToBottom]);
 
   const asyncSearch = async (term: string): Promise<DataItem[]> => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        const isHex = /^[0-9a-fA-F]+$/.test(term);
-
+        const isAllCharacters = /^[a-zA-Z0-9]+$/.test(term);
+        const containsChinese = /[\u4e00-\u9fa5]/.test(term);
+  
         const results = allitemlist.filter(item => {
-          if (isHex) {
+          if (isAllCharacters) {
+            // 如果全是字符（包括数字），则匹配 item
             const regex = new RegExp(`^${term}`, 'i');
             return regex.test(item.item);
-          } else {
+          } else if (containsChinese) {
+            // 如果包含汉字，则匹配 name
             return item.name && item.name.toLowerCase().includes(term.toLowerCase());
+          } else {
+            // 如果是其他情况（例如混合输入），则同时匹配 item 和 name
+            return (
+              item.item.toLowerCase().includes(term.toLowerCase()) ||
+              (item.name && item.name.toLowerCase().includes(term.toLowerCase()))
+            );
           }
         });
-
+  
         resolve(results);
       }, 300);
     });
@@ -132,7 +155,6 @@ export default function Itemconfig() {
     if (e.key === 'Enter') {
       if(inputRef.current) {
         const currentValue = inputRef.current.value;
-        console.log("currentValue", currentValue);
         const curitem = {} as DataItem;
         curitem.item = currentValue;
         selectItem(curitem);
@@ -140,19 +162,33 @@ export default function Itemconfig() {
     }
   };
 
+  const handleInputFocus = async () => {
+    if(inputRef.current) {
+      const currentValue = inputRef.current.value;
+      setIsLoading(true);
+      try {
+        const results = await asyncSearch(currentValue);
+        setFilteredData(results);
+        setShowDropdown(true);
+      } catch (error) {
+        setFilteredData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }
+
   const selectItem = useCallback(async (item: DataItem) => {
     console.log("select item", item);
     isSelecting.current = true;
-    // setSearchTerm(item.item);
-    // setShowDropdown(false);
+    setShowDropdown(false);
+    setSearchTerm(item.item);
     let updatedItem = { ...item, xmlElement: {} as XmlElement };
     try {
       const element = await invoke<XmlElement>('get_protocol_config_item', { value: JSON.stringify(item) });
       updatedItem = { ...item, xmlElement: element };
-      // setSelectXml(element);
     } catch (error) {
       console.error('get_protocol_config_item error:', error);
-      // setSelectXml({} as XmlElement);
     }
     console.log("select item xml", updatedItem)
     updateItemIntoAllselectItem(updatedItem);
@@ -194,12 +230,6 @@ export default function Itemconfig() {
       setAllSelectItems(newItems);
     }
   };
-
-
-  useEffect(() => {
-    console.log("allSelectItems", allSelectItems);
-  }, [allSelectItems]);
-
 
   const itemConfigSelect = async (item: DataItem) => {
     console.log("itemConfigSelect:", item);
@@ -252,7 +282,7 @@ export default function Itemconfig() {
                         value={searchTerm}
                         onChange={handleTextChange}
                         onKeyDown={handleKeyDown}
-                        onFocus={() => searchTerm.trim() !== '' && setShowDropdown(true)}
+                        onFocus={handleInputFocus}
                       />
                       {isLoading ? (
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
@@ -277,9 +307,9 @@ export default function Itemconfig() {
                         onMouseLeave={() => setShowDropdown(false)}
                       >
                         <FixedSizeList
-                          height={Math.min(200, filteredData.length * 40)}
+                          height={Math.min(200, filteredData.length * 35)}
                           itemCount={filteredData.length}
-                          itemSize={40}
+                          itemSize={35}
                           width="100%"
                           itemData={filteredData}
                         >
@@ -293,9 +323,10 @@ export default function Itemconfig() {
                   <p>已选择数据项</p>
                   <div className="w-full h-full p-4 border rounded-md textarea-bordered">
                     <FixedSizeList
-                      height={Math.min(200, allSelectItems.length * 40)}
+                      ref={listRef}
+                      height={Math.min(200, allSelectItems.length * 35)}
                       itemCount={allSelectItems.length}
-                      itemSize={40}
+                      itemSize={35}
                       width="100%"
                       itemData={allSelectItems}
                     >
@@ -321,7 +352,7 @@ export default function Itemconfig() {
           <div className="p-4 w-full h-full flex flex-col">
             {selectedItem.xmlElement && (
               <div className="flex mb-4 flex-row justify-between items-center sticky top-0 z-10 bg-base-200 shadow-md">
-                <CardTitle element={selectedItem.xmlElement} className="ml-2"/>
+                <CompentTitle dataitem={selectedItem} className="ml-2"/>
                 <div role="tablist" className="tabs tabs-boxed">
                   <label role="tab" className={`tab ${displaytype === 'compents' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('compents')}>
                     <ComponentsIcon className="w-5 h-5" />
