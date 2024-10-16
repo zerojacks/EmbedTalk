@@ -43,6 +43,10 @@ const convertToXml = (element: XmlElement, indent: string = ''): string => {
 
 
 async function parseXml(xmlString: string) {
+  if (xmlString.trim() === '') {
+      return { name: '', attributes: {}, value: null, children: [] }; // 空字符串返回空对象
+  }
+
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlString, "text/xml");
 
@@ -85,13 +89,17 @@ const XmlConverter: React.FC<EnhancedXmlEditorProps> = memo(({ initialXml, onXml
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    console.log('xmlText', initialXml);
     setXmlText(convertToXml(initialXml));
   }, [initialXml]);
 
   const onXmlEditorChange = async (xmlString: string): Promise<string | null> => {
     try {
       const xmlElement: XmlElement = await parseXml(xmlString);
-      onXmlElementChange(xmlElement);
+      if (xmlElement.name !== '') {
+        setXmlText(convertToXml(xmlElement));
+        onXmlElementChange(xmlElement);
+      }
       setErrorLogs('');
       return null; // Success returns null
     } catch (error) {

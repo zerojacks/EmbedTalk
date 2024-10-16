@@ -44,17 +44,16 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
   };
 
   useEffect(() => {
+    console.log("initialValue useEffect", initialValue);
     if (editorRef.current) {
-      console.log("Change detected!", initialValue, editvalueRef.current);
       if (isChange) {
         if (editvalueRef.current !== initialValue) {
           setShowDialog(true);
         }
       } else {
-        if (editorRef.current) {
-          if(initialValue !== editvalueRef.current) {
-            editorRef.current.setValue(initialValue);
-          }
+        if(initialValue !== editvalueRef.current) {
+          editvalueRef.current = initialValue;
+          editorRef.current.setValue(initialValue);
         }
       }
     }

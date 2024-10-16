@@ -5,6 +5,8 @@ import XmlTree, { getDisplayName } from '../components/xmltree';
 import XmlConverter from '../components/xmlconvert';
 import { CodeIcon, ComponentsIcon } from '../components/Icons';
 import { useItemConfigStore, XmlElement, DataItem } from '../stores/useItemConfigStore';
+import SearchList from '../components/serachlist';
+import ItemConfigRow from '../components/ItemConfigRow';
 
 export const CardTitle: React.FC<{ element: XmlElement; className?: string }> = ({ element, className }) => {
   const title = getDisplayName(element.name) + (element.attributes?.id ? ` (${element.attributes.id})` : '');
@@ -16,7 +18,7 @@ export const CardTitle: React.FC<{ element: XmlElement; className?: string }> = 
       </h3>
       {element.attributes?.region && (
         <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {element.attributes.id ? ` (${element.attributes.id})` : ''}
+        {element.attributes.region ? ` (${element.attributes.region})` : ''}
       </div>
       )}
       {element.attributes?.protocol && ( // 确保这里检查的是protocol属性，而不是重复region
@@ -34,13 +36,12 @@ export default function Itemconfig() {
     splitPosition,
     searchTerm,
     showDropdown,
-    filteredData,
     selectedItem,
     isLoading,
     allitemlist,
-    selectXml,
     displaytype,
     allSelectItems,
+    filteredData,
     setIsResizing,
     setSplitPosition,
     setSearchTerm,
@@ -49,12 +50,14 @@ export default function Itemconfig() {
     setSelectedItem,
     setIsLoading,
     setAllitemlist,
-    setSelectXml,
     setDisplaytype,
     setAllSelectItems,
   } = useItemConfigStore();
-
   const isSelecting = useRef(false);
+  const allSelectItemsRef = useRef(allSelectItems);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  allSelectItemsRef.current = allSelectItems;
 
   const asyncSearch = async (term: string): Promise<DataItem[]> => {
     return new Promise((resolve) => {
@@ -94,7 +97,6 @@ export default function Itemconfig() {
     }
 
     let debounceTimeout: NodeJS.Timeout;
-
     const performSearch = async () => {
       if (searchTerm.trim() === '') {
         setFilteredData([]);
@@ -128,29 +130,33 @@ export default function Itemconfig() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      selectItem({ item: searchTerm } as DataItem);
+      if(inputRef.current) {
+        const currentValue = inputRef.current.value;
+        console.log("currentValue", currentValue);
+        const curitem = {} as DataItem;
+        curitem.item = currentValue;
+        selectItem(curitem);
+      }
     }
   };
 
-  const selectItem = async (item: DataItem) => {
+  const selectItem = useCallback(async (item: DataItem) => {
     console.log("select item", item);
     isSelecting.current = true;
-    setSearchTerm(item.item);
-    setSelectedItem(item);
-    setShowDropdown(false);
-    
+    // setSearchTerm(item.item);
+    // setShowDropdown(false);
+    let updatedItem = { ...item, xmlElement: {} as XmlElement };
     try {
       const element = await invoke<XmlElement>('get_protocol_config_item', { value: JSON.stringify(item) });
-      const updatedItem = { ...item, xmlElement: element };
-      
-      updateItemIntoAllselectItem(updatedItem)
-  
-      setSelectXml(element);
+      updatedItem = { ...item, xmlElement: element };
+      // setSelectXml(element);
     } catch (error) {
       console.error('get_protocol_config_item error:', error);
-      setSelectXml({} as XmlElement);
+      // setSelectXml({} as XmlElement);
     }
-  };
+    console.log("select item xml", updatedItem)
+    updateItemIntoAllselectItem(updatedItem);
+  }, [searchTerm]);
 
   const startResize = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     setIsResizing(true);
@@ -170,81 +176,50 @@ export default function Itemconfig() {
     }
   }, [isResizing]);
 
-  const SearchList: React.FC<ListChildComponentProps> = ({ index, style, data}) => {
-    const item = data[index];
-    console.log("Row", item, data);
-    return (
-      <div
-        className="flex items-center px-4 py-2 hover:bg-base-300 cursor-pointer"
-        style={style}
-        onClick={() => selectItem(item)}
-      >
-        <span className="mr-2">{item.item}</span>
-        {item.name && <span className="mr-2">{item.name}</span>}
-        {item.protocol && <span className="mr-2">{item.protocol}</span>}
-        {item.region && <span>{item.region}</span>}
-      </div>
-    );
-  };
-
   const updateItemIntoAllselectItem = (item: DataItem) => {
-    const itemIndex = allSelectItems.findIndex(existingItem => 
+    const currentAllSelectItems = allSelectItemsRef.current;
+    const itemIndex = currentAllSelectItems.findIndex(existingItem => 
       existingItem.item === item.item &&
       existingItem.protocol === item.protocol &&
       existingItem.region === item.region
     );
-    
+    console.log("updateItemIntoAllselectItem", item);
     if (itemIndex === -1) {
       // 如果没有找到，添加新项
-      setAllSelectItems([...allSelectItems, item]);
+      setAllSelectItems([...currentAllSelectItems, item]);
     } else {
       // 如果找到了，更新该项
-      const newItems = [...allSelectItems];
+      const newItems = [...currentAllSelectItems];
       newItems[itemIndex] = item;
       setAllSelectItems(newItems);
     }
   };
-  
+
+
+  useEffect(() => {
+    console.log("allSelectItems", allSelectItems);
+  }, [allSelectItems]);
+
 
   const itemConfigSelect = async (item: DataItem) => {
     console.log("itemConfigSelect:", item);
     isSelecting.current = true;
-    setSelectedItem(item);
-    if (item.xmlElement) {
-      setSelectXml(item.xmlElement);
-    } else {
+    if (!item.xmlElement) {
       try {
         const element = await invoke<XmlElement>('get_protocol_config_item', { value: JSON.stringify(item) });
         const updatedItem = { ...item, xmlElement: element };
         updateItemIntoAllselectItem(updatedItem)
-        setSelectXml(element);
+        item.xmlElement = element;
       } catch (error) {
         const updatedItem = { ...item, xmlElement: {} as XmlElement };
         updateItemIntoAllselectItem(updatedItem)
-        setSelectXml({} as XmlElement);
+        item.xmlElement = {} as XmlElement;
       }
-    }
+    } 
+    setSelectedItem(item);
   }
 
-  const ItemConfigRow: React.FC<ListChildComponentProps> = ({ index, style, data }) => {
-    const item = data[index];
-
-    return (
-      <div
-        className="flex items-center px-4 py-2 hover:bg-base-300 cursor-pointer"
-        style={style}
-        onClick={() => itemConfigSelect(item)}
-      >
-        <span className="mr-2">{item.item}</span>
-        {item.name && <span className="mr-2">{item.name}</span>}
-        {item.protocol && <span className="mr-2">{item.protocol}</span>}
-        {item.region && <span>{item.region}</span>}
-      </div>
-    );
-  };
-
   const handleXmlElementChange = (newXmlElement: XmlElement) => {
-    setSelectXml(newXmlElement); // 假设 setSelectXml 是一个有效的更新函数
     selectedItem.xmlElement = newXmlElement;
     updateItemIntoAllselectItem(selectedItem)
     console.log('Updated XmlElement:', newXmlElement);
@@ -270,6 +245,7 @@ export default function Itemconfig() {
                   <div className="relative flex-grow">
                     <label className="input input-bordered flex items-center gap-2 w-full">
                       <input
+                        ref={inputRef}
                         type="text"
                         className="grow"
                         placeholder="Search"
@@ -307,7 +283,7 @@ export default function Itemconfig() {
                           width="100%"
                           itemData={filteredData}
                         >
-                          {SearchList}
+                          {(props) => <SearchList {...props} selectItem={selectItem} />}
                         </FixedSizeList>
                       </div>
                     )}
@@ -323,7 +299,7 @@ export default function Itemconfig() {
                       width="100%"
                       itemData={allSelectItems}
                     >
-                      {ItemConfigRow}
+                      {(props) => <ItemConfigRow {...props} selectItem={itemConfigSelect} />}
                     </FixedSizeList>
                   </div>
                 </div>
@@ -343,9 +319,9 @@ export default function Itemconfig() {
           style={{ width: `${100 - splitPosition}%` }}
         >
           <div className="p-4 w-full h-full flex flex-col">
-            {selectXml && (
+            {selectedItem.xmlElement && (
               <div className="flex mb-4 flex-row justify-between items-center sticky top-0 z-10 bg-base-200 shadow-md">
-                <CardTitle element={selectXml} className="ml-2"/>
+                <CardTitle element={selectedItem.xmlElement} className="ml-2"/>
                 <div role="tablist" className="tabs tabs-boxed">
                   <label role="tab" className={`tab ${displaytype === 'compents' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('compents')}>
                     <ComponentsIcon className="w-5 h-5" />
@@ -357,13 +333,13 @@ export default function Itemconfig() {
               </div>
             )}
             <div className="flex-1 overflow-y-auto">
-              {selectXml && (displaytype === 'compents') && (
-                <XmlTree data={selectXml} onUpdate={handleXmlElementChange}/>
+              {selectedItem.xmlElement && (displaytype === 'compents') && (
+                <XmlTree data={selectedItem.xmlElement} onUpdate={handleXmlElementChange}/>
               )}
-              {selectXml && (displaytype === 'xml') && (
+              {selectedItem.xmlElement && (displaytype === 'xml') && (
                 <div className="relative w-full h-full">
                   <XmlConverter
-                    initialXml={selectXml}
+                    initialXml={selectedItem.xmlElement}
                     onXmlElementChange={handleXmlElementChange}
                   />
                 </div>
