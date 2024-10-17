@@ -44,7 +44,6 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
   };
 
   useEffect(() => {
-    console.log("initialValue useEffect", initialValue);
     if (editorRef.current) {
       if (isChange) {
         if (editvalueRef.current !== initialValue) {
@@ -158,6 +157,7 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
         onMount={handleOnMount}
         onChange={handleOnChange}
         options={editorOptions}
+        className="w-full h-full m-2 flex items-center overflow-hidden"
       />
       {showDialog && (
         <SaveChangesDialog

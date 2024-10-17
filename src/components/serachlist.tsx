@@ -21,14 +21,14 @@ const SearchList: React.FC<SearchListProps> = ({ index, style, data, selectItem 
             onMouseDown={handleClick}
         >
             <span className="mr-2 flex-shrink-0 justify-between-text">{item.item}</span>
-            {item.name && (<span className="mr-2 min-w-10 max-w-60 flex-shrink-0 justify-between-text">{item.name}</span>)}
+            {item.name && (<span className="mr-2 min-w-10 max-w-60 flex-shrink-0 truncate">{item.name}</span>)}
             {item.protocol && (
-                <div className="badge badge-success flex-shrink-0 justify-between-text" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div className="badge badge-success flex-shrink-0 truncate">
                     {item.protocol}
                 </div>
             )}
             {item.region && (
-                <div className="badge badge-info flex-shrink-0 justify-between-text" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div className="badge badge-info flex-shrink-0 truncate">
                     {item.region}
                 </div>
             )}

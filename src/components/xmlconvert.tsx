@@ -111,10 +111,10 @@ const XmlConverter: React.FC<EnhancedXmlEditorProps> = memo(({ initialXml, onXml
       return errorMessage; // Failure returns error message
     }
   };
-  
+
 
   return (
-    <div ref={containerRef} className="w-full h-full relative">
+    <div ref={containerRef} className="flex items-center w-full h-full relative">
       <Split
         direction="vertical"
         sizes={[100, 0]}

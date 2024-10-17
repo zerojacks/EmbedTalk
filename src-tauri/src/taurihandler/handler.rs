@@ -170,6 +170,7 @@ struct ProtoConfigParams {
     protocol: Option<String>,
     region: Option<String>,
     dir: Option<String>,
+    xmlElement: Option<XmlElement>,
 }
 
 #[tauri::command]
@@ -208,6 +209,14 @@ pub async fn get_protocol_config_item(value: &str) -> Result<XmlElement, String>
         Some(element) => Ok(element),
         _ => Err(format!("Failed to get protocol config item")),
     }
+}
+
+#[tauri::command]
+pub async fn save_protocol_config_item(value: &str) -> Result<(), String> {
+    let value_json: ProtoConfigParams =
+    serde_json::from_str(value).map_err(|e| format!("Failed to parse value: {}", e))?;
+    println!("save_protocol_config_item: {:?}", value_json);
+    Ok(())
 }
 
 #[cfg(target_os = "windows")]

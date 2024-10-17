@@ -7,22 +7,23 @@ import { CodeIcon, ComponentsIcon } from '../components/Icons';
 import { useItemConfigStore, XmlElement, DataItem } from '../stores/useItemConfigStore';
 import SearchList from '../components/serachlist';
 import ItemConfigRow from '../components/ItemConfigRow';
+import Split from 'react-split';
 
 export const CompentTitle: React.FC<{ dataitem: DataItem; className?: string }> = ({ dataitem, className }) => {
   const title = getDisplayName(dataitem.xmlElement?.name!) + (dataitem.item ? ` (${dataitem.item})` : '');
 
   return (
-    <div className={`flex items-center space-x-2 ${className || ''}`}> 
-      <h3 className="text-lg font-semibold">
+    <div className={`flex items-center space-x-2 ${className || ''}`}>
+      <h3 className="text-lg font-semibold flex-shrink-0 justify-between-text">
         {title}
       </h3>
       {dataitem.protocol && (
-        <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div className="badge badge-success flex-shrink-0 justify-between-text" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {dataitem.protocol}
         </div>
       )}
       {dataitem.region && (
-        <div className="badge badge-info" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div className="badge badge-info flex-shrink-0 justify-between-text" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {dataitem.region}
         </div>
       )}
@@ -78,7 +79,7 @@ export default function Itemconfig() {
       setTimeout(() => {
         const isAllCharacters = /^[a-zA-Z0-9]+$/.test(term);
         const containsChinese = /[\u4e00-\u9fa5]/.test(term);
-  
+
         const results = allitemlist.filter(item => {
           if (isAllCharacters) {
             // 如果全是字符（包括数字），则匹配 item
@@ -95,7 +96,7 @@ export default function Itemconfig() {
             );
           }
         });
-  
+
         resolve(results);
       }, 300);
     });
@@ -153,7 +154,7 @@ export default function Itemconfig() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      if(inputRef.current) {
+      if (inputRef.current) {
         const currentValue = inputRef.current.value;
         const curitem = {} as DataItem;
         curitem.item = currentValue;
@@ -163,7 +164,7 @@ export default function Itemconfig() {
   };
 
   const handleInputFocus = async () => {
-    if(inputRef.current) {
+    if (inputRef.current) {
       const currentValue = inputRef.current.value;
       setIsLoading(true);
       try {
@@ -214,7 +215,7 @@ export default function Itemconfig() {
 
   const updateItemIntoAllselectItem = (item: DataItem) => {
     const currentAllSelectItems = allSelectItemsRef.current;
-    const itemIndex = currentAllSelectItems.findIndex(existingItem => 
+    const itemIndex = currentAllSelectItems.findIndex(existingItem =>
       existingItem.item === item.item &&
       existingItem.protocol === item.protocol &&
       existingItem.region === item.region
@@ -232,7 +233,6 @@ export default function Itemconfig() {
   };
 
   const itemConfigSelect = async (item: DataItem) => {
-    console.log("itemConfigSelect:", item);
     isSelecting.current = true;
     if (!item.xmlElement) {
       try {
@@ -245,137 +245,177 @@ export default function Itemconfig() {
         updateItemIntoAllselectItem(updatedItem)
         item.xmlElement = {} as XmlElement;
       }
-    } 
+    }
     setSelectedItem(item);
   }
 
+  const saveItemConfig = async (item: DataItem) => {
+    try {
+      await invoke<void>('save_protocol_config_item', { value: JSON.stringify(item) });
+      console.log("save success");
+    } catch (error) {
+      console.error('save_protocol_config_item error:', error);
+    }
+  }
+
+  const deleteItemConfig = async (item: DataItem) => {
+    const updatedItems = allSelectItemsRef.current.filter(currentItem =>
+      !(currentItem.item === item.item &&
+        currentItem.protocol === item.protocol &&
+        currentItem.region === item.region)
+    );
+    setAllSelectItems(updatedItems);
+    allSelectItemsRef.current = updatedItems;
+
+    if (selectedItem.item === item.item && selectedItem.protocol === item.protocol && selectedItem.region === item.region) {
+      setSelectedItem({} as DataItem);
+    }
+  }
+
+  function findValueByIdAndName(xmlElement: XmlElement, dataitem: DataItem): string | null {
+    // 检查当前元素是否符合条件
+    if (xmlElement.name === "name") {
+      return xmlElement.value;
+    }
+
+    // 递归查找子元素
+    for (const child of xmlElement.children) {
+      const result = findValueByIdAndName(child, dataitem);
+      if (result !== null) {
+        return result;
+      }
+    }
+    // 如果没有找到，返回 null
+    return null;
+  }
+
+  const updateSelectItemProperty = async (item: DataItem, newXmlElement: XmlElement) => {
+    item.xmlElement = newXmlElement;
+    console.log('Updated XmlElement:', newXmlElement, item);
+    const value = findValueByIdAndName(newXmlElement, item);
+    console.log('Value:', value);
+    if (value !== null) {
+      item.name = value;
+    }
+    if (newXmlElement.attributes.id) {
+      item.item = newXmlElement.attributes.id;
+    }
+    if (newXmlElement.attributes.protocol) {
+      item.protocol = newXmlElement.attributes.protocol;
+    }
+    if (newXmlElement.attributes.region) {
+      item.region = newXmlElement.attributes.region;
+    }
+  }
+
   const handleXmlElementChange = (newXmlElement: XmlElement) => {
-    selectedItem.xmlElement = newXmlElement;
+    updateSelectItemProperty(selectedItem, newXmlElement);
     updateItemIntoAllselectItem(selectedItem)
     console.log('Updated XmlElement:', newXmlElement);
   };
 
   return (
-    <div className="w-full h-full">
-      <div
-        className="relative w-full h-full flex"
-        onMouseMove={resize}
-        onMouseUp={stopResize}
-        onMouseLeave={stopResize}
-      >
-        <div
-          className="h-full overflow-auto"
-          style={{ width: `${splitPosition}%` }}
-        >
-          <div className="p-4">
-            <div className="flex items-center gap-2 m-2 relative">
-              <div className="flex flex-col w-full">
-                <div className="flex items-center mb-2">
-                  <label className="flex-shrink-0 mr-2">数据标识</label>
-                  <div className="relative flex-grow">
-                    <label className="input input-bordered flex items-center gap-2 w-full">
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        className="grow"
-                        placeholder="Search"
-                        value={searchTerm}
-                        onChange={handleTextChange}
-                        onKeyDown={handleKeyDown}
-                        onFocus={handleInputFocus}
-                      />
-                      {isLoading ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
-                      ) : (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 16 16"
-                          fill="currentColor"
-                          className="h-4 w-4 opacity-70"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      )}
-                    </label>
-                    {showDropdown && filteredData.length > 0 && (
-                      <div
-                        className="absolute z-10 w-full mt-1 bg-base-200 border select-primary rounded-md shadow-lg textarea-bordered"
-                        onMouseLeave={() => setShowDropdown(false)}
-                      >
-                        <FixedSizeList
-                          height={Math.min(200, filteredData.length * 35)}
-                          itemCount={filteredData.length}
-                          itemSize={35}
-                          width="100%"
-                          itemData={filteredData}
-                        >
-                          {(props) => <SearchList {...props} selectItem={selectItem} />}
-                        </FixedSizeList>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-start w-full flex-col mt-4">
-                  <p>已选择数据项</p>
-                  <div className="w-full h-full p-4 border rounded-md textarea-bordered">
-                    <FixedSizeList
-                      ref={listRef}
-                      height={Math.min(200, allSelectItems.length * 35)}
-                      itemCount={allSelectItems.length}
-                      itemSize={35}
-                      width="100%"
-                      itemData={allSelectItems}
+    <div className="w-full h-full flex">
+      {/* Left side - 1/3 width */}
+      <div className="h-full w-1/3 flex flex-col overflow-hidden border-r">
+        <div className="p-4">
+          <div className="flex flex-col w-full">
+            <div className="flex items-center mb-2">
+              <label className="flex-shrink-0 mr-2">数据标识</label>
+              <div className="relative flex-grow">
+                <label className="input input-bordered flex items-center gap-2 w-full">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    className="grow"
+                    placeholder="Search"
+                    value={searchTerm}
+                    onChange={handleTextChange}
+                    onKeyDown={handleKeyDown}
+                    onFocus={handleInputFocus}
+                  />
+                  {isLoading ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 16 16"
+                      fill="currentColor"
+                      className="h-4 w-4 opacity-70"
                     >
-                      {(props) => <ItemConfigRow {...props} selectItem={itemConfigSelect} />}
+                      <path
+                        fillRule="evenodd"
+                        d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </label>
+                {showDropdown && filteredData.length > 0 && (
+                  <div
+                    className="absolute z-10 w-full mt-1 bg-base-200 border select-primary rounded-md shadow-lg textarea-bordered"
+                    onMouseLeave={() => setShowDropdown(false)}
+                  >
+                    <FixedSizeList
+                      height={Math.min(200, filteredData.length * 30)}
+                      itemCount={filteredData.length}
+                      itemSize={30}
+                      width="100%"
+                      itemData={filteredData}
+                    >
+                      {(props) => <SearchList {...props} selectItem={selectItem} />}
                     </FixedSizeList>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
         </div>
+        <div className="px-4 flex overflow-hidden flex-col">
+          <p className="py-2">已选择数据项</p>
+          <div className="overflow-hidden border">
+            <FixedSizeList
+              ref={listRef}
+              height={200}
+              itemCount={allSelectItems.length}
+              itemSize={30}
+              width="100%"
+              itemData={allSelectItems}
+            >
+              {(props) => <ItemConfigRow {...props} selectItem={itemConfigSelect} onSave={saveItemConfig} onDelete={deleteItemConfig} />}
+            </FixedSizeList>
+          </div>
+        </div>
+      </div>
 
-        <div
-          className="absolute top-0 bottom-0 w-px bg-splize cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
-          style={{ left: `${splitPosition}%` }}
-          onMouseDown={startResize}
-        />
-
-        <div
-          className="h-full overflow-auto"
-          style={{ width: `${100 - splitPosition}%` }}
-        >
-          <div className="p-4 w-full h-full flex flex-col">
-            {selectedItem.xmlElement && (
-              <div className="flex mb-4 flex-row justify-between items-center sticky top-0 z-10 bg-base-200 shadow-md">
-                <CompentTitle dataitem={selectedItem} className="ml-2"/>
-                <div role="tablist" className="tabs tabs-boxed">
-                  <label role="tab" className={`tab ${displaytype === 'compents' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('compents')}>
-                    <ComponentsIcon className="w-5 h-5" />
-                  </label>                
-                  <label role="tab" className={`tab ${displaytype === 'xml' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('xml')}>
-                    <CodeIcon  className="w-5 h-5" />
-                  </label>  
-                </div>
+      {/* Right side - 2/3 width */}
+      <div className="h-full w-2/3 overflow-hidden flex flex-col">
+        <div className="p-4 flex-grow flex flex-col overflow-hidden">
+          {selectedItem.xmlElement && (
+            <div className="flex mb-4 flex-row justify-between items-center sticky top-0 z-10 bg-base-200 shadow-md">
+              <CompentTitle dataitem={selectedItem} className="ml-2" />
+              <div role="tablist" className="tabs tabs-boxed">
+                <label role="tab" className={`tab ${displaytype === 'compents' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('compents')}>
+                  <ComponentsIcon className="w-5 h-5" />
+                </label>
+                <label role="tab" className={`tab ${displaytype === 'xml' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('xml')}>
+                  <CodeIcon className="w-5 h-5" />
+                </label>
+              </div>
+            </div>
+          )}
+          <div className="flex-grow overflow-auto">
+            {selectedItem.xmlElement && (displaytype === 'compents') && (
+              <XmlTree data={selectedItem.xmlElement} onUpdate={handleXmlElementChange} />
+            )}
+            {selectedItem.xmlElement && (displaytype === 'xml') && (
+              <div className="w-full h-full">
+                <XmlConverter
+                  initialXml={selectedItem.xmlElement}
+                  onXmlElementChange={handleXmlElementChange}
+                />
               </div>
             )}
-            <div className="flex-1 overflow-y-auto">
-              {selectedItem.xmlElement && (displaytype === 'compents') && (
-                <XmlTree data={selectedItem.xmlElement} onUpdate={handleXmlElementChange}/>
-              )}
-              {selectedItem.xmlElement && (displaytype === 'xml') && (
-                <div className="relative w-full h-full">
-                  <XmlConverter
-                    initialXml={selectedItem.xmlElement}
-                    onXmlElementChange={handleXmlElementChange}
-                  />
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>

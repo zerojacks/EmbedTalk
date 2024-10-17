@@ -33,17 +33,17 @@ export const CardTitle: React.FC<{ element: XmlElement; className?: string }> = 
 
   return (
     <div className={`flex items-center space-x-2 ${className || ''}`}> {/* 将传入的className应用到最外层div */}
-      <h3 className="text-lg font-semibold">
+      <h3 className="text-lg font-semibold flex-shrink-0 justify-between-text">
         {title}
       </h3>
-      {element.attributes?.region && (
-        <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {element.attributes.region ? ` (${element.attributes.region})` : ''}
+      {element.attributes?.protocol && (
+        <div className="badge badge-success flex-shrink-0 truncate">
+        {element.attributes.protocol}
       </div>
       )}
-      {element.attributes?.protocol && ( // 确保这里检查的是protocol属性，而不是重复region
-        <div className="badge badge-success" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {element.attributes.protocol}
+      {element.attributes?.region && ( // 确保这里检查的是protocol属性，而不是重复region
+        <div className="badge badge-info flex-shrink-0 truncate">
+          {element.attributes.region}
         </div>
       )}
     </div>
@@ -51,16 +51,25 @@ export const CardTitle: React.FC<{ element: XmlElement; className?: string }> = 
 };
 
 
-const SplitBit: React.FC<{ element: XmlElement }> = ({ element }) => {
-  const title = getDisplayName(element.name) + (element.attributes?.id ? ` (${element.attributes.id})` : '');
+const SplitBit: React.FC<{
+  element: XmlElement;
+  onChange: (value: string) => void;
+}> = ({ element, onChange }) => {
+  const title = getDisplayName(element.name);
   return (
-    <div>
-      <h3 className='w-1/4 text-sm font-medium'>
+    <div className='flex items-center'>
+      <span className='w-1/4 text-sm font-bold truncate'>
         {title}
-      </h3>
+      </span>
+      <input
+        className="input input-bordered w-1/3 min-w-10"
+        value={element.attributes?.id}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   )
 }
+
 const CardContent: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="px-6 py-4">
     {children}
@@ -73,7 +82,7 @@ const HorizontalInput: React.FC<{
   onChange: (value: string) => void;
 }> = ({ label, value, onChange }) => (
   <div className="flex items-center mb-4">
-    <label className="w-1/4 text-sm font-medium">
+    <label className="w-1/4 text-sm font-medium flex-shrink-0">
       {label}
     </label>
     <input
@@ -92,19 +101,21 @@ const ValueInput: React.FC<{
   onValueChange: (value: string) => void;
 }> = ({ label, valuekey, value, onKeyChange, onValueChange }) => (
   <div className="flex items-center mb-4">
-    <label className="w-1/4 text-sm font-medium">
+    <label className="w-1/4 text-sm font-medium mr-2 flex-shrink-0">
       {label}
     </label>
-    <input
-      className="input input-bordered min-w-0.5 max-w-xs"
-      value={valuekey}
-      onChange={(e) => onKeyChange(e.target.value)}
-    />
-    <input
-      className="input input-bordered w-full max-w-xs"
-      value={value}
-      onChange={(e) => onValueChange(e.target.value)}
-    />
+    <div className="flex max-w-xs w-full">
+      <input
+        className="input input-bordered w-1/3 min-w-0 mr-2"
+        value={valuekey}
+        onChange={(e) => onKeyChange(e.target.value)}
+      />
+      <input
+        className="input input-bordered w-2/3 min-w-0"
+        value={value}
+        onChange={(e) => onValueChange(e.target.value)}
+      />
+    </div>
   </div>
 );
 
@@ -154,6 +165,17 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, onUpdate }) => {
     onUpdate(updatedNode);
   };
 
+  const handleBitChange = (newValue: string) => {
+    const updatedNode: XmlElement = {
+      ...node,
+      attributes: {
+        ...node.attributes,
+        id: newValue
+      }
+    };
+    onUpdate(updatedNode);
+  };
+
   const renderExpandIcon = () => {
     if (!hasChildren) return null;
 
@@ -196,9 +218,13 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, onUpdate }) => {
           </Card>
         );
       case 'bit':
+        console.log('bit', node, isExpanded, hasChildren);
         return (
           <div>
-            <SplitBit element={node} />
+            <div className="flex items-center">
+              {renderExpandIcon()}
+              <SplitBit element={node} onChange={handleBitChange} />
+            </div>
             {isExpanded && hasChildren && (
               <CardContent>
                 {node.children.map((child, index) => (
