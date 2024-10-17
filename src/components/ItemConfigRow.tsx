@@ -30,43 +30,44 @@ const ItemConfigRow: React.FC<SearchListProps> = ({ index, style, data, selectIt
 
     return (
         <div
-            className="cursor-pointer h-9 flex items-center px-4 py-2 hover:bg-base-300 ont-sans text-sm"
-            style={style}
+            className="cursor-pointer h-9 flex items-center px-4 py-2 font-sans text-sm relative"
+            style={{ ...style, width: '100%' }}
             onMouseDown={handleClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
         >
-            <div className='flex items-center w-full h-full flex-row'>
-                <span className="mr-2 flex-shrink-0 justify-between-text">{item.item}</span>
-                {item.name && <span className="mr-2 min-w-10 max-w-60 flex-shrink-0 truncate">{item.name}</span>}
-                {item.protocol && (
-                    <div className="badge badge-success m-2 flex-shrink-0 truncate">
-                        {item.protocol}
-                    </div>
-                )}
-                {item.region && (
-                    <div className="badge badge-info flex-shrink-0 truncate">
-                        {item.region}
-                    </div>
-                )}
-            </div>
-
-            {isHovered && (
-                <div className="flex items-center w-full h-full flex-row">
-                    <button
-                        className="btn btn-sm btn-circle btn-ghost"
-                        onMouseDown={handleSave}
-                    >
-                        <Save size={16} />
-                    </button>
-                    <button
-                        className="btn btn-sm btn-circle btn-ghost text-error"
-                        onMouseDown={handleDelete}
-                    >
-                        <Trash2 size={16} />
-                    </button>
+            <div className='flex items-center h-9 hover:bg-base-300' onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+                <div className='flex items-center w-full h-full'>
+                    <span className="mr-2 flex-shrink-0">{item.item}</span>
+                    {item.name && <span className="mr-2 min-w-10 max-w-60 flex-shrink truncate">{item.name}</span>}
+                    {item.protocol && (
+                        <div className="badge badge-success m-2 flex-shrink-0 truncate">
+                            {item.protocol}
+                        </div>
+                    )}
+                    {item.region && (
+                        <div className="badge badge-info flex-shrink-0 truncate">
+                            {item.region}
+                        </div>
+                    )}
                 </div>
-            )}
+
+                {isHovered && (
+                    <div className="right-2 flex items-center h-full w-full">
+                        <button
+                            className="btn btn-sm btn-circle btn-ghost mr-1"
+                            onMouseDown={handleSave}
+                        >
+                            <Save size={16} />
+                        </button>
+                        <button
+                            className="btn btn-sm btn-circle btn-ghost text-error"
+                            onMouseDown={handleDelete}
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                )}
+
+            </div>
         </div>
     );
 };

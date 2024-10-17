@@ -19,20 +19,17 @@ export interface XmlElement {
 export type DisplayType = "compents" | "xml";
 
 interface ItemConfigState {
-  isResizing: boolean;
-  splitPosition: number;
   searchTerm: string;
   showDropdown: boolean;
-  filteredData: DataItem[];
   selectedItem: DataItem;
+  filteredData: DataItem[];
   isLoading: boolean;
   allitemlist: DataItem[];
   displaytype: DisplayType;
   allSelectItems: DataItem[];
+  splitSize: number[];
   
   // Actions to update the state
-  setIsResizing: (isResizing: boolean) => void;
-  setSplitPosition: (position: number) => void;
   setSearchTerm: (term: string) => void;
   setShowDropdown: (show: boolean) => void;
   setFilteredData: (items: DataItem[]) => void;
@@ -41,11 +38,10 @@ interface ItemConfigState {
   setAllitemlist: (items: DataItem[]) => void;
   setDisplaytype: (type: DisplayType) => void;
   setAllSelectItems: (items: DataItem[]) => void;
+  setSplitSize: (size: number[]) => void;
 }
 
 export const useItemConfigStore = create<ItemConfigState>((set) => ({
-  isResizing: false,
-  splitPosition: 50,
   searchTerm: '',
   showDropdown: false,
   selectedItem: {} as DataItem,
@@ -54,10 +50,9 @@ export const useItemConfigStore = create<ItemConfigState>((set) => ({
   allitemlist: [],
   displaytype: 'xml',
   allSelectItems: [],
+  splitSize: [30,70],
 
   // Actions to update the state
-  setIsResizing: (isResizing: boolean) => set({ isResizing }),
-  setSplitPosition: (position: number) => set({ splitPosition: position }),
   setSearchTerm: (term: string) => set({ searchTerm: term }),
   setShowDropdown: (show: boolean) => set({ showDropdown: show }),
   setFilteredData: (items: DataItem[]) => set({ filteredData: items }),
@@ -66,4 +61,5 @@ export const useItemConfigStore = create<ItemConfigState>((set) => ({
   setAllitemlist: (items: DataItem[]) => set({ allitemlist: items }),
   setDisplaytype: (type: DisplayType) => set({ displaytype: type }),
   setAllSelectItems: (items: DataItem[]) => set({ allSelectItems: items }),
+  setSplitSize: (size: number[]) => set({ splitSize: size }),
 }));

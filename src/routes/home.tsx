@@ -3,25 +3,25 @@ import { TreeTableView, Column } from "../components/treeview";
 import { TreeItem } from '../components/TreeItem';
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import Split from 'react-split';
 
 interface Response {
   data: TreeItem[];
   error?: string;
 }
 
+const initialColumns: Column[] = [
+  { name: '帧域', width: 50, minWidth: 100 },
+  { name: '数据', width: 100, minWidth: 50 },
+  { name: '说明', width: 100, minWidth: 50 },
+];
+
 export default function Home() {
   const [isResizing, setIsResizing] = useState(false);
-  const [splitPosition, setSplitPosition] = useState(30); // 默认30%
   const [message, setMessage] = useState("");
   const [tableData, setTableData] = useState<TreeItem[]>([]);
 
   useEffect(() => {
-    // 加载保存的拆分位置
-    const savedPosition = localStorage.getItem('split-position');
-    if (savedPosition) {
-      setSplitPosition(Number(savedPosition));
-    }
-
     // 加载其他保存的数据
     const savedData = localStorage.getItem('cachedData');
     if (savedData) {
@@ -32,26 +32,6 @@ export default function Home() {
       setMessage(JSON.parse(savedMessage));
     }
   }, []);
-
-  const startResize = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    setIsResizing(true);
-    e.preventDefault();
-  }, []);
-
-  const stopResize = useCallback(() => {
-    setIsResizing(false);
-  }, []);
-
-  const resize = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (isResizing) {
-      const container = e.currentTarget;
-      const containerRect = container.getBoundingClientRect();
-      const newPosition = ((e.clientY - containerRect.top) / containerRect.height) * 100;
-      const clampedPosition = Math.min(Math.max(newPosition, 20), 80); // 限制在20%-80%之间
-      setSplitPosition(clampedPosition);
-      localStorage.setItem('split-position', clampedPosition.toString());
-    }
-  }, [isResizing]);
 
   const handleInputChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
@@ -95,12 +75,6 @@ export default function Home() {
     localStorage.setItem('cachedData', JSON.stringify([]));
     localStorage.setItem('framemessage', JSON.stringify(""));
   };
-
-  const initialColumns: Column[] = [
-    { name: '帧域', width: 50, minWidth: 100 },
-    { name: '数据', width: 100, minWidth: 50 },
-    { name: '说明', width: 100, minWidth: 50 },
-  ];
 
   useEffect(() => {
     const unlisten = listen("clear-local-storage", () => {
@@ -159,16 +133,17 @@ export default function Home() {
   };
 
   return (
-    <div 
-      className="w-full h-full relative"
-      onMouseMove={resize}
-      onMouseUp={stopResize}
-      onMouseLeave={stopResize}
-    >
-      <div
-        className="absolute w-full overflow-auto"
-        style={{ height: `calc(${splitPosition}% - 4px)` }}
+    <div  className="w-full h-full relative">
+      <Split
+        direction="vertical"
+        sizes={[30, 70]}
+        minSize={[0, 10]}
+        gutterSize={2}
+        snapOffset={30}
+        dragInterval={0}
+        className="flex flex-col w-full h-full"
       >
+      <div className="w-full overflow-auto" >
         <div className="p-[5px] h-full">
           <textarea 
             className="textarea w-full h-full text-sm textarea-bordered" 
@@ -179,34 +154,16 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 增加分割线的可点击区域和视觉反馈 */}
-      <div
-        className="absolute left-0 right-0 h-[8px] bg-transparent cursor-row-resize group"
-        style={{ 
-          top: `calc(${splitPosition}% - 4px)`,
-          transition: 'background-color 0.2s'
-        }}
-        onMouseDown={startResize}
-      >
-        {/* 实际的分割线 */}
-        <div className="absolute left-0 right-0 h-[1px] top-[3.5px] group-hover:bg-blue-500 group-active:bg-blue-600" />
-      </div>
-
-      <div
-        className="absolute w-full overflow-auto"
-        style={{ 
-          top: `calc(${splitPosition}% + 4px)`,
-          height: `calc(${100 - splitPosition}% - 4px)`
-        }}
-      >
+      <div className="w-full overflow-auto border-b-2 border-transparent">
         <div className="p-[5px] h-full">
           <TreeTableView 
             data={tableData}
-            initialColumns={initialColumns}
+            tableheads={initialColumns}
             onRowClick={handleRowClick}
           />
         </div>
       </div>
+      </Split>
     </div>
   );
 }

@@ -33,8 +33,6 @@ export const CompentTitle: React.FC<{ dataitem: DataItem; className?: string }> 
 
 export default function Itemconfig() {
   const {
-    isResizing,
-    splitPosition,
     searchTerm,
     showDropdown,
     selectedItem,
@@ -43,8 +41,7 @@ export default function Itemconfig() {
     displaytype,
     allSelectItems,
     filteredData,
-    setIsResizing,
-    setSplitPosition,
+    splitSize,
     setSearchTerm,
     setShowDropdown,
     setFilteredData,
@@ -53,6 +50,7 @@ export default function Itemconfig() {
     setAllitemlist,
     setDisplaytype,
     setAllSelectItems,
+    setSplitSize,
   } = useItemConfigStore();
   const isSelecting = useRef(false);
   const allSelectItemsRef = useRef(allSelectItems);
@@ -195,24 +193,6 @@ export default function Itemconfig() {
     updateItemIntoAllselectItem(updatedItem);
   }, [searchTerm]);
 
-  const startResize = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    setIsResizing(true);
-    e.preventDefault();
-  }, []);
-
-  const stopResize = useCallback(() => {
-    setIsResizing(false);
-  }, []);
-
-  const resize = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (isResizing) {
-      const container = e.currentTarget;
-      const containerRect = container.getBoundingClientRect();
-      const newPosition = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-      setSplitPosition(Math.min(Math.max(newPosition, 30), 80));
-    }
-  }, [isResizing]);
-
   const updateItemIntoAllselectItem = (item: DataItem) => {
     const currentAllSelectItems = allSelectItemsRef.current;
     const itemIndex = currentAllSelectItems.findIndex(existingItem =>
@@ -314,111 +294,127 @@ export default function Itemconfig() {
     console.log('Updated XmlElement:', newXmlElement);
   };
 
+  const handleDragEnd = (sizes: number[]) => {
+    console.log("drap end", sizes);
+    setSplitSize(sizes);
+  }
+
   return (
-    <div className="w-full h-full flex">
-      {/* Left side - 1/3 width */}
-      <div className="h-full w-1/3 flex flex-col overflow-hidden border-r">
-        <div className="p-4">
-          <div className="flex flex-col w-full">
-            <div className="flex items-center mb-2">
-              <label className="flex-shrink-0 mr-2">数据标识</label>
-              <div className="relative flex-grow">
-                <label className="input input-bordered flex items-center gap-2 w-full">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    className="grow"
-                    placeholder="Search"
-                    value={searchTerm}
-                    onChange={handleTextChange}
-                    onKeyDown={handleKeyDown}
-                    onFocus={handleInputFocus}
-                  />
-                  {isLoading ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 16 16"
-                      fill="currentColor"
-                      className="h-4 w-4 opacity-70"
+    <div className="w-full h-full flex overflow-hidden">
+      <Split
+        direction="horizontal"
+        sizes={splitSize}
+        minSize={[20, 50]}
+        gutterSize={2}
+        snapOffset={30}
+        dragInterval={1}
+        className="flex w-full h-full"
+        onDragEnd={handleDragEnd}
+      >
+        {/* Left side - 1/3 width */}
+        <div className="h-full flex flex-col overflow-hidden border-r">
+          <div className="p-4">
+            <div className="flex flex-col w-full">
+              <div className="flex items-center mb-2">
+                <label className="flex-shrink-0 mr-2">数据标识</label>
+                <div className="relative flex-grow">
+                  <label className="input input-bordered flex items-center gap-2 w-full">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      className="grow"
+                      placeholder="Search"
+                      value={searchTerm}
+                      onChange={handleTextChange}
+                      onKeyDown={handleKeyDown}
+                      onFocus={handleInputFocus}
+                    />
+                    {isLoading ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                        className="h-4 w-4 opacity-70"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    )}
+                  </label>
+                  {showDropdown && filteredData.length > 0 && (
+                    <div
+                      className="absolute z-10 w-full mt-1 bg-base-200 border select-primary rounded-md shadow-lg textarea-bordered"
+                      onMouseLeave={() => setShowDropdown(false)}
                     >
-                      <path
-                        fillRule="evenodd"
-                        d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                      <FixedSizeList
+                        height={Math.min(200, filteredData.length * 30)}
+                        itemCount={filteredData.length}
+                        itemSize={30}
+                        width="100%"
+                        itemData={filteredData}
+                      >
+                        {(props) => <SearchList {...props} selectItem={selectItem} />}
+                      </FixedSizeList>
+                    </div>
                   )}
-                </label>
-                {showDropdown && filteredData.length > 0 && (
-                  <div
-                    className="absolute z-10 w-full mt-1 bg-base-200 border select-primary rounded-md shadow-lg textarea-bordered"
-                    onMouseLeave={() => setShowDropdown(false)}
-                  >
-                    <FixedSizeList
-                      height={Math.min(200, filteredData.length * 30)}
-                      itemCount={filteredData.length}
-                      itemSize={30}
-                      width="100%"
-                      itemData={filteredData}
-                    >
-                      {(props) => <SearchList {...props} selectItem={selectItem} />}
-                    </FixedSizeList>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="px-4 flex overflow-hidden flex-col">
+            <p className="py-2">已选择数据项</p>
+            <div className="overflow-hidden border">
+              <FixedSizeList
+                ref={listRef}
+                height={200}
+                itemCount={allSelectItems.length}
+                itemSize={30}
+                width="100%"
+                itemData={allSelectItems}
+              >
+                {(props) => <ItemConfigRow {...props} selectItem={itemConfigSelect} onSave={saveItemConfig} onDelete={deleteItemConfig} />}
+              </FixedSizeList>
+            </div>
+          </div>
+        </div>
+
+        {/* Right side - 2/3 width */}
+        <div className="w-full h-full overflow-auto flex flex-col border">
+            <div className="p-4 flex flex-col overflow-auto">
+              {selectedItem.xmlElement && (
+                <div className="flex mb-4 flex-row justify-between items-center sticky top-0 z-10 bg-base-200 shadow-md">
+                  <CompentTitle dataitem={selectedItem} className="ml-2" />
+                  <div role="tablist" className="tabs tabs-boxed">
+                    <label role="tab" className={`tab ${displaytype === 'compents' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('compents')}>
+                      <ComponentsIcon className="w-5 h-5" />
+                    </label>
+                    <label role="tab" className={`tab ${displaytype === 'xml' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('xml')}>
+                      <CodeIcon className="w-5 h-5" />
+                    </label>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center overflow-auto">
+                {selectedItem.xmlElement && (displaytype === 'compents') && (
+                  <XmlTree data={selectedItem.xmlElement} onUpdate={handleXmlElementChange} />
+                )}
+                {selectedItem.xmlElement && (displaytype === 'xml') && (
+                  <div className="w-full h-full">
+                    <XmlConverter
+                      initialXml={selectedItem.xmlElement}
+                      onXmlElementChange={handleXmlElementChange}
+                    />
                   </div>
                 )}
               </div>
             </div>
-          </div>
         </div>
-        <div className="px-4 flex overflow-hidden flex-col">
-          <p className="py-2">已选择数据项</p>
-          <div className="overflow-hidden border">
-            <FixedSizeList
-              ref={listRef}
-              height={200}
-              itemCount={allSelectItems.length}
-              itemSize={30}
-              width="100%"
-              itemData={allSelectItems}
-            >
-              {(props) => <ItemConfigRow {...props} selectItem={itemConfigSelect} onSave={saveItemConfig} onDelete={deleteItemConfig} />}
-            </FixedSizeList>
-          </div>
-        </div>
-      </div>
-
-      {/* Right side - 2/3 width */}
-      <div className="h-full w-2/3 overflow-hidden flex flex-col">
-        <div className="p-4 flex-grow flex flex-col overflow-hidden">
-          {selectedItem.xmlElement && (
-            <div className="flex mb-4 flex-row justify-between items-center sticky top-0 z-10 bg-base-200 shadow-md">
-              <CompentTitle dataitem={selectedItem} className="ml-2" />
-              <div role="tablist" className="tabs tabs-boxed">
-                <label role="tab" className={`tab ${displaytype === 'compents' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('compents')}>
-                  <ComponentsIcon className="w-5 h-5" />
-                </label>
-                <label role="tab" className={`tab ${displaytype === 'xml' ? 'tab-active' : ''}`} onClick={() => setDisplaytype('xml')}>
-                  <CodeIcon className="w-5 h-5" />
-                </label>
-              </div>
-            </div>
-          )}
-          <div className="flex-grow overflow-auto">
-            {selectedItem.xmlElement && (displaytype === 'compents') && (
-              <XmlTree data={selectedItem.xmlElement} onUpdate={handleXmlElementChange} />
-            )}
-            {selectedItem.xmlElement && (displaytype === 'xml') && (
-              <div className="w-full h-full">
-                <XmlConverter
-                  initialXml={selectedItem.xmlElement}
-                  onXmlElementChange={handleXmlElementChange}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      </Split>
     </div>
   );
 }

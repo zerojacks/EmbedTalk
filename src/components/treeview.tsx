@@ -3,9 +3,10 @@ import TreeItem, { TreeItem as TreeItemType, generateRowId } from './TreeItem';
 import domtoimage from 'dom-to-image';// Add this for image export
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
-import {toast} from '../context/ToastProvider';// Add this for toast
+import { toast } from '../context/ToastProvider';// Add this for toast
 import Progress from './progress';
-import {ExportImage, CopyImage, CancelIcon, ExpandAll} from './Icons'
+import { ExportImage, CopyImage, CancelIcon, ExpandAll } from './Icons'
+import { useFrameTreeStore } from '../stores/useFrameAnalysicStore';
 
 export interface Column {
   name: string;
@@ -15,24 +16,32 @@ export interface Column {
 
 interface TreeTableViewProps {
   data: TreeItemType[];
-  initialColumns: Column[];
+  tableheads: Column[];
   onRowClick: (item: TreeItemType) => void;
 }
 
-export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColumns, onRowClick }) => {
-  const [columns, setColumns] = useState<Column[]>(initialColumns);
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [tabledata, setTableData] = useState<TreeItemType[]>([]);
-  const [selectedCell, setSelectedCell] = useState<{ row: number | null; column: number | null }>({ row: null, column: null });
+export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, tableheads, onRowClick }) => {
+
+  const {
+    selectedRowId,
+    expandedRows,
+    tabledata,
+    selectedCell,
+    expandedAll,
+    isLoading,
+    setSelectedRowId,
+    setExpandedRows,
+    setTableData,
+    setSelectedCell,
+    setExpandedAll,
+    setIsLoading,
+  } = useFrameTreeStore();
   const tableRef = useRef<HTMLTableElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [containerWidth, setContainerWidth] = useState(0);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0 });
   const [progress, setProgress] = useState({ type: '', position: 'end', visible: false });
-  const [expandedAll, setExpandedAll] = useState(true);
-  const is_expand = selectedRowId? expandedRows.has(selectedRowId): false;
+  const is_expand = selectedRowId ? expandedRows.has(selectedRowId) : false;
+
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     // 需要判断设置的位置是否在当前视口内，每一个方向都需要判断
@@ -143,18 +152,18 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
       if (element) {
         try {
           await new Promise(resolve => setTimeout(resolve, 0));
-          
+
           const dataUrl = await generateImage(element, ['png']);
           if (dataUrl) {
             const response = await fetch(dataUrl);
             const blob = await response.blob();
             const file = new File([blob], 'image.png', { type: 'image/png' });
-  
+
             const clipboardItem = new ClipboardItem({
               'image/png': file,
             });
             await navigator.clipboard.write([clipboardItem]);
-  
+
             setProgress(prevProgress => ({ ...prevProgress, visible: false }));
             toast.success("图片复制成功", 'end', 'bottom', 3000);
           } else {
@@ -189,11 +198,6 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
     if (savedSelectedRowId) {
       setSelectedRowId(savedSelectedRowId);
     }
-
-    const savedColumns = localStorage.getItem('treeTableColumns');
-    if (savedColumns) {
-      setColumns(JSON.parse(savedColumns));
-    }
   }, []);
 
   useEffect(() => {
@@ -203,11 +207,11 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
     loadSavedState();
     handleExpandAll(dataWithIds);
 
-    setIsDataLoaded(true);
+    setIsLoading(true);
   }, [data, loadSavedState]);
 
   useLayoutEffect(() => {
-    if (isDataLoaded) {
+    if (isLoading) {
       const savedScrollPosition = localStorage.getItem('scrollPosition');
       if (savedScrollPosition && containerRef.current) {
         setTimeout(() => {
@@ -217,12 +221,12 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
         }, 0);
       }
     }
-  }, [isDataLoaded]);
+  }, [isLoading]);
 
   // 保存列宽到 localStorage
   useEffect(() => {
-    localStorage.setItem('treeTableColumns', JSON.stringify(columns));
-  }, [columns]);
+    localStorage.setItem('treeTableColumns', JSON.stringify(tableheads));
+  }, [tableheads]);
 
   const generateUniqueIds = (items: TreeItemType[], level: number = 1): TreeItemType[] => {
     return items.map((item, index) => ({
@@ -274,7 +278,6 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const width = rect.width;
-      setContainerWidth(width);
     }
   }, []);
 
@@ -301,54 +304,6 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
     });
   };
 
-  // 调整列宽
-  // 调整列宽
-  const handleResize = (index: number, mouseDownEvent: React.MouseEvent) => {
-    mouseDownEvent.preventDefault();
-    const startX = mouseDownEvent.pageX;
-    const startWidths = columns.map(col => col.width);
-
-    const handleMouseMove = (mouseMoveEvent: MouseEvent) => {
-      const difference = mouseMoveEvent.pageX - startX;
-      let newWidth = Math.max(columns[index].minWidth, startWidths[index] + difference);
-
-      // setColumns(prevColumns => {
-      //   const newColumns = [...prevColumns];
-
-      //   // Ensure the new width does not go below the minimum width
-      //   if (newWidth < newColumns[index].minWidth) {
-      //     newWidth = newColumns[index].minWidth;
-      //   }
-
-      //   // Set the new width for the current column
-      //   newColumns[index] = { ...newColumns[index], width: newWidth };
-
-      //   // Adjust the next column's width if applicable
-      //   if (index < newColumns.length - 1) {
-      //     let nextColumnWidth = Math.max(
-      //       newColumns[index + 1].minWidth,
-      //       newColumns[index + 1].width - (newWidth - prevColumns[index].width)
-      //     );
-
-      //     if (nextColumnWidth < newColumns[index + 1].minWidth) {
-      //       nextColumnWidth = newColumns[index + 1].minWidth;
-      //     }
-
-      //     newColumns[index + 1] = { ...newColumns[index + 1], width: nextColumnWidth };
-      //   }
-
-      //   return newColumns;
-      // });
-    };
-
-    const handleMouseUp = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
   const handleExpandAll = (data: TreeItemType[]) => {
     const allExpanded = new Set<string>();
     // 遍历data，添加所有的 uniqueId
@@ -364,13 +319,13 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
     setExpandedRows(allExpanded);
     setExpandedAll(true);
   };
-  const ExpandCurHandler= () => {
+  const ExpandCurHandler = () => {
     if (selectedRowId) {
       toggleRowExpansion(selectedRowId)
     }
   };
-  
-  const ExpandAllHandler= () => {
+
+  const ExpandAllHandler = () => {
     if (expandedAll) {
       handleCollapseAll()
     } else {
@@ -381,87 +336,22 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
     setExpandedRows(new Set());
     setExpandedAll(false);
   };
-  // 确保表格填满容器宽度
-  // useLayoutEffect(() => {
-  //   if (containerRef.current && tableRef.current) {
-  //     const tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
-  //     const difference = containerWidth - tableWidth;
-
-  //     if (difference > 0) {
-  //       setColumns(prevColumns => {
-  //         const lastColumnIndex = prevColumns.length - 1;
-  //         const newLastColumnWidth = prevColumns[lastColumnIndex].width + difference;
-  //         console.log(newLastColumnWidth, prevColumns[lastColumnIndex].minWidth);
-  //         if (newLastColumnWidth < prevColumns[lastColumnIndex].minWidth) {
-  //           return prevColumns; // 如果宽度没有变化，不更新状态
-  //         }
-
-
-  //         if (newLastColumnWidth === prevColumns[lastColumnIndex].width) {
-  //           return prevColumns; // 如果宽度没有变化，不更新状态
-  //         }
-  //         const newColumns = [...prevColumns];
-  //         newColumns[lastColumnIndex] = {
-  //           ...newColumns[lastColumnIndex],
-  //           width: newLastColumnWidth
-  //         };
-  //         return newColumns;
-  //       });
-  //     }
-  //   }
-  // }, []);  // 只在组件挂载时运行一次
-
-  // useLayoutEffect(() => {
-  //   // 在组件挂载和 columns 变化时调整最后一列宽度
-  //   const adjustLastColumnWidth = () => {
-  //     if (containerRef.current && tableRef.current) {
-  //       // const containerWidth = containerRef.current.offsetWidth;
-  //       const tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
-  //       const difference = containerWidth - tableWidth;
-
-  //       if (difference > 0) {
-  //         setColumns(prevColumns => {
-  //           const lastColumnIndex = prevColumns.length - 1;
-  //           let newLastColumnWidth = prevColumns[lastColumnIndex].width + difference;
-  //           if (newLastColumnWidth === prevColumns[lastColumnIndex].width) {
-  //             return prevColumns; // 如果宽度没有变化，不更新状态
-  //           }
-  //           if (newLastColumnWidth < prevColumns[lastColumnIndex].minWidth) {
-  //             newLastColumnWidth = prevColumns[lastColumnIndex].minWidth;
-  //           }
-
-  //           const newColumns = [...prevColumns];
-  //           newColumns[lastColumnIndex] = {
-  //             ...newColumns[lastColumnIndex],
-  //             width: newLastColumnWidth
-  //           };
-  //           return newColumns;
-  //         });
-  //       }
-  //     }
-  //   };
-
-  //   adjustLastColumnWidth();
-
-  //   window.addEventListener('resize', adjustLastColumnWidth);
-  //   return () => window.removeEventListener('resize', adjustLastColumnWidth);
-  // }, [columns]);
 
   return (
     <div className="w-full h-full overflow-auto textarea-bordered treetableview rounded" ref={containerRef} onContextMenu={handleContextMenu}>
       {progress.visible && <Progress type={progress.type} xlevel={progress.position} />}
       <table className="w-full table-fixed border-collapse" ref={tableRef}>
         <colgroup>
-          {columns.map((column, index) => (
+          {tableheads.map((column, index) => (
             <col key={index} style={{ width: `${column.width}px` }} />
           ))}
         </colgroup>
         <thead className="sticky top-0 dark:bg-gray-100 z-10">
           <tr>
-            {columns.map((column, index) => (
+            {tableheads.map((column, index) => (
               <th key={index} style={{ position: 'relative', width: `${column.width}px` }}>
                 {column.name}
-                {/* {index < columns.length - 1 && (
+                {/* {index < tableheads.length - 1 && (
                   <div
                     className="absolute top-0 right-0 bottom-0 w-1 cursor-col-resize"
                     onMouseDown={(e) => handleResize(index, e)}
@@ -503,16 +393,16 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, initialColum
             <li className="cursor-pointer" onClick={handleCopyImage}>
               <a>
                 <CopyImage className="h-5 w-5"></CopyImage>复制图片
-                </a>
+              </a>
             </li>
             <li className="cursor-pointer" onClick={ExpandCurHandler}>
               <a>
-                <ExpandAll className="h-5 w-5"></ExpandAll> {is_expand? "折叠当前节点":"展开当前节点"}
+                <ExpandAll className="h-5 w-5"></ExpandAll> {is_expand ? "折叠当前节点" : "展开当前节点"}
               </a>
             </li>
             <li className="cursor-pointer" onClick={ExpandAllHandler}>
               <a>
-                <ExpandAll className="h-5 w-5"></ExpandAll> {expandedAll? "折叠所有节点":"展开所有节点"}
+                <ExpandAll className="h-5 w-5"></ExpandAll> {expandedAll ? "折叠所有节点" : "展开所有节点"}
               </a>
             </li>
           </ul>
