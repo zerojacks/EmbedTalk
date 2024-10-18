@@ -21,12 +21,12 @@ interface TreeItemProps {
   onRowDoubleClick: (item: TreeItem, hasChildren: boolean | undefined) => void;
   selectedRowId: string | null; // 修改为 string 类型
   selectedCell: { row: number | null; column: number | null }; // 新增选中单元格的状态
-  setSelectedCell: React.Dispatch<React.SetStateAction<{ row: number | null; column: number | null }>>; // 设置选中单元格的状态
+  setSelectedCell: (cell: { row: number | null; column: number | null }) => void; // 设置选中单元格的状态
   rowIndex: number; // 当前行的索引
   expandedRows: Set<string>; // 传递 expandedRows
 }
 
-const TreeItem: React.FC<TreeItemProps> = ({
+const ItemTreeView: React.FC<TreeItemProps> = ({
   data,
   level,
   onRowClick,
@@ -120,7 +120,7 @@ const TreeItem: React.FC<TreeItemProps> = ({
       {isRowExpanded && hasChildren && data.children && (
         <>
           {data.children.map((child, index) => (
-            <TreeItem
+            <ItemTreeView
               key={child.uniqueId || generateRowId(child, (level + 1) * index)}
               data={child}
               level={level + 1}
@@ -143,4 +143,4 @@ export const generateRowId = (item: TreeItem, index: number): string => {
   return `${index}-${item.frameDomain}-${item.data}-${item.description}`;
 };
 
-export default TreeItem;
+export default ItemTreeView;

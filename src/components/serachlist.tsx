@@ -20,7 +20,7 @@ const SearchList: React.FC<SearchListProps> = ({ index, style, data, selectItem 
             onClick={handleClick}
             onMouseDown={handleClick}
         >
-            <span className="mr-2 flex-shrink-0 justify-between-text">{item.item}</span>
+            <span className="mr-2 flex-shrink-0 justify-between-text hover:bg-base-300">{item.item}</span>
             {item.name && (<span className="mr-2 min-w-10 max-w-60 flex-shrink-0 truncate">{item.name}</span>)}
             {item.protocol && (
                 <div className="badge badge-success flex-shrink-0 truncate">

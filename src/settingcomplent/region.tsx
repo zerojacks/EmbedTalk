@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core"; // 如果你用的是 Tauri，使用这个导入
 import { MapIcon } from "../components/Icons";
+import { useProtocolInfoStore } from '../stores/useProtocolInfoStore';
 
 const getRegions = () => {
     return ["南网", "云南", "广东", "深圳", "广西", "贵州", "海南", "topo"]; // 这是一个静态的数组
@@ -8,7 +9,7 @@ const getRegions = () => {
 
 export default function Region() {
     const regionList = getRegions(); // 这里确保调用了函数，返回数组
-    const [selectedRegion, setSelectedRegion] = useState<string>("南网");
+    const { region, setRegion} = useProtocolInfoStore();
     const hasFetchedRegion = useRef(false); // 用于标记是否已获取选中的省份
 
     function cleanAndUppercase(targetRegion: string) {
@@ -23,10 +24,9 @@ export default function Region() {
         async function fetchSelectedRegion() {
             try {
                 console.log("Fetching selected region...");
-                const region = await invoke<string>("get_region_value"); // 调用后端接口获取选中的省份
-                let cleanRegion = cleanAndUppercase(region);
-                setSelectedRegion(cleanRegion); // 存储后端返回的选中的省份
-                console.log("获取选中的省份成功: ", cleanRegion);
+                const curregion = await invoke<string>("get_region_value"); // 调用后端接口获取选中的省份
+                let cleanRegion = cleanAndUppercase(curregion);
+                setRegion(cleanRegion); // 存储后端返回的选中的省份
             } catch (error) {
                 console.error("获取选中的省份失败: ", error);
             }
@@ -37,16 +37,9 @@ export default function Region() {
         }
     }, []);
 
-    useEffect(() => {
-        if (selectedRegion != "") {
-            localStorage.setItem('currentRegion', JSON.stringify(selectedRegion));
-        }
-    }, [selectedRegion]);
 
     const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        console.log("用户选择的省份: ", e.target.value);
-        setSelectedRegion(e.target.value); // 处理用户选择的省份
-        // 调用后端 Rust 函数，传递选中的省份
+        setRegion(cleanAndUppercase(e.target.value)); // 处理用户选择的省份
         invoke("set_region_value", { region: JSON.stringify(e.target.value) }).then(() => {
             // 你可以在这里处理成功回调
         });
@@ -61,7 +54,7 @@ export default function Region() {
                 </div>
                 <select
                     className="select mr-3 bg-base-200 select-bordered ml-auto h-1" // 将 select 靠右
-                    value={selectedRegion}
+                    value={region}
                     onChange={handleSelectChange}
                 >
                     {regionList.map((region, index) => (

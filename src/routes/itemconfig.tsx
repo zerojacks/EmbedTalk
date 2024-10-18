@@ -304,7 +304,7 @@ export default function Itemconfig() {
       <Split
         direction="horizontal"
         sizes={splitSize}
-        minSize={[20, 50]}
+        minSize={[30, 50]}
         gutterSize={2}
         snapOffset={30}
         dragInterval={1}
@@ -312,7 +312,7 @@ export default function Itemconfig() {
         onDragEnd={handleDragEnd}
       >
         {/* Left side - 1/3 width */}
-        <div className="h-full flex flex-col overflow-hidden border-r">
+        <div className="h-full flex flex-col overflow-hidden">
           <div className="p-4">
             <div className="flex flex-col w-full">
               <div className="flex items-center mb-2">
@@ -368,7 +368,7 @@ export default function Itemconfig() {
           </div>
           <div className="px-4 flex overflow-hidden flex-col">
             <p className="py-2">已选择数据项</p>
-            <div className="overflow-hidden border">
+            <div className="overflow-hidden border textarea-bordered rounded-md">
               <FixedSizeList
                 ref={listRef}
                 height={200}
@@ -384,7 +384,7 @@ export default function Itemconfig() {
         </div>
 
         {/* Right side - 2/3 width */}
-        <div className="w-full h-full overflow-auto flex flex-col border">
+        <div className="w-full h-full overflow-auto flex flex-col border-l textarea-bordered">
             <div className="p-4 flex flex-col overflow-auto">
               {selectedItem.xmlElement && (
                 <div className="flex mb-4 flex-row justify-between items-center sticky top-0 z-10 bg-base-200 shadow-md">

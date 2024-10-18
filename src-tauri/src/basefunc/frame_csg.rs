@@ -11,7 +11,7 @@ use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::frame_645::Frame645;
 use crate::basefunc::frame_err::CustomError;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement}; // 引入 FrameFun 模块
-use crate::basefunc::protocol::{FrameAnalisyic, ProtocolInfo};
+use crate::basefunc::protocol::{FrameAnalisyic, ProtocolInfo, AnalysicErr};
 
 const ITEM_ACK_NAK: u32 = 0xE0000000;
 const MASK_FIR: u8 = 0x40;
@@ -1129,7 +1129,7 @@ impl FrameCsg {
 
         let template_element = element.get_child("type");
         let rules = element.get_child_text("lengthrule");
-
+        println!("template_element:{:?}", template_element);
         if all_items.is_empty() {
             if let Some(template_element) = template_element {
                 if let Some(rules) = rules {
@@ -1198,6 +1198,7 @@ impl FrameCsg {
                 };
 
                 length += subitem_length;
+                println!("subitem_name:{} {}", subitem_name, subitem_length);
                 length_map.insert(subitem_name, (length, subitem_length, data_subitem_elem));
             }
         }
@@ -1316,7 +1317,7 @@ impl FrameCsg {
                 _ => sub_length = 0,
             }
         }
-
+        println!("calculate_unknown_length Sub length: {}", sub_length);
         sub_length
     }
 
@@ -1344,6 +1345,10 @@ impl FrameCsg {
         if let Some(data_item_elem) = data_item_elem {
             return false;
         }
+        if (length + 6) > data_segment.len() {
+            return false;
+        }
+
         if Self::is_valid_bcd_time(&data_segment[length..length + 6]) {
             if let Some(data_time) = data_time {
                 return Self::is_within_one_month(&data_segment[length..length + 6], data_time);
@@ -2287,7 +2292,11 @@ impl FrameCsg {
         } else {
             (
                 &[] as &[u8],
-                &valid_data_segment[valid_data_segment.len() - 16..],
+                if (valid_data_segment.len() > 16) {
+                    &valid_data_segment[valid_data_segment.len() - 16..]
+                } else {
+                    &[] as &[u8]
+                },
                 [total_length - 18, total_length - 2],
                 &mut length,
             )
@@ -2432,6 +2441,7 @@ impl FrameCsg {
                         let err_str =
                             format!("未查找到数据标识：{},请检查配置文件！", data_item).to_string();
                         let err = CustomError::new(1, err_str);
+                        return Err(Box::new(err));
                     } else {
                         let sub_length = 0;
                     }
@@ -2526,7 +2536,11 @@ impl FrameCsg {
         } else {
             (
                 &[] as &[u8],
-                &valid_data_segment[valid_data_segment.len() - 16..],
+                if (valid_data_segment.len() > 16) {
+                    &valid_data_segment[valid_data_segment.len() - 16..]
+                } else {
+                    &[] as &[u8]
+                },
                 [total_length - 18, total_length - 2],
                 length,
             )
@@ -2536,7 +2550,7 @@ impl FrameCsg {
         let data_segment = &valid_data_segment[..cur_length];
         let mut length = cur_length;
         while pos < length {
-            let result = (|| -> Result<(), Box<dyn Error>> {
+            let result = (|| -> Result<(), CustomError> {
                 let da: &[u8] = &data_segment[pos..pos + 2];
                 let item = &data_segment[pos + 2..pos + 6];
                 let point_str = Self::prase_da_data([da[0], da[1]]);
@@ -2660,6 +2674,7 @@ impl FrameCsg {
                         );
                         let err_str = format!("数据解析失败!").to_string();
                         let err = CustomError::new(1, err_str);
+                        return Err(err)
                     } else {
                         let sub_length = 0;
                     }
@@ -2755,7 +2770,11 @@ impl FrameCsg {
         } else {
             (
                 &[] as &[u8],
-                &valid_data_segment[valid_data_segment.len() - 16..],
+                if (valid_data_segment.len() > 16) {
+                    &valid_data_segment[valid_data_segment.len() - 16..]
+                } else {
+                    &[] as &[u8]
+                },
                 [total_length - 18, total_length - 2],
                 length,
             )
@@ -2771,7 +2790,7 @@ impl FrameCsg {
         let mut point_str: String = String::new();
         let mut dis_data_identifier: String = String::new();
         while pos < length {
-            let result = (|| -> Result<(), Box<dyn Error>> {
+            let result = (|| -> Result<(), CustomError> {
                 if !Self::guest_next_data_is_cur_item_data(
                     data_item_elem.clone(),
                     &data_segment[pos..],
@@ -2880,6 +2899,7 @@ impl FrameCsg {
                         );
                         let err_str = format!("数据解析失败!").to_string();
                         let err = CustomError::new(1, err_str);
+                        return Err(err)
                     } else {
                         let sub_length = 0;
                     }
@@ -3033,6 +3053,7 @@ impl FrameCsg {
         let mut num = 0;
         let mut sub_result = vec![];
         let total_length = frame.len();
+        println!("valid_data_segment:{:?}", valid_data_segment);
         let (tpv_data, pw_data, pw_pos, cur_length) = if tpv {
             (
                 &frame[frame.len() - 7..frame.len() - 2],
@@ -3043,7 +3064,11 @@ impl FrameCsg {
         } else {
             (
                 &[] as &[u8],
-                &valid_data_segment[valid_data_segment.len() - 16..],
+                if (valid_data_segment.len() > 16) {
+                    &valid_data_segment[valid_data_segment.len() - 16..]
+                } else {
+                    &[] as &[u8]
+                },
                 [total_length - 18, total_length - 2],
                 length,
             )
@@ -3053,7 +3078,7 @@ impl FrameCsg {
         let data_segment = &valid_data_segment[..length];
 
         while pos < length {
-            let result = (|| -> Result<(), Box<dyn Error>> {
+            let result = (|| -> Result<(), CustomError> {
                 let da = &data_segment[pos..pos + 2];
                 let item = &data_segment[pos + 2..pos + 6];
                 let point_str = Self::prase_da_data([da[0], da[1]]);
@@ -3175,6 +3200,7 @@ impl FrameCsg {
                         );
                         let err_str = format!("数据解析失败!").to_string();
                         let err = CustomError::new(1, err_str);
+                        return Err(err)
                     } else {
                         let sub_length = 0;
                     }
@@ -3271,14 +3297,22 @@ impl FrameCsg {
         } else {
             (
                 &[] as &[u8],
-                &valid_data_segment[valid_data_segment.len() - 16..],
+                if (valid_data_segment.len() > 16) {
+                    &valid_data_segment[valid_data_segment.len() - 16..]
+                } else {
+                    &[] as &[u8]
+                },
                 [total_length - 18, total_length - 2],
                 length,
             )
         };
         length = cur_length;
         let mut data_item: String = String::new();
+        let mut data_segment = valid_data_segment;
+        let mut pncount = 0;
+        let mut item_count = 0;
 
+        let mut task_name = String::new();
         if dir == 1 {
             let da = &frame[16..18];
             let item = &frame[18..22];
@@ -3286,7 +3320,7 @@ impl FrameCsg {
             let (data_item_elem, cur_data_item) =
                 Self::try_get_item_and_point(item, protocol, region, Some(dir));
 
-            let task_name = if let Some(data_item_elem) = data_item_elem {
+            task_name = if let Some(data_item_elem) = data_item_elem {
                 let name = data_item_elem.get_child_text("name").unwrap();
                 format!("{}号： {}", name, cur_data_item)
             } else {
@@ -3294,7 +3328,7 @@ impl FrameCsg {
             };
 
             FrameFun::add_data(
-                &mut sub_result,
+                &mut task_result,
                 "信息点标识DA".to_string(),
                 FrameFun::get_data_str_with_space(da),
                 point_str.clone(),
@@ -3303,7 +3337,7 @@ impl FrameCsg {
                 None,
             );
             FrameFun::add_data(
-                &mut sub_result,
+                &mut task_result,
                 "数据标识编码DI".to_string(),
                 FrameFun::get_data_str_with_space(item),
                 task_name.clone(),
@@ -3314,7 +3348,7 @@ impl FrameCsg {
 
             let task_kind = frame[22];
             FrameFun::add_data(
-                &mut task_result,
+                &mut sub_result,
                 "数据结构方式".to_string(),
                 FrameFun::get_data_str_with_space(&frame[22..23]),
                 "自描述方式".to_string(),
@@ -3323,10 +3357,10 @@ impl FrameCsg {
                 None,
             );
 
-            let pncount = frame[23];
-            let item_count = frame[24];
+            pncount = frame[23];
+            item_count = frame[24];
             FrameFun::add_data(
-                &mut task_result,
+                &mut sub_result,
                 "数据组数".to_string(),
                 FrameFun::get_data_str_with_space(&frame[23..25]),
                 format!(
@@ -3340,23 +3374,20 @@ impl FrameCsg {
                 None,
             );
 
-            let data_segment = &valid_data_segment[9..];
+            data_segment = &valid_data_segment[9..];
             length -= 9;
             data_item = cur_data_item;
-        } else {
-            let data_segment = valid_data_segment;
         }
+
         let mut pw = false;
-        let data_segment = &valid_data_segment[..length];
+        let data_segment = &data_segment[..length];
         let mut data_item_elem: Option<XmlElement> = None;
-        let mut sub_length = 0;
-        let mut data_time: Option<&[u8]> = None;
-        let mut sub_pos = 0;
+        let data_time: Option<&[u8]> = None;
         let mut point_str: String = String::new();
         let mut dis_data_identifier: String = String::new();
 
         while pos < length {
-            let result = (|| -> Result<(), Box<dyn Error>> {
+            let result = (|| -> Result<AnalysicErr, Box<dyn Error>> {
                 if !Self::guest_next_data_is_cur_item_data(
                     data_item_elem.clone(),
                     &data_segment[pos..],
@@ -3367,11 +3398,13 @@ impl FrameCsg {
                 ) {
                     let da = &data_segment[pos..pos + 2];
                     let item = &data_segment[pos + 2..pos + 6];
-                    let point_str = Self::prase_da_data([da[0], da[1]]);
+                    point_str = Self::prase_da_data([da[0], da[1]]);
                     let (data_item_elem_opt, cur_data_item) =
                         Self::try_get_item_and_point(item, protocol, region, Some(dir));
+
+                    println!("data_item:{:?} {:?} {:?}", data_item_elem_opt, data_segment, item);
                     data_item_elem = data_item_elem_opt.clone();
-                    let dis_data_identifier = if data_item_elem_opt.is_some() {
+                    dis_data_identifier = if data_item_elem_opt.is_some() {
                         let name = data_item_elem_opt.unwrap().get_child_text("name").unwrap();
                         format!("数据标识编码：[{}]-{}", cur_data_item, name)
                     } else {
@@ -3398,21 +3431,6 @@ impl FrameCsg {
                         None,
                     );
                     pos += 4;
-
-                    if region == "海南" {
-                        let data_count = data_segment[pos];
-                        let identifier = format!("数据时间个数: {:02o}", data_count);
-                        FrameFun::add_data(
-                            &mut sub_result,
-                            format!("<第{}组>数据时间个数", num + 1),
-                            FrameFun::get_data_str_with_space(&data_segment[pos..pos + 1]),
-                            identifier.clone(),
-                            vec![index + pos, index + pos + 1],
-                            None,
-                            None,
-                        );
-                        pos += 1;
-                    }
                 }
 
                 let mut item_data: Vec<Value> = Vec::new();
@@ -3426,17 +3444,17 @@ impl FrameCsg {
                         {
                             let sub_length = Self::calculate_item_length(
                                 &item_elem,
-                                &data_segment[pos + 4..],
+                                &data_segment[pos..],
                                 protocol,
                                 region,
                                 Some(dir),
                                 None,
                             );
-                            let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
+                            let sub_datament = &data_segment[pos..pos + sub_length];
                             (sub_length, sub_datament)
                         } else {
                             let sub_length = sub_length_cont.parse::<usize>().unwrap();
-                            let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
+                            let sub_datament = &data_segment[pos..pos + sub_length];
                             let (new_sub_length, new_datament) = Self::recalculate_sub_length(
                                 &item_elem,
                                 sub_datament,
@@ -3452,7 +3470,7 @@ impl FrameCsg {
                             protocol,
                             region,
                             sub_datament,
-                            index + pos + 4,
+                            index + pos,
                             Some(dir),
                         );
                     } else {
@@ -3469,22 +3487,22 @@ impl FrameCsg {
                         format!("<第{}组>数据内容", num + 1),
                         FrameFun::get_data_str_with_space(sub_datament),
                         format!("{}-{}", new_point_str, new_dis_str),
-                        vec![index + pos, index + pos + sub_length + 6],
+                        vec![index + pos, index + pos + sub_length ],
                         Some(item_data),
                         None,
                     );
-                    let data_time = &data_segment[pos + sub_length..pos + sub_length + 6];
-                    let time_str = FrameFun::parse_time_data(data_time, "CCYYMMDDhhmm", false);
+                    let data_time = &data_segment[pos + sub_length..pos + sub_length + 5];
+                    let time_str = FrameFun::parse_time_data(data_time, "YYMMDDhhmm", false);
                     FrameFun::add_data(
                         &mut sub_result,
                         format!("<第{}组>数据时间", num + 1),
                         FrameFun::get_data_str_with_space(data_time),
                         format!("数据时间：{}", time_str),
-                        vec![index + pos + sub_length, index + pos + sub_length + 6],
+                        vec![index + pos + sub_length, index + pos + sub_length + 5],
                         None,
                         None,
                     );
-                    pos += 6;
+                    pos += 5;
                 } else {
                     let start_time = &data_segment[pos..pos + 6];
                     let end_time = &data_segment[pos + 6..pos + 12];
@@ -3542,11 +3560,29 @@ impl FrameCsg {
                         length -= 16;
                     }
                 }
-                Ok(())
+                if dir == 1 {
+                    if num >= (item_count * pncount) {
+                        return Ok(AnalysicErr::ErrLength)
+                    }
+                    if (length - pos == 6) &&  (!Self::guest_next_data_is_cur_item_data(data_item_elem.clone(),&data_segment[pos..],
+                        data_time,
+                        protocol,
+                        region,
+                        Some(dir))){
+                            return Ok(AnalysicErr::ErrLength)
+                    }
+                }
+                Ok(AnalysicErr::ErrOk)
             })();
 
             match result {
-                Ok(_) => {}
+                Ok(res) => {
+                    match res {
+                        AnalysicErr::ErrOk => {}
+                        AnalysicErr::ErrLength => {break}
+                        _ => {}
+                    }
+                }
                 Err(e) => {
                     let err_str = format!("数据解析失败!").to_string();
                     let err = CustomError::new(1, err_str);
@@ -3555,10 +3591,23 @@ impl FrameCsg {
             }
         }
 
+        if dir == 1 {
+            FrameFun::add_data(&mut task_result, "任务数据内容".to_string(), FrameFun::get_data_str_with_space(&valid_data_segment[6..]), 
+            format!("{}数据内容", task_name), vec![22, frame.len() - 2],Some(sub_result), None);
+            if pw {
+                length -= 16;
+            }
+            if length - pos == 6 {
+                let data_time = &data_segment[pos..pos + 6];
+                let time_str = FrameFun::parse_time_data(data_time, "CCYYMMDDhhmm", false);
+                FrameFun::add_data(&mut task_result, "任务数据时间".to_string(),FrameFun::get_data_str_with_space(data_time), time_str, vec![index + pos,index + pos + 6], None, None);
+            }
+        }
+
         if pw {
             let pw_str = "PW由16个字节组成，是由主站按系统约定的认证算法产生，并在主站发送的报文中下发给终端，由终端进行校验认证。".to_string();
             FrameFun::add_data(
-                &mut sub_result,
+                &mut task_result,
                 "消息验证码Pw".to_string(),
                 FrameFun::get_data_str_with_space(pw_data),
                 pw_str,
@@ -3571,7 +3620,7 @@ impl FrameCsg {
         if tpv {
             let tpv_str = Self::prase_tpv_data(tpv_data);
             FrameFun::add_data(
-                &mut sub_result,
+                &mut task_result,
                 "时间标签Tp".to_string(),
                 FrameFun::get_data_str_with_space(tpv_data),
                 tpv_str,
@@ -3587,7 +3636,7 @@ impl FrameCsg {
             FrameFun::get_data_str_with_space(&frame[16..frame.len() - 2]),
             "".to_string(),
             vec![16, total_length - 2],
-            Some(sub_result),
+            Some(task_result),
             None,
         );
 
@@ -3622,7 +3671,11 @@ impl FrameCsg {
         } else {
             (
                 vec![],
-                valid_data_segment[valid_data_segment.len() - 16..].to_vec(),
+                if (valid_data_segment.len() > 16) {
+                    valid_data_segment[valid_data_segment.len() - 16..].to_vec()
+                } else {
+                    [].to_vec()
+                },
                 [total_length - 18, total_length - 2],
                 length,
             )
@@ -3715,6 +3768,7 @@ impl FrameCsg {
 
                         let err_str = format!("数据解析失败!").to_string();
                         let err = CustomError::new(1, err_str);
+                        return Err(err);
                     } else {
                         let sub_length = 0;
                     }
@@ -4084,7 +4138,11 @@ impl FrameCsg {
             length -= 5;
             (tpv_data, pw_data, vec![total_length - 23, total_length - 7])
         } else {
-            let pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
+            let pw_data = if (valid_data_segment.len() > 16) {
+                &valid_data_segment[valid_data_segment.len() - 16..]
+            } else {
+                &[] as &[u8]
+            };
             (
                 &[] as &[u8],
                 pw_data,
@@ -4348,7 +4406,11 @@ impl FrameCsg {
                 vec![start_pos + frame.len() - 23, start_pos + frame.len() - 7],
             )
         } else {
-            let pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
+            let pw_data = if (valid_data_segment.len() > 16) {
+                &valid_data_segment[valid_data_segment.len() - 16..]
+            } else {
+                &[] as &[u8]
+            };
             (
                 &[] as &[u8],
                 pw_data,

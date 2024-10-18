@@ -24,17 +24,16 @@ const ItemConfigRow: React.FC<SearchListProps> = ({ index, style, data, selectIt
 
     const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation();
-        console.log('delete', item);
         onDelete(item);
     };
 
     return (
         <div
-            className="cursor-pointer h-9 flex items-center px-4 py-2 font-sans text-sm relative"
+            className="cursor-pointer h-9 flex items-center px-4 py-2 font-sans text-sm relative hover:bg-base-300"
             style={{ ...style, width: '100%' }}
             onMouseDown={handleClick}
         >
-            <div className='flex items-center h-9 hover:bg-base-300' onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+            <div className='w-full flex items-center h-9' onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
                 <div className='flex items-center w-full h-full'>
                     <span className="mr-2 flex-shrink-0">{item.item}</span>
                     {item.name && <span className="mr-2 min-w-10 max-w-60 flex-shrink truncate">{item.name}</span>}

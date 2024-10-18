@@ -4,12 +4,16 @@ use crate::basefunc::frame_645::Frame645;
 use crate::basefunc::frame_cco::FrameCCO;
 use crate::basefunc::frame_tctask::TCMeterTask;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement};
-use num_traits::ToPrimitive;
 use regex::Regex;
-use serde::de::value;
 use serde_json::Value;
-use std::any;
-use std::{collections::HashMap, ptr::null};
+
+#[derive(Debug)]
+pub enum AnalysicErr {
+    ErrOk = 0,
+    ErrLength = 1,
+    ErrFcs = 2,
+    ErrItem = 3,
+}
 
 #[derive(Debug)]
 pub enum ProtocolInfo {
@@ -241,7 +245,14 @@ impl FrameAnalisyic {
                 match sub_length_txt {
                     Some(sub_length_txt) => match sub_length_txt.to_uppercase().as_str() {
                         "UNKNOWN" => {
-                            subitem_length = 0;
+                            subitem_length = FrameCsg::calculate_item_length(
+                                &data_item_elem,
+                                &sub_data_segment,
+                                protocol,
+                                region,
+                                dir,
+                                None,
+                            );
                         }
                         _ => {
                             subitem_length = sub_length_txt.parse::<usize>().unwrap();
@@ -258,6 +269,7 @@ impl FrameAnalisyic {
             } else {
                 subitem_length = sub_data_segment.len();
             }
+            println!("sub_data_segment:{:?} subitem_length:{} data_item_elem{:?}", sub_data_segment, subitem_length, data_item_elem);
 
             let (cur_result, sub_result, length) = Self::prase_type_item(
                 &data_item_elem,
@@ -835,7 +847,14 @@ impl FrameAnalisyic {
             match sub_item_length {
                 Some(sub_item_length) => match sub_item_length.to_uppercase().as_str() {
                     "UNKNOWN" => {
-                        subitem_length = 0;
+                        subitem_length = FrameCsg::calculate_item_length(
+                            &splitlength_item,
+                            &sub_data_segment,
+                            protocol,
+                            region,
+                            dir,
+                            None,
+                        );
                     }
                     _ => {
                         subitem_length = sub_item_length.parse::<usize>().unwrap();
@@ -1439,6 +1458,7 @@ impl FrameAnalisyic {
             .map(|s| s.to_string())
             .unwrap_or_else(|| format!("第{}组数据内容", i + 1));
 
+        println!("prase_template_type item_singal: {:?} {:?}", data_segment, item_len);
         if data_segment.len() % item_len == 0 {
             while pos < data_segment.len() {
                 let sub_data = &data_segment[pos..pos + item_len];
