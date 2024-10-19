@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
-import TreeItem, { TreeItem as TreeItemType, generateRowId } from './TreeItem';
+import TreeItem, { TreeItemType, generateRowId } from './TreeItem';
 import domtoimage from 'dom-to-image';// Add this for image export
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
@@ -25,21 +25,23 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, tableheads, 
   const {
     selectedRowId,
     expandedRows,
-    tabledata,
     selectedCell,
     expandedAll,
     isLoading,
+    treeScrollPosition,
     setSelectedRowId,
     setExpandedRows,
-    setTableData,
     setSelectedCell,
     setExpandedAll,
     setIsLoading,
+    setTreeScrollPosition
   } = useFrameTreeStore();
   const tableRef = useRef<HTMLTableElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0 });
   const [progress, setProgress] = useState({ type: '', position: 'end', visible: false });
+  const [treedata, setTreeData] = useState<TreeItemType[]>(data);
+
   const is_expand = selectedRowId ? expandedRows.has(selectedRowId) : false;
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -184,49 +186,26 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, tableheads, 
     setContextMenu({ visible: false, x: 0, y: 0 });
   };
 
-  const loadSavedState = useCallback(() => {
-    const savedExpandedRows = localStorage.getItem('expandedRows');
-    const savedSelectedRowId = localStorage.getItem('selectedRowId');
-    const savedSelectedCell = localStorage.getItem('selectedCell');
-
-    if (savedSelectedCell) {
-      setSelectedCell(JSON.parse(savedSelectedCell));
-    }
-    if (savedExpandedRows) {
-      setExpandedRows(new Set(JSON.parse(savedExpandedRows)));
-    }
-    if (savedSelectedRowId) {
-      setSelectedRowId(savedSelectedRowId);
-    }
-  }, []);
 
   useEffect(() => {
     const dataWithIds = generateUniqueIds(data);
-    console.log('dataWithIds:', dataWithIds);
-    setTableData(dataWithIds);
-    loadSavedState();
+    setTreeData(dataWithIds);
     handleExpandAll(dataWithIds);
 
     setIsLoading(true);
-  }, [data, loadSavedState]);
+  }, [data]);
 
   useLayoutEffect(() => {
     if (isLoading) {
-      const savedScrollPosition = localStorage.getItem('scrollPosition');
-      if (savedScrollPosition && containerRef.current) {
+      if (treeScrollPosition && containerRef.current) {
         setTimeout(() => {
           if (containerRef.current) {
-            containerRef.current.scrollTop = parseInt(savedScrollPosition, 10);
+            containerRef.current.scrollTop = treeScrollPosition;
           }
         }, 0);
       }
     }
   }, [isLoading]);
-
-  // 保存列宽到 localStorage
-  useEffect(() => {
-    localStorage.setItem('treeTableColumns', JSON.stringify(tableheads));
-  }, [tableheads]);
 
   const generateUniqueIds = (items: TreeItemType[], level: number = 1): TreeItemType[] => {
     return items.map((item, index) => ({
@@ -237,28 +216,10 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, tableheads, 
     }));
   };
 
-
-  useEffect(() => {
-    localStorage.setItem('expandedRows', JSON.stringify(Array.from(expandedRows)));
-  }, [expandedRows]);
-
-  useEffect(() => {
-    console.log('selectedRowId:', selectedRowId);
-    if (selectedRowId) {
-      localStorage.setItem('selectedRowId', selectedRowId || '');
-    }
-  }, [selectedRowId]);
-
-  useEffect(() => {
-    if (selectedCell.column && selectedCell.row) {
-      localStorage.setItem('selectedCell', JSON.stringify(selectedCell));
-    }
-  }, [selectedCell]);
-
   useEffect(() => {
     const handleScroll = () => {
       if (containerRef.current) {
-        localStorage.setItem('scrollPosition', containerRef.current.scrollTop.toString());
+        setTreeScrollPosition(containerRef.current.scrollTop);
       }
     };
 
@@ -274,13 +235,6 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, tableheads, 
     };
   }, []);
 
-  useLayoutEffect(() => {
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const width = rect.width;
-    }
-  }, []);
-
   const handleRowClick = (item: TreeItemType) => {
     setSelectedRowId(item.uniqueId || '');
     onRowClick(item);
@@ -293,15 +247,13 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, tableheads, 
   };
 
   const toggleRowExpansion = (rowId: string) => {
-    setExpandedRows((prevExpandedRows) => {
-      const newExpandedRows = new Set(prevExpandedRows);
-      if (newExpandedRows.has(rowId)) {
-        newExpandedRows.delete(rowId);
-      } else {
-        newExpandedRows.add(rowId);
-      }
-      return newExpandedRows;
-    });
+    const newExpandedRows = new Set(expandedRows);
+    if (newExpandedRows.has(rowId)) {
+      newExpandedRows.delete(rowId);
+    } else {
+      newExpandedRows.add(rowId);
+    }
+    setExpandedRows(newExpandedRows);
   };
 
   const handleExpandAll = (data: TreeItemType[]) => {
@@ -351,18 +303,12 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, tableheads, 
             {tableheads.map((column, index) => (
               <th key={index} style={{ position: 'relative', width: `${column.width}px` }}>
                 {column.name}
-                {/* {index < tableheads.length - 1 && (
-                  <div
-                    className="absolute top-0 right-0 bottom-0 w-1 cursor-col-resize"
-                    onMouseDown={(e) => handleResize(index, e)}
-                  />
-                )} */}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {tabledata.map((item, index) => (
+          {treedata.map((item, index) => (
             <TreeItem
               key={item.uniqueId || generateRowId(item, index)}
               data={item}

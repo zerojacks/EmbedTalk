@@ -1,5 +1,5 @@
-import { TreeTableView, ColumnDefinition } from "../components/treeview";
-import { TreeItem } from '../components/TreeItem';
+import { TreeTableView, Column } from "../components/treeview";
+import { TreeItemType } from '../components/TreeItem';
 import { invoke } from "@tauri-apps/api/core";
 import Split from 'react-split';
 import { useFrameTreeStore } from '../stores/useFrameAnalysicStore';
@@ -8,11 +8,11 @@ import { useProtocolInfoStore } from '../stores/useProtocolInfoStore';
 import { toast } from "../context/ToastProvider";
 
 interface Response {
-  data: TreeItem[];
+  data: TreeItemType[];
   error?: string;
 }
 
-const initialColumns: ColumnDefinition[] = [
+const initialColumns: Column[] = [
   { name: '帧域', width: 200, minWidth: 100 },
   { name: '数据', width: 200, minWidth: 50 },
   { name: '说明', width: 200, minWidth: 50 },
@@ -29,7 +29,7 @@ export default function Home() {
     setFrame,
     setSplitSize,
     setSelectedFrame,
-    setFrameScroll
+    setFrameScroll,
   } = useFrameTreeStore();
 
   const { region, setRegion } = useProtocolInfoStore();
@@ -82,7 +82,7 @@ export default function Home() {
     setFrame("");
   };
 
-  const handleRowClick = (item: TreeItem) => {
+  const handleRowClick = (item: TreeItemType) => {
     if (item.position && item.position.length === 2) {
       let start = item.position[0];
       let end = item.position[1];
@@ -137,14 +137,14 @@ export default function Home() {
       <Split
         direction="vertical"
         sizes={splitSize}
-        minSize={[0, 10]}
+        minSize={[20, 10]}
         gutterSize={2}
         snapOffset={30}
         dragInterval={0}
         onDragEnd={handleDragEnd}
         className="flex flex-col w-full h-full"
       >
-      <div className="w-full " >
+      <div className="w-full overflow-hidden" >
         <div className="p-[5px] h-full">
           <textarea 
             ref={textareaRef}
@@ -156,11 +156,11 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="w-full border-b-2 border-transparent">
+      <div className="w-full border-b-2 border-transparent overflow-hidden">
         <div className="p-[5px] h-full">
           <TreeTableView 
             data={tabledata}
-            columns={initialColumns}
+            tableheads={initialColumns}
             onRowClick={handleRowClick}
           />
         </div>
