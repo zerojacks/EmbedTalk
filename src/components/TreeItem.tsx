@@ -3,22 +3,22 @@
 import React, { useState } from 'react';
 import { ChevronRight, ChevronDown } from './Icons';
 
-export interface TreeItem {
+export interface TreeItemType {
   frameDomain: string;
   data: string;
   description: string;
   position?: number[];
   color?: string | null;
-  children?: TreeItem[];
+  children?: TreeItemType[];
   uniqueId?: string; // 添加唯一标识符
   depth?: number;
 }
 
 interface TreeItemProps {
-  data: TreeItem;
+  data: TreeItemType;
   level: number;
-  onRowClick: (item: TreeItem) => void;
-  onRowDoubleClick: (item: TreeItem, hasChildren: boolean | undefined) => void;
+  onRowClick: (item: TreeItemType) => void;
+  onRowDoubleClick: (item: TreeItemType, hasChildren: boolean | undefined) => void;
   selectedRowId: string | null; // 修改为 string 类型
   selectedCell: { row: number | null; column: number | null }; // 新增选中单元格的状态
   setSelectedCell: (cell: { row: number | null; column: number | null }) => void; // 设置选中单元格的状态
@@ -139,7 +139,7 @@ const ItemTreeView: React.FC<TreeItemProps> = ({
   );
 };
 
-export const generateRowId = (item: TreeItem, index: number): string => {
+export const generateRowId = (item: TreeItemType, index: number): string => {
   return `${index}-${item.frameDomain}-${item.data}-${item.description}`;
 };
 

@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import { TreeItem } from '../components/TreeItem'
+import { TreeItemType } from '../components/TreeItem'
 
 interface FrameTreeState {
     frame: string,
     selectedRowId: string | null;
     expandedRows: Set<string>;
-    tabledata: TreeItem[];
+    tabledata: TreeItemType[];
     selectedCell: { row: number | null; column: number | null };
     isLoading: boolean;
     expandedAll: boolean;
@@ -18,7 +18,7 @@ interface FrameTreeState {
     setFrame: (frame: string) => void;
     setSelectedRowId: (rowid: string | null) => void;
     setExpandedRows: (rows: Set<string>) => void;
-    setTableData: (tabledata: TreeItem[]) => void;
+    setTableData: (tabledata: TreeItemType[]) => void;
     setSelectedCell: (cell: {row: number | null; column: number | null} ) => void;
     setIsLoading: (loading: boolean) => void;
     setExpandedAll: (state: boolean) => void;
@@ -44,7 +44,7 @@ interface FrameTreeState {
     setFrame: (frame: string) => set({ frame: frame }),
     setSelectedRowId: (rowid: string | null) => set({ selectedRowId: rowid}),
     setExpandedRows: (rows: Set<string>) => set(() => ({ expandedRows: new Set(rows) })), 
-    setTableData: (tabledata: TreeItem[]) => set({ tabledata: tabledata }),
+    setTableData: (tabledata: TreeItemType[]) => set({ tabledata: tabledata }),
     setSelectedCell: (cell: {row: number | null; column: number | null} ) => set({ selectedCell: cell }),
     setIsLoading: (loading: boolean) => set({ isLoading: loading }),
     setExpandedAll: (state: boolean) => set({ expandedAll: state }),
