@@ -6,6 +6,7 @@ import { useFrameTreeStore } from '../stores/useFrameAnalysicStore';
 import { useEffect, useRef } from "react";
 import { useProtocolInfoStore } from '../stores/useProtocolInfoStore';
 import { toast } from "../context/ToastProvider";
+import TreeTable from "../components/TreeTable";
 
 interface Response {
   data: TreeItemType[];
@@ -13,9 +14,9 @@ interface Response {
 }
 
 const initialColumns: Column[] = [
-  { name: '帧域', width: 200, minWidth: 100 },
-  { name: '数据', width: 200, minWidth: 50 },
-  { name: '说明', width: 200, minWidth: 50 },
+  { name: '帧域', width: 30, minWidth: 100 },
+  { name: '数据', width: 30, minWidth: 50 },
+  { name: '说明', width: 40, minWidth: 50 },
 ];
 
 export default function Home() {
@@ -156,11 +157,12 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="w-full border-b-2 border-transparent overflow-hidden">
-        <div className="p-[5px] h-full">
-          <TreeTableView 
+      <div className="w-full border-b-2 border-transparent">
+        <div className="p-[5px] h-full w-full">
+          <TreeTable 
+            className="w-full h-full"
             data={tabledata}
-            tableheads={initialColumns}
+            columns={initialColumns}
             onRowClick={handleRowClick}
           />
         </div>
