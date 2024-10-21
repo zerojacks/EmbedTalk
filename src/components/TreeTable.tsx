@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 
 interface Column {
@@ -43,6 +43,20 @@ const TreeTable: React.FC<TreeTableProps> = ({ className, data, columns: initial
     const [expandedState, setExpandedState] = useState<Record<string, boolean>>({});
     const [selectedRow, setSelectedRow] = useState<string | null>(null);
     const [selectedCell, setSelectedCell] = useState<{ row: string; col: number } | null>(null);
+
+    // Initialize all nodes as expanded
+    useEffect(() => {
+        const initExpandedState = (items: TreeItemType[]): Record<string, boolean> => {
+            return items.reduce((acc, item) => {
+                acc[item.uniqueId || ''] = true;
+                if (item.children) {
+                    return { ...acc, ...initExpandedState(item.children) };
+                }
+                return acc;
+            }, {} as Record<string, boolean>);
+        };
+        setExpandedState(initExpandedState(data));
+    }, [data]);
 
     const handleResize = useCallback((index: number, newWidth: number) => {
         setColumns(prevColumns => {
@@ -160,14 +174,19 @@ const TreeTable: React.FC<TreeTableProps> = ({ className, data, columns: initial
 
     const memoizedData = useMemo(() => generateUniqueIds(data), [data]);
 
+    // Calculate total width of all columns
+    const totalWidth = useMemo(() => columns.reduce((sum, column) => sum + column.width, 0), [columns]);
+
     return (
         <div className={`textarea-bordered border rounded overflow-auto ${className}`}>
-            <table className="w-full table-fixed">
-                {renderTableHeader()}
-                <tbody>
-                    {memoizedData.map(item => renderTreeItem(item))}
-                </tbody>
-            </table>
+            <div style={{ minWidth: `${totalWidth}px`, overflowX: 'auto' }}>
+                <table className="w-full table-fixed">
+                    {renderTableHeader()}
+                    <tbody>
+                        {memoizedData.map(item => renderTreeItem(item))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 };
@@ -188,7 +207,7 @@ const ExpandButton: React.FC<{ item: TreeItemType; toggleExpand: (id: string) =>
 const ResizeHandle: React.FC<{ index: number; handleResize: (index: number, newWidth: number) => void }> = 
     ({ index, handleResize }) => (
     <div
-        className="absolute top-0 right-0 bottom-0 w-0.5 cursor-col-resize bg-transparent"
+        className="absolute top-0 right-0 bottom-0 w-0.5 cursor-col-resize bg-transparent hover:bg-gray-400"
         onMouseDown={(e) => {
             e.preventDefault();
             const startX = e.pageX;
