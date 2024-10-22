@@ -315,8 +315,8 @@ export default function Itemconfig() {
         <div className="h-full flex flex-col overflow-hidden">
           <div className="p-4">
             <div className="flex flex-col w-full">
-              <div className="flex items-center mb-2">
-                <label className="flex-shrink-0 mr-2">数据标识</label>
+              <div className="p-4 flex overflow-hidden flex-row">
+                <label className="p-2 shrink-0 truncate">数据标识</label>
                 <div className="relative flex-grow">
                   <label className="input input-bordered flex items-center gap-2 w-full">
                     <input
@@ -366,8 +366,8 @@ export default function Itemconfig() {
               </div>
             </div>
           </div>
-          <div className="px-4 flex overflow-hidden flex-col">
-            <p className="py-2">已选择数据项</p>
+          <div className="p-4 flex overflow-hidden flex-col">
+            <p className="p-2 shrink-0 truncate">已选择数据项</p>
             <div className="overflow-hidden border textarea-bordered rounded-md">
               <FixedSizeList
                 ref={listRef}

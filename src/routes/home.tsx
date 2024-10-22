@@ -159,10 +159,10 @@ export default function Home() {
 
       <div className="w-full border-b-2 border-transparent">
         <div className="p-[5px] h-full w-full">
-          <TreeTable 
-            className="w-full h-full"
+          <TreeTableView 
+            // className="w-full h-full"
             data={tabledata}
-            columns={initialColumns}
+            tableheads={initialColumns}
             onRowClick={handleRowClick}
           />
         </div>

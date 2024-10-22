@@ -184,7 +184,6 @@ impl QframeConfig {
             let mut config = self.config.write().unwrap();
             *config = Some(XmlConfig { root });
         }
-
         Ok(())
     }
 

@@ -188,11 +188,11 @@ pub async fn get_protocol_config_item(value: &str) -> Result<XmlElement, String>
     };
 
     let region = if let Some(region) = value_json.region {
-        region
+        region.split(',').next().unwrap_or(&GLOBAL_CONFIG_MANAGER.global_region.get_value()).to_string()
     } else {
         GLOBAL_CONFIG_MANAGER.global_region.get_value().to_string()
     };
-
+    println!("item: {:?} protocol: {:?} region: {:?}", item_id, protocol, region);
     let dir = if let Some(dir) = value_json.dir {
         // 转换为 u8
         Some(
