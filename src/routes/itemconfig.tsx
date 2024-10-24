@@ -164,15 +164,17 @@ export default function Itemconfig() {
   const handleInputFocus = async () => {
     if (inputRef.current) {
       const currentValue = inputRef.current.value;
-      setIsLoading(true);
-      try {
-        const results = await asyncSearch(currentValue);
-        setFilteredData(results);
-        setShowDropdown(true);
-      } catch (error) {
-        setFilteredData([]);
-      } finally {
-        setIsLoading(false);
+      if (currentValue.trim() !== '') {
+        setIsLoading(true);
+        try {
+          const results = await asyncSearch(currentValue);
+          setFilteredData(results);
+          setShowDropdown(true);
+        } catch (error) {
+          setFilteredData([]);
+        } finally {
+          setIsLoading(false);
+        }
       }
     }
   }
@@ -312,11 +314,11 @@ export default function Itemconfig() {
         onDragEnd={handleDragEnd}
       >
         {/* Left side - 1/3 width */}
-        <div className="h-full flex flex-col overflow-hidden">
+        <div className="h-full flex flex-col overflow-auto">
           <div className="p-4">
             <div className="flex flex-col w-full">
-              <div className="p-4 flex overflow-hidden flex-row">
-                <label className="p-2 shrink-0 truncate">数据标识</label>
+              <div className="flex items-center mb-2">
+                <label className="flex-shrink-0 mr-2 truncate">数据标识</label>
                 <div className="relative flex-grow">
                   <label className="input input-bordered flex items-center gap-2 w-full">
                     <input
@@ -366,8 +368,8 @@ export default function Itemconfig() {
               </div>
             </div>
           </div>
-          <div className="p-4 flex overflow-hidden flex-col">
-            <p className="p-2 shrink-0 truncate">已选择数据项</p>
+          <div className="px-4 flex overflow-auto flex-col">
+            <p className="flex-shrink-0 p-2 truncate">已选择数据项</p>
             <div className="overflow-hidden border textarea-bordered rounded-md">
               <FixedSizeList
                 ref={listRef}

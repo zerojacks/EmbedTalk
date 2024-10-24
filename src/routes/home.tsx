@@ -1,4 +1,4 @@
-import { TreeTableView, Column } from "../components/treeview";
+// import { TreeTableView, Column } from "../components/treeview";
 import { TreeItemType } from '../components/TreeItem';
 import { invoke } from "@tauri-apps/api/core";
 import Split from 'react-split';
@@ -6,18 +6,18 @@ import { useFrameTreeStore } from '../stores/useFrameAnalysicStore';
 import { useEffect, useRef } from "react";
 import { useProtocolInfoStore } from '../stores/useProtocolInfoStore';
 import { toast } from "../context/ToastProvider";
-import TreeTable from "../components/TreeTable";
+import { TreeTableView } from "../components/TreeTable";
 
 interface Response {
   data: TreeItemType[];
   error?: string;
 }
 
-const initialColumns: Column[] = [
-  { name: '帧域', width: 30, minWidth: 100 },
-  { name: '数据', width: 30, minWidth: 50 },
-  { name: '说明', width: 40, minWidth: 50 },
-];
+// const initialColumns: Column[] = [
+//   { name: '帧域', width: 30, minWidth: 100 },
+//   { name: '数据', width: 30, minWidth: 50 },
+//   { name: '说明', width: 40, minWidth: 50 },
+// ];
 
 export default function Home() {
   const {
@@ -158,11 +158,11 @@ export default function Home() {
       </div>
 
       <div className="w-full border-b-2 border-transparent">
-        <div className="p-[5px] h-full w-full">
+        <div className="p-[5px] h-full overflow-auto" style={{width: "99.99%"}}>
           <TreeTableView 
             // className="w-full h-full"
             data={tabledata}
-            tableheads={initialColumns}
+            // tableheads={initialColumns}
             onRowClick={handleRowClick}
           />
         </div>
