@@ -1,4 +1,3 @@
-// import { TreeTableView, Column } from "../components/treeview";
 import { TreeItemType } from '../components/TreeItem';
 import { invoke } from "@tauri-apps/api/core";
 import Split from 'react-split';
@@ -12,12 +11,6 @@ interface Response {
   data: TreeItemType[];
   error?: string;
 }
-
-// const initialColumns: Column[] = [
-//   { name: '帧域', width: 30, minWidth: 100 },
-//   { name: '数据', width: 30, minWidth: 50 },
-//   { name: '说明', width: 40, minWidth: 50 },
-// ];
 
 export default function Home() {
   const {
@@ -160,9 +153,7 @@ export default function Home() {
       <div className="w-full border-b-2 border-transparent">
         <div className="p-[5px] h-full overflow-auto" style={{width: "99.99%"}}>
           <TreeTableView 
-            // className="w-full h-full"
             data={tabledata}
-            // tableheads={initialColumns}
             onRowClick={handleRowClick}
           />
         </div>
