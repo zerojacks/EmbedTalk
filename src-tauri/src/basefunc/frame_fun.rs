@@ -857,5 +857,4 @@ impl FrameFun {
         }
         val
     }
-    
 }

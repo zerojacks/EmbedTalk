@@ -48,9 +48,9 @@ export const useItemConfigStore = create<ItemConfigState>((set) => ({
   filteredData: [],
   isLoading: false,
   allitemlist: [],
-  displaytype: 'xml',
+  displaytype: 'compents',
   allSelectItems: [],
-  splitSize: [30,70],
+  splitSize: [50,50],
 
   // Actions to update the state
   setSearchTerm: (term: string) => set({ searchTerm: term }),

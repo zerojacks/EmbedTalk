@@ -8,13 +8,13 @@ use std::error::Error;
 use std::io;
 use std::io::Error as IoError;
 use std::sync::Arc;
+use tauri::Emitter;
 use tauri::{Manager, Wry};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 use tokio::sync::{broadcast, Mutex, TryLockError};
 use tokio::time::{sleep, timeout, Duration};
-use tauri::Emitter;
 //global.rs
 use crate::global::get_app_handle;
 
@@ -127,16 +127,15 @@ impl TcpClientChannel {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Clone the std::net::TcpStream
         let cloned_stream = stream.try_clone()?;
-    
+
         // Create a socket2::Socket from the cloned TcpStream
         let socket = Socket::from(cloned_stream);
-    
+
         // 方案1：使用单独的方法设置各个参数
-        let keepalive = TcpKeepalive::new()
-            .with_time(Duration::from_secs(60));     // Idle time
-        
+        let keepalive = TcpKeepalive::new().with_time(Duration::from_secs(60)); // Idle time
+
         socket.set_tcp_keepalive(&keepalive)?;
-    
+
         Ok(())
     }
 

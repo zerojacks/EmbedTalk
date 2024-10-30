@@ -1,4 +1,5 @@
 use crate::config::constants;
+use dirs_next;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -6,7 +7,6 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use dirs_next;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {

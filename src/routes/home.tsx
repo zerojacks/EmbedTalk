@@ -6,6 +6,13 @@ import { useEffect, useRef } from "react";
 import { useProtocolInfoStore } from '../stores/useProtocolInfoStore';
 import { toast } from "../context/ToastProvider";
 import { TreeTableView } from "../components/TreeTable";
+import { TreeTable, Column } from "../components/treeview";
+
+const initialColumns: Column[] = [
+  { name: '帧域', width: 30, minWidth: 100 },
+  { name: '数据', width: 30, minWidth: 50 },
+  { name: '说明', width: 40, minWidth: 50 },
+];
 
 interface Response {
   data: TreeItemType[];
@@ -152,8 +159,9 @@ export default function Home() {
 
       <div className="w-full border-b-2 border-transparent">
         <div className="p-[5px] h-full overflow-auto" style={{width: "99.99%"}}>
-          <TreeTableView 
+          <TreeTable 
             data={tabledata}
+            tableheads={initialColumns}
             onRowClick={handleRowClick}
           />
         </div>

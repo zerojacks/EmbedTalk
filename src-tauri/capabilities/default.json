@@ -79,6 +79,10 @@
     "os:allow-hostname",
     "clipboard-manager:default",
     "clipboard-manager:allow-read-text",
-    "clipboard-manager:allow-write-text"
+    "clipboard-manager:allow-write-text",
+    "process:default",
+    "process:allow-exit",
+    "process:allow-restart",
+    "process:default"
   ]
 }

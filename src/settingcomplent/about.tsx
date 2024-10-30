@@ -79,7 +79,7 @@ const AboutInfo = () => {
     };
 
     return (
-        <div tabIndex={0} className="collapse bg-base-200 shadow-md w-full">
+        <div className="join join-vertical collapse bg-base-200 shadow-md w-full">
             <div className="collapse-title text-base flex items-center w-full pr-0">
                 <div className="flex items-center w-full">
                     <div className="flex-1 flex items-center">

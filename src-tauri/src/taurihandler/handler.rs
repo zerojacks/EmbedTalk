@@ -188,11 +188,18 @@ pub async fn get_protocol_config_item(value: &str) -> Result<XmlElement, String>
     };
 
     let region = if let Some(region) = value_json.region {
-        region.split(',').next().unwrap_or(&GLOBAL_CONFIG_MANAGER.global_region.get_value()).to_string()
+        region
+            .split(',')
+            .next()
+            .unwrap_or(&GLOBAL_CONFIG_MANAGER.global_region.get_value())
+            .to_string()
     } else {
         GLOBAL_CONFIG_MANAGER.global_region.get_value().to_string()
     };
-    println!("item: {:?} protocol: {:?} region: {:?}", item_id, protocol, region);
+    println!(
+        "item: {:?} protocol: {:?} region: {:?}",
+        item_id, protocol, region
+    );
     let dir = if let Some(dir) = value_json.dir {
         // 转换为 u8
         Some(
@@ -214,9 +221,15 @@ pub async fn get_protocol_config_item(value: &str) -> Result<XmlElement, String>
 #[tauri::command]
 pub async fn save_protocol_config_item(value: &str) -> Result<(), String> {
     let value_json: ProtoConfigParams =
-    serde_json::from_str(value).map_err(|e| format!("Failed to parse value: {}", e))?;
-    println!("save_protocol_config_item: {:?}", value_json);
-    Ok(())
+        serde_json::from_str(value).map_err(|e| format!("Failed to parse value: {}", e))?;
+    println!("save_protocol_config_item: {:?}", value_json.protocol);
+    if (value_json.protocol.is_some() && value_json.xmlElement.is_some()) {
+        let protocol = value_json.protocol.clone().unwrap();
+        let element = value_json.xmlElement.clone().unwrap();
+        println!("save_protocol_config_item: {:?}", protocol);
+        ProtocolConfigManager::update_element(&value_json.item, &protocol, element)?
+    }
+    Err(format!("Failed to save protocol config item"))
 }
 
 #[cfg(target_os = "windows")]
@@ -245,9 +258,9 @@ pub async fn get_system_theme() -> Result<String, String> {
     #[cfg(target_os = "macos")]
     {
         let output = Command::new("defaults")
-        .args(&["read", "-g", "AppleInterfaceStyle"])
-        .output()
-        .expect("Failed to execute command");
+            .args(&["read", "-g", "AppleInterfaceStyle"])
+            .output()
+            .expect("Failed to execute command");
 
         let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let theme = if stdout.is_empty() {

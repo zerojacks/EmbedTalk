@@ -20,7 +20,7 @@ interface TreeTableViewProps {
   onRowClick: (item: TreeItemType) => void;
 }
 
-export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, tableheads, onRowClick }) => {
+export const TreeTable: React.FC<TreeTableViewProps> = ({ data, tableheads, onRowClick }) => {
 
   const {
     selectedRowId,

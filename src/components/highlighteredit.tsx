@@ -18,7 +18,6 @@ const SaveChangesDialog: React.FC<{ onConfirm: (save: boolean) => void, onCancel
         </div>
       </div>
     </div>
-
   );
 };
 

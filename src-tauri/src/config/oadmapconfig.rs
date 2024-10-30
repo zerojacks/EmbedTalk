@@ -1,10 +1,10 @@
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::env;
+use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use std::fs::File;
-use lazy_static::lazy_static;
-use std::env;
 // 主配置文件的结构
 #[derive(Debug, Deserialize, Serialize)]
 struct MainConfig {
@@ -42,66 +42,64 @@ pub struct SubConfig {
 struct CompleteConfig {
     main_config: MainConfig,
     sub_configs: HashMap<String, SubConfig>,
-
 }
 
 impl CompleteConfig {
     fn new(config_path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let main_config = Self::load_main_config(config_path)?;
         let mut sub_configs = HashMap::new();
-        
+
         let base_path = config_path.parent().unwrap_or_else(|| Path::new(""));
-        
+
         for oad_item in &main_config.oad_list {
             let file_path = oad_item.file_path.trim_start_matches("!inc ");
             let full_path = base_path.join(file_path);
-            
+
             let sub_config = Self::load_sub_config(&full_path, &oad_item.name)?;
             sub_configs.insert(oad_item.master_oad.clone(), sub_config);
         }
-        
+
         Ok(CompleteConfig {
             main_config,
             sub_configs,
         })
     }
-    
+
     fn load_main_config(path: &Path) -> Result<MainConfig, Box<dyn std::error::Error>> {
         let mut file = File::open(path)?; // 使用 File::open
         let mut content = String::new();
-        
+
         file.read_to_string(&mut content)?; // 读取文件内容
         let config: MainConfig = serde_yaml::from_str(&content)?; // 解析 YAML
         Ok(config)
     }
-    
-    fn load_sub_config(path: &Path, list_name: &str) -> Result<SubConfig, Box<dyn std::error::Error>> {
+
+    fn load_sub_config(
+        path: &Path,
+        list_name: &str,
+    ) -> Result<SubConfig, Box<dyn std::error::Error>> {
         let mut file = File::open(path)?; // 使用 File::open
         let mut content = String::new();
-        
+
         file.read_to_string(&mut content)?; // 读取文件内容
         let config: SubConfig = serde_yaml::from_str(&content)?;
         Ok(config)
     }
-    
+
     // 根据master_oad获取对应的配置列表
     fn get_config_by_master_oad(&self, master_oad: &str) -> Option<&SubConfig> {
         // 将传入的 master_oad 转换为小写
         let master_oad_lower = master_oad.to_lowercase();
         // 遍历所有 sub_configs，查找匹配的小写键
-        self.sub_configs
-            .iter()
-            .find_map(|(key, config)| {
-                if key.to_lowercase() == master_oad_lower {
-                    Some(config)
-                } else {
-                    None
-                }
-            })
+        self.sub_configs.iter().find_map(|(key, config)| {
+            if key.to_lowercase() == master_oad_lower {
+                Some(config)
+            } else {
+                None
+            }
+        })
     }
-    
 }
-
 
 lazy_static! {
     static ref TASK_OAD_CONFIG: CompleteConfig = {

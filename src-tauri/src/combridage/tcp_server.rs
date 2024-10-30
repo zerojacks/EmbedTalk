@@ -3,18 +3,18 @@ use crate::combridage::Message;
 use crate::global::get_app_handle;
 use async_trait::async_trait;
 use serde_json;
-use std::collections::HashMap;
 use socket2::{Socket, TcpKeepalive};
+use std::collections::HashMap;
 use std::error::Error;
 use std::io::Error as IoError;
 use std::sync::Arc;
+use tauri::Emitter;
 use tauri::{Manager, Wry};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 use tokio::sync::{broadcast, mpsc};
 use tokio::time::{sleep, timeout, Duration};
-use tauri::Emitter;
 
 #[derive(Clone, Debug)]
 pub struct TcpClientOfServer {
@@ -63,7 +63,7 @@ impl TcpClientOfServer {
                 eprintln!("Send task error: {}", e);
             }
         });
-        
+
         // 启动接收任务
         let channelsend = channel.clone();
         println!("Before spawning receive task");
@@ -76,7 +76,7 @@ impl TcpClientOfServer {
         println!("After spawning receive task");
         // 在某处等待任务完成
         // handle.await?;
-        
+
         // send_handle.await?;
         tokio::time::sleep(Duration::from_millis(100)).await;
         Ok(channel)
@@ -136,9 +136,8 @@ impl TcpClientOfServer {
         let socket = Socket::from(cloned_stream);
 
         // Create a TcpKeepalive structure and configure it
-        let keepalive = TcpKeepalive::new()
-            .with_time(Duration::from_secs(60)); // Idle time before sending keepalive probes
-        // Set the TCP keepalive options using the constructed TcpKeepalive
+        let keepalive = TcpKeepalive::new().with_time(Duration::from_secs(60)); // Idle time before sending keepalive probes
+                                                                                // Set the TCP keepalive options using the constructed TcpKeepalive
         socket.set_tcp_keepalive(&keepalive)?;
 
         Ok(())
@@ -302,14 +301,13 @@ impl TcpServerChannel {
         let _ = self.shutdown_signal.send(());
 
         // 2. 关闭监听器
-        
-        
+
         for client in self.clients.lock().await.values() {
             client.lock().await.close().await?;
         }
-        
+
         self.clients.lock().await.clear();
-        
+
         let listener = self.listener.lock().await;
         // socket.shutdown(Shutdown::Both)?;
         drop(listener);

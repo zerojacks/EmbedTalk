@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { FixedSizeList, ListChildComponentProps } from 'react-window';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { FixedSizeList } from 'react-window';
 import XmlTree, { getDisplayName } from '../components/xmltree';
 import XmlConverter from '../components/xmlconvert';
 import { CodeIcon, ComponentsIcon } from '../components/Icons';
@@ -8,6 +8,7 @@ import { useItemConfigStore, XmlElement, DataItem } from '../stores/useItemConfi
 import SearchList from '../components/serachlist';
 import ItemConfigRow from '../components/ItemConfigRow';
 import Split from 'react-split';
+import { toast } from '../context/ToastProvider';
 
 export const CompentTitle: React.FC<{ dataitem: DataItem; className?: string }> = ({ dataitem, className }) => {
   const title = getDisplayName(dataitem.xmlElement?.name!) + (dataitem.item ? ` (${dataitem.item})` : '');
@@ -110,14 +111,14 @@ export default function Itemconfig() {
       }
     }
     getallitemlist();
-  }, []);
+  }, [searchTerm]);
 
   useEffect(() => {
     if (isSelecting.current) {
       isSelecting.current = false;
       return;
     }
-
+    console.log('selectedItem', selectedItem);
     let debounceTimeout: NodeJS.Timeout;
     const performSearch = async () => {
       if (searchTerm.trim() === '') {
@@ -147,7 +148,10 @@ export default function Itemconfig() {
   }, [searchTerm]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+    console.log("handleTextChange", e.target.value, searchTerm);
+    if(e.target.value !== searchTerm) {
+      setSearchTerm(e.target.value);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -234,9 +238,10 @@ export default function Itemconfig() {
   const saveItemConfig = async (item: DataItem) => {
     try {
       await invoke<void>('save_protocol_config_item', { value: JSON.stringify(item) });
-      console.log("save success");
+      toast.success('保存成功！');
     } catch (error) {
-      console.error('save_protocol_config_item error:', error);
+      toast.error('保存失败！');
+      console.log('save_protocol_config_item error:', error)
     }
   }
 
@@ -401,7 +406,7 @@ export default function Itemconfig() {
                   </div>
                 </div>
               )}
-              <div className="flex items-center overflow-auto">
+              <div className="flex items-center overflow-auto h-full w-full">
                 {selectedItem.xmlElement && (displaytype === 'compents') && (
                   <XmlTree data={selectedItem.xmlElement} onUpdate={handleXmlElementChange} />
                 )}

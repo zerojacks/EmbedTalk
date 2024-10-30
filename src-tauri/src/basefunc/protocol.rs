@@ -1,7 +1,7 @@
-use crate::basefunc::frame_csg::FrameCsg;
-use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::frame_645::Frame645;
 use crate::basefunc::frame_cco::FrameCCO;
+use crate::basefunc::frame_csg::FrameCsg;
+use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::frame_tctask::TCMeterTask;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement};
 use regex::Regex;
@@ -54,7 +54,7 @@ impl FrameAnalisyic {
                 Ok(_) => {}
                 Err(_) => {}
             }
-        } 
+        }
 
         parsed_data
     }
@@ -70,7 +70,7 @@ impl FrameAnalisyic {
         let mut parsed_data = Vec::new();
 
         // 假设 ConfigManager 是你自己的结构体，并且 get_config_xml 是其方法
-        println!("prase_data data_item_id: {:?}", data_item_id);
+        println!("prase_data data_item_id: {:?} data_segment{:?}", data_item_id, data_segment);
         if let Some(data_item_elem) =
             ProtocolConfigManager::get_config_xml(data_item_id, protocol, region, dir)
         {
@@ -122,7 +122,8 @@ impl FrameAnalisyic {
         } else {
             data_str
         };
-        
+
+        println!("prase_data_item data_segment{:?} pos: {:?}", data_segment, pos);
 
         if !sub_data_item.is_empty() {
             let (sub_result, length) = Self::process_all_item(
@@ -136,7 +137,10 @@ impl FrameAnalisyic {
             );
             sub_item_result = Some(sub_result);
             cur_length = length;
-            println!("sub_item_result {:?} cur_length: {:?}", sub_item_result, cur_length);
+            println!(
+                "sub_item_result {:?} cur_length: {:?}",
+                sub_item_result, cur_length
+            );
         } else if data_item_elem.get_child("unit").is_some()
             && data_item_elem.get_child("value").is_some()
         {
@@ -269,7 +273,10 @@ impl FrameAnalisyic {
             } else {
                 subitem_length = sub_data_segment.len();
             }
-            println!("sub_data_segment:{:?} subitem_length:{} data_item_elem{:?}", sub_data_segment, subitem_length, data_item_elem);
+            println!(
+                "sub_data_segment:{:?} subitem_length:{} data_item_elem{:?}",
+                sub_data_segment, subitem_length, data_item_elem
+            );
 
             let (cur_result, sub_result, length) = Self::prase_type_item(
                 &data_item_elem,
@@ -468,7 +475,10 @@ impl FrameAnalisyic {
         (value_name, sub_item_result, item_length)
     }
 
-    pub fn find_value_from_elements(value_elements: &[XmlElement], search_value: &str) -> (String, Option<XmlElement>) {
+    pub fn find_value_from_elements(
+        value_elements: &[XmlElement],
+        search_value: &str,
+    ) -> (String, Option<XmlElement>) {
         let mut found_value = search_value.to_string();
 
         // First pass: Look for a key that matches `search_value`
@@ -637,7 +647,7 @@ impl FrameAnalisyic {
         let subitem_type = data_item_elem
             .get_child_text("type")
             .unwrap_or_else(|| "BCD".to_string());
-        let subitem_value = match subitem_type.as_str() {
+        let subitem_value = match subitem_type.to_uppercase().as_str() {
             "BCD" | "Bcd" | "bcd" => {
                 FrameFun::bcd_to_decimal(data_segment, decimal, need_delete, sign)
             }
@@ -694,10 +704,10 @@ impl FrameAnalisyic {
                 FrameFun::hex_array_to_int(&data_segment[start_pos..end_pos], need_delete),
             );
 
-            
             let value_elements = bit_elem.get_items("value");
-            let (mut value_name, element) = Self::find_value_from_elements(&value_elements, &bit_value);
-            
+            let (mut value_name, element) =
+                Self::find_value_from_elements(&value_elements, &bit_value);
+
             let bit_id_attr = format!("bit{}", bit_id_attr);
             let name_str = if let Some(name_elem) = bit_name_elem {
                 name_elem
@@ -844,6 +854,7 @@ impl FrameAnalisyic {
             let sub_neme = Self::get_item_name_str(sub_item_id, sub_item_name);
             let sub_item_length = splitlength_item.get_child_text("length");
             subitem_length = sub_data_segment.len();
+            println!("sub_data_segment:{:?} subitem_length:{} data_segment:{:?}", sub_data_segment, subitem_length,data_segment);
             match sub_item_length {
                 Some(sub_item_length) => match sub_item_length.to_uppercase().as_str() {
                     "UNKNOWN" => {
@@ -868,10 +879,14 @@ impl FrameAnalisyic {
                     }
                 }
             }
-            println!("sub_data_segment:{:?} subitem_length:{}", sub_data_segment, subitem_length);
+            println!(
+                "sub_data_segment:{:?} subitem_length:{}",
+                sub_data_segment, subitem_length
+            );
             splitlength_item.update_value("length", subitem_length.to_string());
 
             if subitem_length > sub_data_segment.len() {
+                println!("subitem_length > sub_data_segment.len() {:?}", sub_data_segment.len());
                 break;
             }
 
@@ -906,7 +921,10 @@ impl FrameAnalisyic {
                 result_str = cur_result;
                 sub_item_result = sub_result;
                 cur_length = length;
-                println!("cur_result:{:?} sub_result:{:?} length:{:?}", result_str, sub_item_result, length);
+                println!(
+                    "cur_result:{:?} sub_result:{:?} length:{:?}",
+                    result_str, sub_item_result, length
+                );
             } else if splitlength_item.get_child("value").is_some() {
                 let (cur_result, sub_result, length) = Self::prase_value_item(
                     &splitlength_item,
@@ -1000,7 +1018,6 @@ impl FrameAnalisyic {
             }
 
             if sub_item_result.is_none() {
-
                 let result_str = format!("[{}]: {}", sub_neme, result_str);
                 // 说明是单一的结果
                 FrameFun::add_data(
@@ -1458,7 +1475,10 @@ impl FrameAnalisyic {
             .map(|s| s.to_string())
             .unwrap_or_else(|| format!("第{}组数据内容", i + 1));
 
-        println!("prase_template_type item_singal: {:?} {:?}", data_segment, item_len);
+        println!(
+            "prase_template_type item_singal: {:?} {:?}",
+            data_segment, item_len
+        );
         if data_segment.len() % item_len == 0 {
             while pos < data_segment.len() {
                 let sub_data = &data_segment[pos..pos + item_len];

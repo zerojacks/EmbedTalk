@@ -1,17 +1,15 @@
-use backtrace::Backtrace;
 use lazy_static::lazy_static;
-use quick_xml::events::Event;
-use quick_xml::Reader;
+use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
+use quick_xml::{Reader, Writer};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
-use std::io::BufReader;
-use std::path::Path;
+use std::io::{BufReader, BufWriter};
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
-use std::time::Instant;
-use tracing::{debug, error, info, warn}; // Add rayon for parallel iterators
-use serde::{Serialize, Deserialize};
+use tracing::info; // Add rayon for parallel iterators
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct XmlElement {
@@ -29,6 +27,7 @@ pub struct XmlConfig {
 pub struct QframeConfig {
     config: RwLock<Option<XmlConfig>>,
     config_cache: RwLock<Cache>, // Wrap Cache in RwLock
+    config_path: RwLock<Option<PathBuf>>,
 }
 
 impl XmlElement {
@@ -121,6 +120,7 @@ impl QframeConfig {
         QframeConfig {
             config: RwLock::new(None),
             config_cache: RwLock::new(Cache::new()),
+            config_path: RwLock::new(None),
         }
     }
 
@@ -183,7 +183,171 @@ impl QframeConfig {
         if let Some(root) = root {
             let mut config = self.config.write().unwrap();
             *config = Some(XmlConfig { root });
+            let mut path = self.config_path.write().unwrap();
+            *path = Some(file_path.to_path_buf());
         }
+        Ok(())
+    }
+
+    pub fn update_element(
+        &self,
+        target_id: &str,
+        new_element: XmlElement,
+    ) -> Result<(), Arc<dyn Error + Send + Sync>> {
+        let mut config = self.config.write().unwrap();
+        println!("update element:{:?}", target_id);
+
+        if let Some(ref mut xml_config) = *config {
+            // 清除缓存，因为内容已更新
+            let mut cache = self.config_cache.write().unwrap();
+            cache.results.clear();
+            // 更新或添加元素
+            let result =
+                self.update_element_recursive(&mut xml_config.root, target_id, new_element, true);
+            println!("update element:{:?} {:?} success", target_id, result);
+
+            // 保存更新后的配置到文件
+            self.save_to_file(xml_config)?;
+            println!("save element:{:?} success", target_id);
+        }
+        println!("save element:{:?} err", config);
+        Ok(())
+    }
+
+    fn update_element_recursive(
+        &self,
+        current: &mut XmlElement,
+        target_id: &str,
+        new_element: XmlElement,
+        isroot: bool,
+    ) -> Result<bool, Arc<dyn Error + Send + Sync>> {
+        // 检查当前节点是否是目标节点
+        if let Some(id) = current.attributes.get("id") {
+            if id == target_id {
+                *current = new_element;
+                return Ok(true);
+            }
+        }
+
+        // 递归检查子节点
+        for child in current.children.iter_mut() {
+            if self.update_element_recursive(child, target_id, new_element.clone(), false)? {
+                return Ok(true);
+            }
+        }
+
+        if !isroot {
+            return Ok(false);
+        }
+        // 如果没找到目标节点，将新元素添加为子节点
+        if !current.children.iter().any(|child| {
+            child
+                .attributes
+                .get("id")
+                .map_or(false, |id| id == target_id)
+        }) {
+            current.children.push(new_element);
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    pub fn save_to_file(&self, config: &mut XmlConfig) -> Result<(), Arc<dyn Error + Send + Sync>> {
+        println!("save to file");
+        let path = self.config_path.read().unwrap();
+        println!("{:?} {:?} ", path, config.root);
+        if let (Some(path)) = (path.as_ref()) {
+            let file =
+                File::create(path).map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
+            let writer = BufWriter::new(file);
+            let mut xml_writer = Writer::new(writer);
+
+            self.write_element(&mut xml_writer, &config.root, 0)?;
+        }
+
+        Ok(())
+    }
+
+    fn write_element(
+        &self,
+        writer: &mut Writer<BufWriter<File>>,
+        element: &XmlElement,
+        indent_level: usize,
+    ) -> Result<(), Arc<dyn Error + Send + Sync>> {
+        // 写入初始缩进
+        let indent = "    ".repeat(indent_level);
+        writer
+            .write_event(Event::Text(BytesText::from_escaped(indent.as_bytes())))
+            .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
+
+        // 创建开始标签
+        let mut elem_start = BytesStart::borrowed_name(element.name.as_bytes());
+
+        // 添加属性
+        for (key, value) in &element.attributes {
+            elem_start.push_attribute((key.as_str(), value.as_str()));
+        }
+
+        // 写入开始标签
+        writer
+            .write_event(Event::Start(elem_start.clone()))
+            .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
+
+        // 检查元素内容是否复杂
+        let has_complex_content = !element.children.is_empty();
+
+        if has_complex_content {
+            // 如果是复杂元素，添加换行
+            writer
+                .write_event(Event::Text(BytesText::from_escaped(b"\n")))
+                .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
+        }
+
+        // 写入值（如果有）
+        if let Some(ref value) = element.value {
+            if has_complex_content {
+                // 如果是复杂元素，缩进并换行
+                writer
+                    .write_event(Event::Text(BytesText::from_escaped(
+                        format!("{}{}", "    ".repeat(indent_level + 1), value).as_bytes(),
+                    )))
+                    .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
+                writer
+                    .write_event(Event::Text(BytesText::from_escaped(b"\n")))
+                    .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
+            } else {
+                // 如果是简单元素，直接写入值
+                writer
+                    .write_event(Event::Text(BytesText::from_escaped(value.as_bytes())))
+                    .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
+            }
+        }
+
+        // 递归写入子元素
+        for child in &element.children {
+            self.write_element(writer, child, indent_level + 1)?;
+        }
+
+        if has_complex_content {
+            // 如果是复杂元素，在结束标签前添加缩进
+            writer
+                .write_event(Event::Text(BytesText::from_escaped(indent.as_bytes())))
+                .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
+        }
+
+        // 写入结束标签
+        writer
+            .write_event(Event::End(BytesEnd::borrowed(element.name.as_bytes())))
+            .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
+
+        // 在元素后添加换行（除非是简单元素）
+        if has_complex_content || indent_level > 0 {
+            writer
+                .write_event(Event::Text(BytesText::from_escaped(b"\n")))
+                .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
+        }
+
         Ok(())
     }
 
@@ -357,10 +521,10 @@ impl QframeConfig {
     pub fn get_config(&self) -> RwLockReadGuard<Option<XmlConfig>> {
         self.config.read().unwrap() // 返回 RwLock 的读锁
     }
-    
+
     pub async fn get_all_item(&self) -> Vec<ItemConfigList> {
         let mut result = Vec::new();
-    
+
         let config_read = self.config.read().unwrap(); // 在这个作用域中获取读锁
         if let Some(xml_config) = config_read.as_ref() {
             // 传递 xml_config 的引用到异步函数
@@ -368,9 +532,7 @@ impl QframeConfig {
         }
         result
     }
-    
-    
-    
+
     fn traverse_element(
         &self,
         element: &XmlElement,
@@ -384,7 +546,7 @@ impl QframeConfig {
         if !skip_id_check && element.get_attribute("id").is_none() {
             return; // 如果不是 root 节点且没有 id 属性，则返回
         }
-    
+
         // 处理当前元素
         if let Some(id_str) = element.get_attribute("id") {
             // 如果有 id 属性，将其解析并添加到结果中
@@ -402,7 +564,7 @@ impl QframeConfig {
             };
             result.push(item);
         }
-    
+
         // 遍历子元素
         for child in element.get_children() {
             // 对子元素进行递归调用，并设置 skip_id_check 为 false
@@ -416,8 +578,6 @@ impl QframeConfig {
             );
         }
     }
-    
-    
 }
 
 lazy_static! {
@@ -535,6 +695,39 @@ impl ProtocolConfigManager {
                     .get_template_item(template, protocol, region, dir)
             }
             _ => None, // 不匹配任何已知协议时返回 None
+        }
+    }
+
+    pub fn update_element(
+        target_id: &str,
+        protocol: &str,
+        element: XmlElement,
+    ) -> Result<(), String> {
+        let find_protocol = protocol.to_uppercase();
+
+        match find_protocol.as_str() {
+            protocol if protocol.contains("CSG13") => {
+                println!("更新 CSG13 配置");
+                match GLOBAL_CSG13.as_ref() {
+                    Ok(config) => config
+                        .update_element(target_id, element)
+                        .map_err(|e| format!("更新失败: {}", e)),
+                    Err(_) => Err("CSG13 配置错误".to_string()),
+                }
+            }
+            protocol if protocol.contains("DLT/645") => match GLOBAL_645.as_ref() {
+                Ok(config) => config
+                    .update_element(target_id, element)
+                    .map_err(|e| format!("更新失败: {}", e)),
+                Err(_) => Err("DLT/645 配置错误".to_string()),
+            },
+            protocol if protocol.contains("CSG16") => match GLOBAL_CSG16.as_ref() {
+                Ok(config) => config
+                    .update_element(target_id, element)
+                    .map_err(|e| format!("更新失败: {}", e)),
+                Err(_) => Err("CSG16 配置错误".to_string()),
+            },
+            _ => Err("不支持的协议类型".to_string()),
         }
     }
 }

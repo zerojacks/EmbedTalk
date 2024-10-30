@@ -695,10 +695,10 @@ const ConnectBridge = () => {
     };
 
     return (
-        <div tabIndex={0} className="flex-col collapse bg-base-200 shadow-md w-full">
+        <div className="join join-vertical collapse bg-base-200 shadow-md w-full">
             <div role="tablist" className="tabs tabs-lifted">
                 <input type="radio" name="my_tabs_2" role="tab" className="tab" aria-label="TCP客户端" defaultChecked />
-                <div role="tabpanel" className="tab-content bg-base-100 border-base-300 rounded-box p-6">
+                <div role="tabpanel" className="tab-content bg-base-100 border-base-300 rounded-md p-6">
                     <div className="flex items-center gap-2 m-2">远程地址
                         <input type="text" className="w-1/6 input input-bordered flex items-center gap-2" disabled={connectInfo?.tcpclient?.state !== 'disconnected'} value={connectInfo?.tcpclient?.ip} onChange={handletcpclientipChange} />
                     </div>
@@ -712,7 +712,7 @@ const ConnectBridge = () => {
                 </div>
 
                 <input type="radio" name="my_tabs_2" role="tab" className="tab" aria-label="TCP服务器" />
-                <div role="tabpanel" className="tab-content bg-base-100 border-base-300 rounded-box p-6">
+                <div role="tabpanel" className="tab-content bg-base-100 border-base-300 rounded-md p-6">
                     <div className="flex items-center gap-2 m-2">本地地址
                         <input type="text" className="w-1/6 input input-bordered flex items-center gap-2" disabled={connectInfo?.tcpserver?.state !== 'disconnected'} value={connectInfo?.tcpserver?.ip} onChange={handletcpServeripChange} />
                     </div>
@@ -726,7 +726,7 @@ const ConnectBridge = () => {
                 </div>
 
                 <input type="radio" name="my_tabs_2" role="tab" className="tab" aria-label="串口" />
-                <div role="tabpanel" className="tab-content bg-base-100 border-base-300 rounded-box p-6">
+                <div role="tabpanel" className="tab-content bg-base-100 border-base-300 rounded-md p-6">
                     <div className="flex items-center gap-2 m-2">串口号
                         <select
                             className="select mr-3 bg-base-200 select-bordered w-1/6" // 将 select 靠右
@@ -803,7 +803,7 @@ const ConnectBridge = () => {
                     </button> {/* 按钮靠右对齐 */}
                 </div>
                 <input type="radio" name="my_tabs_2" role="tab" className="tab" aria-label="MQTT" />
-                <div role="tabpanel" className="tab-content bg-base-100 border-base-300 rounded-box p-6">
+                <div role="tabpanel" className="tab-content bg-base-100 border-base-300 rounded-md p-6">
                     <div className="flex items-center gap-2 m-2">
                         <label className="w-16 flex-shrink-0">远程地址</label>
                         <input type="text" className="w-1/6 input input-bordered" disabled={connectInfo?.mqtt?.state !== 'disconnected'} value={connectInfo?.mqtt?.ip} onChange={handleMqttipChange} />
@@ -856,7 +856,7 @@ const ConnectBridge = () => {
                     </button> {/* 按钮靠右对齐 */}
                 </div>
                 <input type="radio" name="my_tabs_2" role="tab" className="tab" aria-label="蓝牙" />
-                <div role="tabpanel" className="tab-content bg-base-100 border-base-300 rounded-box p-6">
+                <div role="tabpanel" className="tab-content bg-base-100 border-base-300 rounded-md p-6">
                     <div className="flex items-center gap-2 m-2">设备名称
                         <select
                             className="select mr-3 bg-base-200 select-bordered h-1 w-1/6" // 将 select 靠右

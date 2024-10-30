@@ -46,7 +46,7 @@ const convertToTreeNode = (items: TreeItemType[], level = 0): ExtendedTreeNode[]
                 color: item.color,
             },
             originalData: item,
-            children: item.children ? convertToTreeNode(item.children, level + 1) : undefined
+            children: item.children ? convertToTreeNode(item.children, level=level + 1) : undefined
         };
         return node;
     });
@@ -111,6 +111,7 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, onRowClick }
 
     useEffect(() => {
         const newdata = convertToTreeNode(data);
+        console.log("newdata", newdata);
         setTreeTable(newdata.length > 0 ? newdata : [{
             key: 'empty',
             data: { frameDomain: '', data: '', description: '' },
@@ -348,6 +349,7 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, onRowClick }
                 onToggle={handleToggle}
                 onContextMenu={handleContextMenu}
             >
+                {/* <Column field="name" header="Name" expander frozen></Column> */}
                 <Column
                     key="frameDomain"
                     field="frameDomain"
@@ -389,7 +391,7 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, onRowClick }
                     }
                 />
             </TreeTable>
-            {/* {contextMenu.visible && (
+            {contextMenu.visible && (
                 <div
                     className="fixed  bg-white border shadow-lg rounded-box"
                     style={{ left: contextMenu.x, top: contextMenu.y }}
@@ -418,7 +420,7 @@ export const TreeTableView: React.FC<TreeTableViewProps> = ({ data, onRowClick }
                         </li>
                     </ul>
                 </div>
-            )} */}
+            )}
         </div>
     );
 };

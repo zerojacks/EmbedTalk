@@ -288,7 +288,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, onUpdate }) => {
 
 const XmlTree: React.FC<{ data: XmlElement; onUpdate: (updatedData: XmlElement) => void }> = ({ data, onUpdate }) => {
   return (
-    <div>
+    <div className='overflow-auto w-full h-full'>
       <TreeNode node={data} onUpdate={onUpdate} />
     </div>
   );

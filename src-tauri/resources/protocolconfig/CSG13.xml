@@ -63466,15 +63466,6 @@
 			<type>BCD</type>
 		</splitByLength>
 	</dataItem>
-	<dataItem id="E100806C" protocol="csg13" region="南网">
-		<name>日冻结时间</name>
-		<length>5</length>
-		<splitByLength>
-			<name>数据内容</name>
-			<length>5</length>
-			<time>mmhhDDMMYY</time>
-		</splitByLength>
-	</dataItem>
 	<dataItem id="E1008070" protocol="csg13" region="南网">
 		<name>用电安全统计数据</name>
 		<length>90</length>
@@ -73773,4 +73764,33 @@
 		<value key="06">测量点档案无效或属性不匹配（非空调）</value> 
 		<value key="other">未知</value>
 	</dataItem>
+	<template region="南网" id="APPREGISTERINFO" protocol="csg13">
+        <name>注册码信息</name>
+        <length>76</length>
+        <splitByLength>
+            <name>APP ID</name>
+            <length>32</length>
+            <type>ASCII</type>
+        </splitByLength>
+        <splitByLength>
+            <name>APP 注册码</name>
+            <length>44</length>
+            <type>ASCII</type>
+        </splitByLength>
+    </template>
+    <dataItem protocol="csg13" region="南网" id="E1800053">
+        <name>APP注册码信息</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>注册码数量</name>
+            <length>1</length>
+            <type>BCD</type>
+        </splitByLength>
+        <splitByLength>
+            <name>注册码信息</name>
+            <length>unknown</length>
+            <lengthrule>76 * 注册码数量</lengthrule>
+            <type>APPREGISTERINFO</type>
+        </splitByLength>
+    </dataItem>
 </config>
