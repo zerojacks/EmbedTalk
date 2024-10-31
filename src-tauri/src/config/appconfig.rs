@@ -125,9 +125,9 @@ pub fn load_config_value(section: &str, key: &str) -> Option<Value> {
     let config = Config::new(path.to_str().unwrap()).map_err(|e| format!("{}", e));
     if let Ok(config) = config {
         // 读取 MainWindow.theme 字段
-        let theme = config.get_value(&[section, key]);
+        let sectionvalue = config.get_value(&[section, key]);
         // Retrieve the value from the config
-        theme.cloned()
+        sectionvalue.cloned()
     } else {
         None
     }

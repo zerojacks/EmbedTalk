@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from '@tauri-apps/plugin-process';
 import { SetFileIcon } from '../components/Icons';
 import { open, confirm } from '@tauri-apps/plugin-dialog';
+import { exists } from '@tauri-apps/plugin-fs';
+import { resolveResource } from '@tauri-apps/api/path';
 
 interface Protocol {
     id: 'nanwang13' | 'dlt645' | 'nanwang16';
@@ -19,6 +21,16 @@ interface SelectedFiles {
     nanwang16: FileInfo;
 }
 
+interface ProtocolMap {
+    [key: string]: string;
+}
+
+const protocolmap: ProtocolMap = {
+    nanwang13: 'CSG13',
+    dlt645: 'DLT645',
+    nanwang16: 'CSG16',
+};
+
 const ConfigFilePathCom: React.FC = () => {
     const [selectedFiles, setSelectedFiles] = useState<SelectedFiles>({
         nanwang13: { path: '' },
@@ -28,6 +40,7 @@ const ConfigFilePathCom: React.FC = () => {
 
     useEffect(() => {
         async function get_report_config() {
+
             try {
                 const fileinfo = await invoke<SelectedFiles>("get_config_value_async", {
                     section: "ProtocolSetting", 
@@ -38,7 +51,29 @@ const ConfigFilePathCom: React.FC = () => {
                 } else {
                     throw new Error('获取配置文件失败');
                 }
-            } catch (err) {}
+            } catch (err) {
+                const updates: Record<string, { path: string }> = {};
+                for (const key of Object.keys(protocolmap)) {
+                    const relativeFilePath = `resources/protocolconfig/${protocolmap[key]}.xml`;
+                    try{
+                        // 使用 resolveResource 获取实际路径
+                        const resolvedPath = await resolveResource(relativeFilePath);
+                        const isexist = await exists(resolvedPath);
+                        console.log(isexist, resolvedPath);
+                        updates[key] = { path: isexist ? resolvedPath : '' };
+                    } catch (error) {
+                        console.error(`Error checking file for ${key}:`, error);
+                        updates[key] = { path: '' };
+                    }
+                }
+            
+                setSelectedFiles(prev => ({
+                    ...prev,
+                    ...updates
+                }));
+                const fileinfo = {...selectedFiles, ...updates};
+                save_config(fileinfo)
+            }
         }
         get_report_config();
     }, []);
@@ -93,15 +128,19 @@ const ConfigFilePathCom: React.FC = () => {
 
     const renderFileInfo = (fileInfo: FileInfo): string => {
         if (!fileInfo.path) return '点击选择文件';
-        
+    
         // 获取文件名
-        const fileName = fileInfo.path.split('/').pop() || fileInfo.path;
-        
+        console.log(fileInfo.path);
+    
+        // 使用正则表达式来匹配文件名
+        const match = fileInfo.path.match(/[^\\\/]+$/);
+        const fileName = match ? match[0] : fileInfo.path;
+    
         // 如果路径太长，只显示文件名
         if (fileInfo.path.length > 40) {
             return `.../${fileName}`;
         }
-        
+    
         // 如果路径较短，显示完整路径
         return fileInfo.path;
     };
@@ -119,9 +158,9 @@ const ConfigFilePathCom: React.FC = () => {
                     <label className="inline-flex items-center min-w-32 text-sm">
                         {protocol.name}
                     </label>
-                    <div className="ml-2 flex-1 w-10">
+                    <div className="ml-2 flex-1 w-20">
                         <span
-                            className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline text-sm block"
+                            className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline text-sm block shrink-0 whitespace-nowrap"
                             onClick={handleFileChange(protocol.id)}
                             title={selectedFiles[protocol.id].path}
                         >

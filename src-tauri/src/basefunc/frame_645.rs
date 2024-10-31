@@ -511,7 +511,7 @@ impl Frame645 {
         let length = frame.len();
         let data_item_str = FrameFun::get_data_str_delete_33h_reverse(data_identifier);
         let mut index = indx;
-        if let Some(data_item_elem) =
+        if let Some(mut data_item_elem) =
             ProtocolConfigManager::get_config_xml(&data_item_str, protocol, region, Some(dir))
         {
             let mut sub_result: Vec<Value> = Vec::new();
@@ -520,7 +520,7 @@ impl Frame645 {
             let sublength = if let Some(sublength_ele) = sublength_ele {
                 if sublength_ele.to_uppercase() == "UNKNOWN" {
                     FrameCsg::calculate_item_length(
-                        &data_item_elem,
+                        &mut data_item_elem,
                         data_content,
                         protocol,
                         region,
@@ -529,7 +529,7 @@ impl Frame645 {
                     )
                 } else {
                     let (sub_length, new_datament) = FrameCsg::recalculate_sub_length(
-                        &data_item_elem,
+                        &mut data_item_elem,
                         data_content,
                         protocol,
                         region,
@@ -563,9 +563,10 @@ impl Frame645 {
                 "pos={},sublength={} data_item_str={} all_length={}",
                 pos, sublength, data_item_str, all_length
             );
+            data_item_elem.update_value("length", sublength.to_string());
             while pos < all_length {
                 let alalysic_result = FrameAnalisyic::prase_data(
-                    &data_item_str,
+                    &mut data_item_elem,
                     protocol,
                     region,
                     &data_content[pos..pos + sublength],
@@ -782,7 +783,7 @@ impl Frame645 {
         let length = frame.len();
         let data_identifier_str = FrameFun::get_data_str_delete_33h_reverse(data_identifier);
 
-        if let Some(data_item_elem) =
+        if let Some(mut data_item_elem) =
             ProtocolConfigManager::get_config_xml(&data_identifier_str, protocol, region, Some(dir))
         {
             let name_ele = data_item_elem.get_child_text("name");
@@ -793,7 +794,7 @@ impl Frame645 {
             };
 
             let sub_result = FrameAnalisyic::prase_data(
-                &data_identifier_str,
+                &mut data_item_elem,
                 protocol,
                 region,
                 data_content,
@@ -886,7 +887,7 @@ impl Frame645 {
         let item_str = FrameFun::get_data_str_delete_33h_reverse(data_identifier);
         let mut data_list = Vec::new();
 
-        if let Some(data_item) =
+        if let Some(mut data_item) =
             ProtocolConfigManager::get_config_xml(&item_str, protocol, region, Some(dir))
         {
             let name_ele = data_item.get_child_text("name");
@@ -939,9 +940,8 @@ impl Frame645 {
                 None,
                 None,
             );
-
             let write_result = FrameAnalisyic::prase_data(
-                &item_str,
+                &mut data_item,
                 protocol,
                 region,
                 write_data,

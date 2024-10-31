@@ -1,3 +1,4 @@
+use crate::config::appconfig::load_config_value;
 use lazy_static::lazy_static;
 use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::{Reader, Writer};
@@ -9,6 +10,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
+use tauri::fs as tauri_fs;
 use tracing::info; // Add rayon for parallel iterators
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -84,6 +86,53 @@ impl XmlElement {
             self.children.push(new_child);
         }
     }
+
+    // 查找子节点中name="name"的节点的value
+    fn get_name_node_value(&self) -> Option<&String> {
+        self.children.iter()
+            .find(|child| child.name == "name")
+            .and_then(|name_node| name_node.value.as_ref())
+    }
+
+    // 检查是否是相同的节点结构
+    fn is_matching_structure(&self, other: &XmlElement) -> bool {
+        // 首先检查节点名称是否相同
+        if self.name != other.name {
+            return false;
+        }
+
+        // 获取两个节点的name子节点的value
+        match (self.get_name_node_value(), other.get_name_node_value()) {
+            (Some(self_name_value), Some(other_name_value)) => {
+                // 比较name节点的value是否相同
+                self_name_value == other_name_value
+            }
+            _ => false
+        }
+    }
+
+    pub fn update_child(&mut self, new_child: &XmlElement) -> bool {
+        // 首先检查直接子节点
+        for child in &mut self.children {
+            if child.is_matching_structure(new_child) {
+                // 保持原有的attributes不变
+                let original_attrs = child.attributes.clone();
+                *child = new_child.clone();
+                child.attributes = original_attrs;
+                return true;
+            }
+        }
+
+        // 如果直接子节点没找到，递归查找
+        for child in &mut self.children {
+            if child.update_child(new_child) {
+                return true;
+            }
+        }
+
+        false
+    }
+
 }
 
 pub struct Cache {
@@ -583,7 +632,19 @@ impl QframeConfig {
 lazy_static! {
     pub static ref GLOBAL_CSG13: Result<QframeConfig, Arc<dyn std::error::Error + Send + Sync>> = {
         let config = QframeConfig::new();
-        match config.load(Path::new("./resources/protocolconfig/CSG13.xml")) {
+        let default_path = "./resources/protocolconfig/CSG13.xml".to_string();
+
+        let setpath = load_config_value("ProtocolSetting", "protocolfile")
+            .and_then(|protocol_config| {
+                protocol_config
+                    .get("nanwang13")
+                    .and_then(|protocol| protocol.get("path"))
+                    .and_then(|path| path.as_str())
+                    .map(String::from)
+            })
+            .unwrap_or(default_path);
+
+        match config.load(Path::new(&setpath)) {
             Ok(_) => {
                 info!("CSG13 XML 加载成功");
                 Ok(config)
@@ -596,7 +657,19 @@ lazy_static! {
     };
     pub static ref GLOBAL_645: Result<QframeConfig, Arc<dyn std::error::Error + Send + Sync>> = {
         let config = QframeConfig::new();
-        match config.load(Path::new("./resources/protocolconfig/DLT645.xml")) {
+        let default_path = "./resources/protocolconfig/DLT645.xml".to_string();
+
+        let setpath = load_config_value("ProtocolSetting", "protocolfile")
+            .and_then(|protocol_config| {
+                protocol_config
+                    .get("dlt645")
+                    .and_then(|protocol| protocol.get("path"))
+                    .and_then(|path| path.as_str())
+                    .map(String::from)
+            })
+            .unwrap_or(default_path);
+
+        match config.load(Path::new(&setpath)) {
             Ok(_) => {
                 info!("645 XML 加载成功");
                 Ok(config)
@@ -609,7 +682,19 @@ lazy_static! {
     };
     pub static ref GLOBAL_CSG16: Result<QframeConfig, Arc<dyn std::error::Error + Send + Sync>> = {
         let config = QframeConfig::new();
-        match config.load(Path::new("./resources/protocolconfig/CSG16.xml")) {
+        let default_path = "./resources/protocolconfig/CSG16.xml".to_string();
+
+        let setpath = load_config_value("ProtocolSetting", "protocolfile")
+            .and_then(|protocol_config| {
+                protocol_config
+                    .get("nanwang16")
+                    .and_then(|protocol| protocol.get("path"))
+                    .and_then(|path| path.as_str())
+                    .map(String::from)
+            })
+            .unwrap_or(default_path);
+
+        match config.load(Path::new(&setpath)) {
             Ok(_) => {
                 info!("CSG16 XML 加载成功");
                 Ok(config)

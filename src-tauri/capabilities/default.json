@@ -13,14 +13,21 @@
     "fs:allow-copy-file",
     "fs:allow-mkdir",
     "fs:allow-remove",
-    "fs:allow-remove",
     "fs:allow-rename",
     "fs:allow-exists",
     {
+      "identifier": "fs:default",
+      "allow": [{ "path": "$APPDATA/*" },
+      { "path": "$HOME/*" },
+      { "path": "$EXE/*" }]
+    },
+    {
+      "identifier": "fs:allow-resource-read",
+      "allow": [{ "path": "$RESOURCE/*" }]
+    },
+    {
       "identifier": "fs:scope",
-      "allow": [
-        "${TAURI_FS_SCOPE}"
-      ]
+      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**" }, { "path": "$RESOURCE/**" }, { "path": "$RESOURCE" }]
     },
     "core:window:allow-create",
     "core:window:allow-center",
@@ -83,6 +90,9 @@
     "process:default",
     "process:allow-exit",
     "process:allow-restart",
-    "process:default"
+    "process:default",
+    "core:path:allow-dirname",
+    "core:path:allow-resolve-directory",
+    "core:path:default"
   ]
 }

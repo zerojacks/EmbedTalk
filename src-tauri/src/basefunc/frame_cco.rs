@@ -395,7 +395,7 @@ impl FrameCCO {
         let di_data = &data_content[4..];
         let data_item = FrameFun::get_data_str_reverser(di);
 
-        if let Some(data_item_elem) =
+        if let Some(mut data_item_elem) =
             ProtocolConfigManager::get_config_xml(&data_item, protocol, region, Some(dir))
         {
             let pos: usize = 0;
@@ -405,7 +405,7 @@ impl FrameCCO {
             let sub_length = if let Some(length_text) = length_ele {
                 match length_text.to_uppercase().as_str() {
                     "UNKNOWN" => FrameCsg::calculate_item_length(
-                        &data_item_elem,
+                        &mut data_item_elem,
                         di_data,
                         protocol,
                         region,
@@ -419,8 +419,9 @@ impl FrameCCO {
             };
 
             let sub_datament = &di_data[pos..pos + sub_length];
+            data_item_elem.update_value("length", sub_length.to_string());
             let item_data = FrameAnalisyic::prase_data(
-                &data_item,
+                &mut data_item_elem,
                 protocol,
                 region,
                 sub_datament,
