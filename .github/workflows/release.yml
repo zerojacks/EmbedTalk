@@ -1,17 +1,17 @@
 name: Build and Release Tauri App
 
 on:
-    push:
-      branches:
-        - master  # 或者其他你想要触发编译的分支
+  push:
+    branches:
+      - master  # 或者其他你想要触发编译的分支
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # 以 Ubuntu 为示例，下面会分别添加 Windows 和 macOS 的配置
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        arch: [x64, arm64]  # 添加不同架构支持（如有必要）
+        arch: [x64, arm64]
 
     steps:
       - name: Checkout repository
@@ -20,21 +20,21 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'  # 选择你的 Node.js 版本
+          node-version: '16'
 
       - name: Set up Rust
-        uses: actions/setup-rust@v1
+        uses: rust-lang/setup-rust@v1  # 使用 rust-lang/setup-rust
         with:
           rust-version: stable
 
       - name: Install dependencies
         run: |
-          npm ci  # 安装项目依赖
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh  # 安装 Rust 工具链
+          npm ci
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
       - name: Install Tauri CLI
         run: |
-          cargo install tauri-cli  # 安装 Tauri CLI 工具
+          cargo install tauri-cli
 
       - name: Install Tauri dependencies for Linux
         if: matrix.os == 'ubuntu-latest'
@@ -54,16 +54,16 @@ jobs:
 
       - name: Build Tauri app for ${{ matrix.os }} ${{ matrix.arch }}
         run: |
-          npx tauri build --arch ${{ matrix.arch }} --release  # 构建应用程序
+          npx tauri build --arch ${{ matrix.arch }} --release
 
       - name: Archive the release assets
         run: |
           if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            zip -r tauri-linux-${{ matrix.arch }}.zip ./src-tauri/target/release/bundle/ # Linux 打包
+            zip -r tauri-linux-${{ matrix.arch }}.zip ./src-tauri/target/release/bundle/
           elif [ "${{ matrix.os }}" == "windows-latest" ]; then
-            zip -r tauri-windows-${{ matrix.arch }}.zip ./src-tauri/target/release/bundle/ # Windows 打包
+            zip -r tauri-windows-${{ matrix.arch }}.zip ./src-tauri/target/release/bundle/
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            zip -r tauri-macos-${{ matrix.arch }}.zip ./src-tauri/target/release/bundle/ # macOS 打包
+            zip -r tauri-macos-${{ matrix.arch }}.zip ./src-tauri/target/release/bundle/
           fi
 
       - name: Upload release assets to GitHub Releases
