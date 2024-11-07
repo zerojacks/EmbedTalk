@@ -295,11 +295,12 @@ export default function Itemconfig() {
     }
   }
 
-  const handleXmlElementChange = (newXmlElement: XmlElement) => {
+  const handleXmlElementChange = useCallback((newXmlElement: XmlElement) => {
     updateSelectItemProperty(selectedItem, newXmlElement);
-    updateItemIntoAllselectItem(selectedItem)
+    updateItemIntoAllselectItem(selectedItem);
     console.log('Updated XmlElement:', newXmlElement);
-  };
+  }, [selectedItem]);
+  
 
   const handleDragEnd = (sizes: number[]) => {
     console.log("drap end", sizes);

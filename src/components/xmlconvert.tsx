@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import MonacoEditorArea from './highlighteredit';
-import { ChevronRight, ChevronDown } from './Icons';
-import Split from 'react-split';
 import { XmlElement } from '../stores/useItemConfigStore';
+import Split from 'react-split';
 
 interface EnhancedXmlEditorProps {
   initialXml: XmlElement;
@@ -40,7 +39,6 @@ const convertToXml = (element: XmlElement, indent: string = ''): string => {
     xmlString += `</${element.name}>`;
     return xmlString;
 };
-
 
 async function parseXml(xmlString: string) {
   if (xmlString.trim() === '') {
@@ -86,18 +84,15 @@ async function parseXml(xmlString: string) {
 const XmlConverter: React.FC<EnhancedXmlEditorProps> = memo(({ initialXml, onXmlElementChange }) => {
   const [xmlText, setXmlText] = useState(convertToXml(initialXml));
   const [errorLogs, setErrorLogs] = useState<string>('');
-  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    console.log('xmlText', initialXml);
     setXmlText(convertToXml(initialXml));
   }, [initialXml]);
 
-  const onXmlEditorChange = async (xmlString: string): Promise<string | null> => {
+  const onXmlEditorChange = useCallback(async (xmlString: string): Promise<string | null> => {
     try {
       const xmlElement: XmlElement = await parseXml(xmlString);
       if (xmlElement.name !== '') {
-        setXmlText(convertToXml(xmlElement));
         onXmlElementChange(xmlElement);
       }
       setErrorLogs('');
@@ -110,11 +105,10 @@ const XmlConverter: React.FC<EnhancedXmlEditorProps> = memo(({ initialXml, onXml
       setErrorLogs(errorMessage);
       return errorMessage; // Failure returns error message
     }
-  };
-
+  }, [onXmlElementChange]);
 
   return (
-    <div ref={containerRef} className="flex items-center w-full h-full relative">
+    <div className="w-full h-full relative">
       <Split
         direction="vertical"
         sizes={[100, 0]}

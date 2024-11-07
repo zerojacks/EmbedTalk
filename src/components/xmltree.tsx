@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { ChevronRight, ChevronDown } from './Icons';
 import fieldDefinitions from '../assets/locales/fieldDefinitions.json';
 
@@ -128,7 +128,7 @@ export const getDisplayName = (name: string, id?: string) => {
   return definitions[name] || name;
 };
 
-const TreeNode: React.FC<TreeNodeProps> = ({ node, onUpdate }) => {
+const TreeNode: React.FC<TreeNodeProps> = memo(({ node, onUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   if (!node || !node.name) {
@@ -284,14 +284,14 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, onUpdate }) => {
   };
 
   return renderContent();
-};
+});
 
-const XmlTree: React.FC<{ data: XmlElement; onUpdate: (updatedData: XmlElement) => void }> = ({ data, onUpdate }) => {
+const XmlTree: React.FC<{ data: XmlElement; onUpdate: (updatedData: XmlElement) => void }> = memo(({ data, onUpdate }) => {
   return (
     <div className='overflow-auto w-full h-full'>
       <TreeNode node={data} onUpdate={onUpdate} />
     </div>
   );
-};
+});
 
 export default XmlTree;
