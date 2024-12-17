@@ -3,6 +3,7 @@ use crate::combridage::CommunicationManager;
 use lazy_static::lazy_static;
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
+use tokio_serial::{SerialPortBuilderExt, available_ports};
 
 lazy_static! {
     pub static ref CHANNEL_MANAGER: Mutex<CommunicationManager> =
@@ -210,4 +211,13 @@ pub async fn disconnect_channel(channel: &str, values: &str) -> Result<(), Strin
         }
         _ => Err("Invalid channel type".into()),
     }
+}
+
+#[tauri::command]
+pub async fn list_serial_ports() -> Result<Vec<String>, String> {
+    let mut serial_ports = Vec::new();
+    for port in available_ports().map_err(|e| e.to_string())? {
+        serial_ports.push(port.port_name);
+    }
+    Ok(serial_ports)
 }

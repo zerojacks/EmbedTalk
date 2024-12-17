@@ -25,7 +25,7 @@ use crate::taurihandler::handler::{
     get_protocol_config_item, get_region_value, get_system_theme, on_text_change, save_file,
     save_protocol_config_item, set_region_value,
 };
-use crate::taurihandler::ChannelHandler::{connect_channel, disconnect_channel};
+use crate::taurihandler::ChannelHandler::{connect_channel, disconnect_channel, list_serial_ports};
 // 用来格式化日志的输出时间格式
 struct LocalTimer;
 
@@ -103,6 +103,7 @@ fn main() {
             get_protocol_config_item,
             get_system_theme,
             save_protocol_config_item,
+            list_serial_ports,
         ])
         .build(ctx)
         .expect("error while running tauri application")

@@ -1,4 +1,4 @@
-use crate::combridage::{CommunicationChannel, Message};
+use crate::combridage::{CommunicationChannel, Message, ChannelState};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
 use btleplug::api::{
@@ -151,8 +151,7 @@ impl BluetoothChannel {
 impl CommunicationChannel for BluetoothChannel {
     async fn send(&self, message: &Message) -> Result<(), Box<dyn Error + Send + Sync>> {
         if let Some(peripheral) = self.connected_peripheral.lock().await.as_ref() {
-            let send_data: serde_json::Value = serde_json::from_str(&message.content)
-                .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+            let send_data: serde_json::Value = message.content.clone();
 
             // 将 uuid 字符串解析为 Uuid 类型
             let uuid_str = send_data["uuid"].as_str().ok_or("UUID not found")?;
@@ -181,7 +180,8 @@ impl CommunicationChannel for BluetoothChannel {
         if let Some(peripheral) = self.connected_peripheral.lock().await.as_ref() {
             if let Some(characteristic) = &self.characteristic {
                 let buffer = peripheral.read(characteristic).await?;
-                let message = Message::new(buffer);
+                let message: serde_json::Value = serde_json::from_slice(&buffer)?;
+                let message = Message::new(message);
                 Ok(message)
             } else {
                 return Err("No characteristic available".into());
@@ -206,7 +206,7 @@ impl CommunicationChannel for BluetoothChannel {
         Ok(())
     }
 
-    async fn on_disconnect(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn on_statechange(&self, state: ChannelState) -> Result<(), Box<dyn Error + Send + Sync>> {
         let app_handle = get_app_handle();
         // 构造断开连接事件的 payload
         let payload = serde_json::json!({
@@ -214,10 +214,10 @@ impl CommunicationChannel for BluetoothChannel {
             "reason": "The bluetooth channel has been disconnected",
         });
 
-        println!("Bluetooth channel disconnected. Sending 'channel-disconnected' event...");
+        println!("Bluetooth channel disconnected. Sending 'channel-state' event...");
         // 发送断开连接事件
         app_handle
-            .emit("channel-disconnected", serde_json::to_string(&payload)?)
+            .emit("channel-state", serde_json::to_string(&payload)?)
             .unwrap();
 
         Ok(())

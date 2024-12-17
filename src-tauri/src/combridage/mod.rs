@@ -5,11 +5,12 @@ mod mqtt;
 mod serial_port;
 mod tcp_client;
 mod tcp_server;
+mod messagemanager;
 
 pub use bluetooth::BluetoothChannel;
 pub use commanger::CommunicationManager;
 pub use mqtt::MqttChannel;
-use serde::{Deserialize, Serialize};
+use serde::{de::value, Deserialize, Serialize};
 use serde_json::Number;
 pub use serial_port::SerialPortChannel;
 pub use tcp_client::TcpClientChannel;
@@ -21,20 +22,27 @@ use std::sync::Arc;
 use tauri::{Manager, Wry};
 use tokio_serial::{DataBits, FlowControl, Parity, StopBits};
 use uuid::Uuid;
+use serde_json::Value;
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub enum ChannelState {
+    Connected,
+    Disconnected,
+}
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Message {
     id: String,
-    content: String,
+    content: Value,
     timestamp: i64,
 }
 
 impl Message {
-    fn new(content: Vec<u8>) -> Self {
+    fn new(content: Value) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
-            content: String::from_utf8(content).unwrap(),
-            timestamp: chrono::Utc::now().timestamp(),
+            content: content,
+            timestamp: chrono::Utc::now().timestamp(), // 添加此行以初始化timestamp
         }
     }
 }
@@ -58,5 +66,5 @@ pub trait CommunicationChannel: Send + Sync {
         timeout_secs: u64,
     ) -> Result<Message, Box<dyn Error + Send + Sync>>;
     async fn close(&self) -> Result<(), Box<dyn Error + Send + Sync>>;
-    async fn on_disconnect(&self) -> Result<(), Box<dyn Error + Send + Sync>>;
+    async fn on_statechange(&self, state: ChannelState) -> Result<(), Box<dyn Error + Send + Sync>>;
 }

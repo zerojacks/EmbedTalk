@@ -8,8 +8,6 @@ use crate::combridage::TcpClientChannel;
 use crate::combridage::TcpServerChannel;
 use rumqttc::QoS;
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio_serial::StopBits;
 
 pub struct CommunicationManager {
     channels: HashMap<ChannelType, Box<dyn CommunicationChannel>>,
@@ -133,13 +131,4 @@ impl CommunicationManager {
 
         Ok(()) // 确保返回 Ok(()) 作为成功的结果
     }
-
-    // pub async fn set_subscriber(&self, channel_type: &ChannelType) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    //     if let Some(channel) = self.channels.get(channel_type) {
-    //         channel.set_subscriber().await
-    //     } else {
-    //         Err("Channel not found".into())
-    //         //Ok(())
-    //     }
-    // }
 }

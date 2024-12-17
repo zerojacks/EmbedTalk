@@ -20,6 +20,13 @@ export default function Layout() {
               })}
             />
           </Link>
+          <Link className={linkClass} to="/channelmonitor">
+            <AiOutlineCode
+              className={clsx(defaultClass, {
+                [selectedClass]: location.pathname === "/channelmonitor",
+              })}
+            />
+          </Link>
           <Link className={linkClass} to="/itemconfig">
             <AiOutlineCode
               className={clsx(defaultClass, {

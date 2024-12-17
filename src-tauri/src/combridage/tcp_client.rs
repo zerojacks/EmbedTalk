@@ -1,5 +1,5 @@
 use crate::combridage::CommunicationChannel;
-use crate::combridage::Message;
+use crate::combridage::{ChannelState, Message};
 use async_trait::async_trait;
 use serde_json;
 use socket2::{Socket, TcpKeepalive};
@@ -16,10 +16,11 @@ use tokio::sync::mpsc;
 use tokio::sync::{broadcast, Mutex, TryLockError};
 use tokio::time::{sleep, timeout, Duration};
 //global.rs
+use crate::combridage::messagemanager::{MessageDirection, MessageManager};
 use crate::global::get_app_handle;
-
 #[derive(Clone, Debug)]
 pub struct TcpClientChannel {
+    adress: String,
     stream: Arc<Mutex<TcpStream>>,
     shutdown_signal: broadcast::Sender<()>,
     tx_send: mpsc::Sender<Vec<u8>>,
@@ -48,11 +49,16 @@ impl TcpClientChannel {
         let mut_stream = Arc::new(Mutex::new(TcpStream::from_std(arc_stream)?));
 
         let channel = Self {
+            adress: address.clone(),
             stream: mut_stream.clone(),
             shutdown_signal: shutdown_signal.clone(),
             tx_send: tx_send,
             rx_recv: Arc::new(Mutex::new(rx_recv)),
         };
+        let app_handle = get_app_handle();
+        let message_manager = MessageManager::new(app_handle)?;
+        message_manager.register_channel(&address).await;
+        let mut subscriber = message_manager.subscribe_to_messages();
 
         let channelclone = channel.clone();
         let _ = channelclone
@@ -61,20 +67,31 @@ impl TcpClientChannel {
 
         // 启动发送任务
         let channelclone = channel.clone();
+        let message_manager_send = message_manager.clone();
         tokio::spawn(async move {
-            if let Err(e) = channelclone.send_task(writer, rx_send).await {
+            if let Err(e) = channelclone
+                .send_task(writer, rx_send, message_manager_send)
+                .await
+            {
                 eprintln!("Send task error: {}", e);
             }
         });
 
         // 启动接收任务
         let channelsend = channel.clone();
+        let message_manager_rec = message_manager.clone(); // 克隆 message_manager
         tokio::spawn(async move {
-            if let Err(e) = channelsend.receive_task(reader, tx_recv).await {
+            if let Err(e) = channelsend
+                .receive_task(reader, tx_recv, message_manager_rec)
+                .await
+            {
                 eprintln!("Receive task error: {}", e);
             }
         });
-
+        if let Err(e) = channel.on_statechange(ChannelState::Connected).await {
+            eprintln!("Failed to send disconnect event: {:?}", e);
+            return Err(e); // 返回 on_statechange 的错误
+        }
         Ok(channel)
     }
 
@@ -90,6 +107,7 @@ impl TcpClientChannel {
         // 使用 try_lock 来避免死锁
         let mut attempts = 0;
         let max_attempts = 5;
+
         while attempts < max_attempts {
             match self.stream.try_lock() {
                 Ok(mut stream) => {
@@ -97,7 +115,7 @@ impl TcpClientChannel {
                         Ok(result) => match result {
                             Ok(_) => {
                                 println!("TcpClientChannel closed successfully");
-                                return Ok(());
+                                break;
                             }
                             Err(e) => println!("Error during shutdown: {:?}", e),
                         },
@@ -117,6 +135,11 @@ impl TcpClientChannel {
         }
 
         println!("TcpClientChannel close operation finished");
+        // 先发送断开状态变更消息
+        if let Err(e) = self.on_statechange(ChannelState::Disconnected).await {
+            eprintln!("Failed to send disconnect event: {:?}", e);
+            return Err(e); // 返回 on_statechange 的错误
+        }
         Ok(())
     }
 
@@ -158,8 +181,22 @@ impl TcpClientChannel {
         &self,
         mut writer: tokio::io::WriteHalf<TcpStream>,
         mut rx_send: mpsc::Receiver<Vec<u8>>,
+        message_manager: MessageManager,
     ) -> Result<(), IoError> {
         while let Some(data) = rx_send.recv().await {
+            let message: serde_json::Value = serde_json::from_slice(&data)?;
+            let message = Message::new(message);
+            println!("TcpClientChannel received {:?}", message);
+            message_manager
+                .record_message(
+                    "tcpclient",
+                    &self.adress.clone(),
+                    &message,
+                    MessageDirection::Sent,
+                    None,
+                )
+                .await
+                .map_err(|e| IoError::new(io::ErrorKind::Other, e))?; // 修改此行
             writer.write_all(&data).await?;
         }
         Ok(())
@@ -169,6 +206,7 @@ impl TcpClientChannel {
         self,
         mut reader: tokio::io::ReadHalf<TcpStream>,
         tx_recv: mpsc::Sender<Vec<u8>>,
+        message_manager: MessageManager,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut buffer = [0; 1024];
         let mut shutdown_receiver = self.shutdown_signal.subscribe();
@@ -184,6 +222,19 @@ impl TcpClientChannel {
                         Ok(n) if n > 0 => {
                             let received_data = buffer[..n].to_vec();
                             println!("Received {} bytes: {:?}", n, received_data);
+
+                            let payload = serde_json::json!({
+                                "data": received_data
+                            });
+                            let message = Message::new(payload);
+                            message_manager.record_message(
+                                "tcpclient",
+                                &self.adress.clone(),
+                                &message,
+                                MessageDirection::Received,
+                                None
+                            ).await?;
+
                             if let Err(e) = tx_recv.send(received_data).await {
                                 eprintln!("Failed to send received message to queue: {:?}", e);
                                 return Err(Box::new(e)); // 将 SendError 包装成 Box<dyn Error> 并返回
@@ -191,9 +242,9 @@ impl TcpClientChannel {
                         }
                         Ok(0) => {
                             println!("Server disconnected (EOF received).");
-                            if let Err(e) = self.on_disconnect().await {
+                            if let Err(e) = self.on_statechange(ChannelState::Disconnected).await {
                                 eprintln!("Failed to send disconnect event: {:?}", e);
-                                return Err(e); // 返回 on_disconnect 的错误
+                                return Err(e); // 返回 on_statechange 的错误
                             }
                             return Ok(()); // 正常退出
                         }
@@ -218,11 +269,12 @@ impl TcpClientChannel {
 impl CommunicationChannel for TcpClientChannel {
     async fn send(&self, message: &Message) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut stream = self.stream.lock().await;
-        // let serialized = bincode::serialize(message)?;
-        let message_bytes = message.content.as_bytes();
-        stream.write_all(message_bytes).await?;
+        let message_bytes = bincode::serialize(message)?;
+
+        // 发送提取的 u8 数组
+        stream.write_all(&message_bytes).await?;
         stream.flush().await?;
-        println!("TcpClientChannel sent {:?}", message);
+        println!("TcpClientChannel sent {:?}", message_bytes);
         Ok(())
     }
 
@@ -234,8 +286,8 @@ impl CommunicationChannel for TcpClientChannel {
             return Err("Connection closed by peer".into());
         }
         // let message: Message = bincode::deserialize(&buffer[..n])?;
-        let message_content = String::from_utf8(buffer[..n].to_vec())?;
-        let message = Message::new(message_content.into_bytes());
+        let message: serde_json::Value = serde_json::from_slice(&buffer[..n])?;
+        let message = Message::new(message);
         println!("TcpClientChannel received {:?}", message);
         Ok(message)
     }
@@ -245,7 +297,7 @@ impl CommunicationChannel for TcpClientChannel {
         message: &Message,
         timeout_secs: u64,
     ) -> Result<Message, Box<dyn Error + Send + Sync>> {
-        let send_message = message.content.as_bytes().to_vec();
+        let send_message = bincode::serialize(message)?;
         self.send(send_message).await?;
         tokio::time::timeout(std::time::Duration::from_secs(timeout_secs), self.receive()).await?
     }
@@ -255,23 +307,31 @@ impl CommunicationChannel for TcpClientChannel {
         Ok(())
     }
 
-    async fn on_disconnect(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        // 构造断开连接事件的 payload
+    // 构造断开连接事件的 payload
+    async fn on_statechange(
+        &self,
+        state: ChannelState,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let app_handle = get_app_handle();
         let stream = self.stream.lock().await;
         let ip = stream.peer_addr()?.ip().to_string();
         let port = stream.peer_addr()?.port();
         // Construct the disconnect event payload
-        let payload = serde_json::json!({
-            "channel": "tcpclient",
+        let data = serde_json::json!({
             "ip": ip,
             "port": port,
-            "reason": "The TCP Server has disconnected",
+        });
+        let payload = serde_json::json!({
+            "channeltype": "tcpclient",
+            "channelid": self.adress.clone(),
+            "state": state,
+            "data": data,
+            "reason": "The TCP Client has disconnected",
         });
         println!("TcpClientChannel disconnected {:?}", payload);
         // Send the disconnect event
         app_handle
-            .emit("channel-disconnected", serde_json::to_string(&payload)?)
+            .emit("channel-state", serde_json::to_string(&payload)?)
             .unwrap();
 
         Ok(())

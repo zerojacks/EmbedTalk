@@ -1,6 +1,6 @@
 use crate::combridage::ChannelType;
 use crate::combridage::CommunicationChannel;
-use crate::combridage::Message;
+use crate::combridage::{Message, ChannelState};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
@@ -71,7 +71,7 @@ impl MqttChannel {
 impl CommunicationChannel for MqttChannel {
     async fn send(&self, message: &Message) -> Result<(), Box<dyn Error + Send + Sync>> {
         // let serialized = bincode::serialize(message.content)?;
-        let serialized = message.content.as_bytes();
+        let serialized = serde_json::to_vec(&message.content)?;
         self.client
             .publish(&self.topic, QoS::AtLeastOnce, false, serialized)
             .await?;
@@ -82,7 +82,8 @@ impl CommunicationChannel for MqttChannel {
     async fn receive(&self) -> Result<Message, Box<dyn Error + Send + Sync>> {
         let mut receiver = self.receiver.lock().await; // 获取可变引用
         if let Some(payload) = receiver.recv().await {
-            let message = Message::new(payload.into_bytes());
+            let content: serde_json::Value = serde_json::from_str(&payload)?;
+            let message = Message::new(content);
             println!("MqttChannel Received message: {:?}", message);
             Ok(message)
         } else {
@@ -104,7 +105,7 @@ impl CommunicationChannel for MqttChannel {
         Ok(())
     }
 
-    async fn on_disconnect(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn on_statechange(&self, state:ChannelState) -> Result<(), Box<dyn Error + Send + Sync>> {
         let app_handle = get_app_handle();
         // 构造断开连接事件的 payload
         let payload = serde_json::json!({
@@ -114,7 +115,7 @@ impl CommunicationChannel for MqttChannel {
         println!("MQTT channel disconnected. Reason: {:?}", payload);
         // 发送断开连接事件
         app_handle
-            .emit("channel-disconnected", serde_json::to_string(&payload)?)
+            .emit("channel-state", serde_json::to_string(&payload)?)
             .unwrap();
 
         Ok(())

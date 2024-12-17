@@ -11,6 +11,7 @@ import { SettingsProvider } from "./context/SettingsProvider";
 import { ToastProvider, initializeToast  } from './context/ToastProvider';
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import Itemconfig from "./routes/itemconfig"
+import ChannelMonitor from "./routes/ChannelMonitor";
 
 const router = createBrowserRouter([
   {
@@ -21,6 +22,10 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <Home />,
+      },
+      {
+        path: "/channelmonitor",
+        element: <ChannelMonitor />
       },
       {
         path: "/itemconfig",
