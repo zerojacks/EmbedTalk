@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
-import MonacoEditorArea from './highlighteredit';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import MonacoEditor from './MonacoEditor';
 import { XmlElement } from '../stores/useItemConfigStore';
 import Split from 'react-split';
+import { useDebounce } from '../hooks/useDebounce';
 
 interface EnhancedXmlEditorProps {
   initialXml: XmlElement;
@@ -9,101 +10,112 @@ interface EnhancedXmlEditorProps {
 }
 
 const convertToXml = (element: XmlElement, indent: string = ''): string => {
-    if (!element || !element.name) {
-      return '';
+  if (!element || !element.name) {
+    return '';
+  }
+  
+  let xmlString = `${indent}<${element.name}`;
+
+  // Add attributes
+  for (const [key, value] of Object.entries(element.attributes)) {
+    xmlString += ` ${key}="${value}"`;
+  }
+
+  if (element.children.length === 0 && !element.value) {
+    return `${xmlString} />`;
+  }
+
+  xmlString += '>';
+
+  if (element.value !== null) {
+    xmlString += element.value;
+  } else {
+    xmlString += '\n';
+    for (const child of element.children) {
+      xmlString += convertToXml(child, `${indent}  `) + '\n';
     }
-    
-    let xmlString = `${indent}<${element.name}`;
+    xmlString += indent;
+  }
 
-    // Add attributes
-    for (const [key, value] of Object.entries(element.attributes)) {
-        xmlString += ` ${key}="${value}"`;
-    }
-
-    if (element.children.length === 0 && !element.value) {
-        return `${xmlString} />`;
-    }
-
-    xmlString += '>';
-
-    if (element.value !== null) {
-        xmlString += element.value;
-    } else {
-        xmlString += '\n';
-        for (const child of element.children) {
-            xmlString += convertToXml(child, `${indent}  `) + '\n';
-        }
-        xmlString += indent;
-    }
-
-    xmlString += `</${element.name}>`;
-    return xmlString;
+  xmlString += `</${element.name}>`;
+  return xmlString;
 };
 
 async function parseXml(xmlString: string) {
   if (xmlString.trim() === '') {
-      return { name: '', attributes: {}, value: null, children: [] }; // 空字符串返回空对象
+    return { name: '', attributes: {}, value: null, children: [] };
   }
 
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlString, "text/xml");
 
-  // 检查解析是否成功
   if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
-      const errorMessage = xmlDoc.getElementsByTagName('parsererror')[0].textContent || "Unknown error";
-      console.error("Invalid XML: ", errorMessage);
-      throw new Error(errorMessage); // 直接抛出错误
+    const errorMessage = xmlDoc.getElementsByTagName('parsererror')[0].textContent || "Unknown error";
+    throw new Error(errorMessage);
   }
 
   const parseElement = (element: Element): XmlElement => {
-      const result: XmlElement = {
-          name: element.tagName,
-          attributes: {},
-          value: element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE
-              ? element.textContent
-              : null,
-          children: []
-      };
+    const result: XmlElement = {
+      name: element.tagName,
+      attributes: {},
+      value: element.childNodes.length === 1 && element.childNodes[0].nodeType === Node.TEXT_NODE
+        ? element.textContent
+        : null,
+      children: []
+    };
 
-      // 解析属性
-      for (const attr of element.attributes) {
-          result.attributes[attr.name] = attr.value;
-      }
+    for (const attr of element.attributes) {
+      result.attributes[attr.name] = attr.value;
+    }
 
-      // 解析子元素
-      for (const child of element.children) {
-          result.children.push(parseElement(child));
-      }
+    for (const child of element.children) {
+      result.children.push(parseElement(child));
+    }
 
-      return result;
+    return result;
   };
 
-  return parseElement(xmlDoc.documentElement); // 直接返回解析后的结果
-} 
+  return parseElement(xmlDoc.documentElement);
+}
 
-const XmlConverter: React.FC<EnhancedXmlEditorProps> = memo(({ initialXml, onXmlElementChange }) => {
+const XmlConverter: React.FC<EnhancedXmlEditorProps> = ({ initialXml, onXmlElementChange }) => {
   const [xmlText, setXmlText] = useState(convertToXml(initialXml));
   const [errorLogs, setErrorLogs] = useState<string>('');
+  const lastValidXmlRef = useRef<string>(xmlText);
+  const isParsingRef = useRef(false);
 
   useEffect(() => {
-    setXmlText(convertToXml(initialXml));
+    const newXmlText = convertToXml(initialXml);
+    if (newXmlText !== xmlText) {
+      setXmlText(newXmlText);
+      lastValidXmlRef.current = newXmlText;
+    }
   }, [initialXml]);
 
-  const onXmlEditorChange = useCallback(async (xmlString: string): Promise<string | null> => {
+  const handleEditorChange = useCallback((newValue: string) => {
+    if (isParsingRef.current) return;
+    setXmlText(newValue);
+  }, []);
+
+  const handleSave = useCallback(async (content: string) => {
+    if (isParsingRef.current) return;
+    
     try {
-      const xmlElement: XmlElement = await parseXml(xmlString);
+      isParsingRef.current = true;
+      const xmlElement = await parseXml(content);
       if (xmlElement.name !== '') {
+        lastValidXmlRef.current = content;
         onXmlElementChange(xmlElement);
+        setErrorLogs('');
       }
-      setErrorLogs('');
-      return null; // Success returns null
     } catch (error) {
       let errorMessage = "An unknown error occurred.";
       if (error instanceof Error) {
         errorMessage = error.message;
       }
       setErrorLogs(errorMessage);
-      return errorMessage; // Failure returns error message
+    } finally {
+      isParsingRef.current = false;
     }
   }, [onXmlElementChange]);
 
@@ -119,16 +131,15 @@ const XmlConverter: React.FC<EnhancedXmlEditorProps> = memo(({ initialXml, onXml
         className="flex flex-col w-full h-full"
       >
         <div className="w-full h-full overflow-hidden">
-          <MonacoEditorArea
-            initialValue={xmlText}
+          <MonacoEditor
+            value={xmlText}
             language="xml"
-            onEditorChange={onXmlEditorChange}
+            onChange={handleEditorChange}
+            onSave={handleSave}
           />
         </div>
         <div className="w-full bg-neutral overflow-hidden flex flex-col">
-          <div 
-            className="h-6 bg-base-300 flex justify-between items-center px-2 cursor-pointer"
-          >
+          <div className="h-6 bg-base-300 flex justify-between items-center px-2 cursor-pointer">
             <span className="flex items-center">
               问题 {errorLogs && <span className="ml-1 indicator-item indicator-middle badge badge-secondary w-2 h-2 rounded-full p-0"></span>}
             </span>
@@ -142,6 +153,6 @@ const XmlConverter: React.FC<EnhancedXmlEditorProps> = memo(({ initialXml, onXml
       </Split>
     </div>
   );
-});
+};
 
-export default XmlConverter;
+export default React.memo(XmlConverter);
