@@ -49,8 +49,8 @@ const ThemeChange = () => {
                     <p className="ml-2">主题</p> {/* 添加左侧间距 */}
                 </div>
                 <select
-                    className="select mr-3 bg-base-200 select-bordered ml-auto h-1" // 将 select 靠右
                     value={selectTheme}
+                    className="select mr-3 bg-base-200 select-bordered ml-auto h-1" // 将 select 靠右
                     onChange={handleThemeChange}
                 >
                     {themes.map((theme, index) => (
