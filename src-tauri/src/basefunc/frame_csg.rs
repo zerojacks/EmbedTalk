@@ -1724,8 +1724,13 @@ impl FrameCsg {
             let pw_data = &data_segment[data_segment.len() - 21..data_segment.len() - 5];
             (pw_data, [total_length - 23, total_length - 7])
         } else {
-            let pw_data = &data_segment[data_segment.len() - 16..];
-            (pw_data, [total_length - 18, total_length - 2])
+            if data_segment.len() < 16 {
+                let pw_data = &[] as &[u8];
+                (pw_data, [0, 0])
+            }else{
+                let pw_data = &data_segment[data_segment.len() - 16..];
+                (pw_data, [total_length - 18, total_length - 2])
+            }
         };
 
         let data_segment = &data_segment[..length];
@@ -1887,8 +1892,13 @@ impl FrameCsg {
                 &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
             (pw_data, [total_length - 23, total_length - 7])
         } else {
-            let pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
-            (pw_data, [total_length - 18, total_length - 2])
+            if valid_data_segment.len() < 16 {
+                let pw_data = &[] as &[u8];
+                (pw_data, [0, 0])
+            } else {
+                let pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
+                (pw_data, [total_length - 18, total_length - 2])
+            }
         };
 
         let data_segment = &valid_data_segment[..length];
@@ -2093,8 +2103,13 @@ impl FrameCsg {
                 &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
             (pw_data, [total_length - 23, total_length - 7])
         } else {
-            pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
-            (pw_data, [total_length - 18, total_length - 2])
+            if valid_data_segment.len() < 16 {
+                let pw_data = &[] as &[u8];
+                (pw_data, [0, 0])
+            } else {
+                let pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
+                (pw_data, [total_length - 18, total_length - 2])
+            }
         };
 
         let data_segment = &valid_data_segment[..length];
@@ -3955,8 +3970,13 @@ impl FrameCsg {
             length -= 5;
             (pw_data, vec![total_length - 23, total_length - 7])
         } else {
-            let pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
-            (pw_data, vec![total_length - 18, total_length - 2])
+            if valid_data_segment.len() < 16 {
+                let pw_data = &[] as &[u8];
+                (pw_data, vec![0, 0])
+            } else {
+                let pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
+                (pw_data, vec![total_length - 18, total_length - 2])
+            }
         };
         let mut pw = false;
 

@@ -55,10 +55,12 @@ export default function Itemconfig() {
   } = useItemConfigStore();
   const isSelecting = useRef(false);
   const allSelectItemsRef = useRef(allSelectItems);
+  const selectedItemRef = useRef(selectedItem);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<FixedSizeList>(null);
   const prevItemsLengthRef = useRef(allSelectItems.length);
   allSelectItemsRef.current = allSelectItems;
+  selectedItemRef.current = selectedItem;
 
   const scrollToBottom = useCallback(() => {
     if (listRef.current) {
@@ -105,6 +107,7 @@ export default function Itemconfig() {
     async function getallitemlist() {
       try {
         const allitemlist = await invoke<DataItem[]>('get_all_config_item_lists');
+        console.log('allitemlist', allitemlist);
         setAllitemlist(allitemlist);
       } catch (error) {
         console.error('get_all_config_item_lists error:', error);
@@ -191,11 +194,11 @@ export default function Itemconfig() {
     let updatedItem = { ...item, xmlElement: {} as XmlElement };
     try {
       const element = await invoke<XmlElement>('get_protocol_config_item', { value: JSON.stringify(item) });
+      console.log("select item xml", element)
       updatedItem = { ...item, xmlElement: element };
     } catch (error) {
       console.error('get_protocol_config_item error:', error);
     }
-    console.log("select item xml", updatedItem)
     updateItemIntoAllselectItem(updatedItem);
   }, [searchTerm]);
 
@@ -218,6 +221,10 @@ export default function Itemconfig() {
     }
   };
 
+  useEffect(() => {
+    console.log("allSelectItems", allSelectItems);
+  }, [allSelectItems]);
+
   const itemConfigSelect = async (item: DataItem) => {
     isSelecting.current = true;
     if (!item.xmlElement) {
@@ -232,6 +239,7 @@ export default function Itemconfig() {
         item.xmlElement = {} as XmlElement;
       }
     }
+    selectedItemRef.current = item;
     setSelectedItem(item);
   }
 
@@ -256,6 +264,7 @@ export default function Itemconfig() {
 
     if (selectedItem.item === item.item && selectedItem.protocol === item.protocol && selectedItem.region === item.region) {
       setSelectedItem({} as DataItem);
+      selectedItemRef.current = {} as DataItem;
     }
   }
 
@@ -296,11 +305,11 @@ export default function Itemconfig() {
   }
 
   const handleXmlElementChange = useCallback((newXmlElement: XmlElement) => {
-    updateSelectItemProperty(selectedItem, newXmlElement);
-    updateItemIntoAllselectItem(selectedItem);
-    console.log('Updated XmlElement:', newXmlElement);
+    console.log('XmlElement changed:', newXmlElement, selectedItemRef.current);
+    updateSelectItemProperty(selectedItemRef.current, newXmlElement);
+    updateItemIntoAllselectItem(selectedItemRef.current);
   }, [selectedItem]);
-  
+
 
   const handleDragEnd = (sizes: number[]) => {
     console.log("drap end", sizes);

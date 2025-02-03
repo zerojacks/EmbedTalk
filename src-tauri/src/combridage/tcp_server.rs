@@ -1,5 +1,5 @@
 use crate::combridage::CommunicationChannel;
-use crate::combridage::{Message, ChannelState};
+use crate::combridage::{ChannelState, Message};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
 use serde_json;
@@ -70,13 +70,13 @@ impl TcpClientOfServer {
 
     pub async fn close(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         println!("TcpClientOfServer closing...");
-    
+
         // 发送关闭信号
         let _ = self.shutdown_signal.send(());
-    
+
         // 给一些时间让任务退出
         sleep(Duration::from_millis(100)).await;
-    
+
         // 关闭流
         if let Ok(mut stream) = self.stream.try_lock() {
             // 使用 tokio TcpStream 的 shutdown 方法
@@ -84,7 +84,7 @@ impl TcpClientOfServer {
                 eprintln!("Error shutting down stream: {:?}", e);
             }
         }
-    
+
         println!("TcpClientOfServer closed successfully");
         Ok(())
     }
@@ -182,7 +182,7 @@ impl TcpServerChannel {
         let address = format!("{}:{}", ipaddr, port);
         let (shutdown_signal, _) = broadcast::channel(1);
         println!("TcpServerChannel listening on: {}", address);
-        
+
         let std_listener = std::net::TcpListener::bind(address)?;
         std_listener.set_nonblocking(true)?;
         let listener = TcpListener::from_std(std_listener)?;
@@ -223,7 +223,7 @@ impl TcpServerChannel {
                         Ok((stream, addr)) => {
                             let addr_str = addr.to_string();
                             println!("New client connected: {}", addr_str);
-                            
+
                             match TcpClientOfServer::new(stream).await {
                                 Ok(client) => {
                                     self.clients.lock().await.insert(addr_str, Arc::new(Mutex::new(client)));
@@ -278,7 +278,7 @@ impl CommunicationChannel for TcpServerChannel {
     async fn send(&self, message: &Message) -> Result<(), Box<dyn Error + Send + Sync>> {
         let clients = self.clients.lock().await;
         let serialized = bincode::serialize(message)?;
-        
+
         for client in clients.values() {
             if let Err(e) = client.lock().await.send(serialized.clone()).await {
                 eprintln!("Error sending to client: {:?}", e);
@@ -313,7 +313,10 @@ impl CommunicationChannel for TcpServerChannel {
         self.close().await
     }
 
-    async fn on_statechange(&self, state:ChannelState) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn on_statechange(
+        &self,
+        state: ChannelState,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let app_handle = get_app_handle();
         let payload = serde_json::json!({
             "channel": "tcpserver",

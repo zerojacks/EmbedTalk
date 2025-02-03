@@ -1,4 +1,4 @@
-use crate::combridage::{CommunicationChannel, Message, ChannelState};
+use crate::combridage::{ChannelState, CommunicationChannel, Message};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
 use btleplug::api::{
@@ -206,7 +206,10 @@ impl CommunicationChannel for BluetoothChannel {
         Ok(())
     }
 
-    async fn on_statechange(&self, state: ChannelState) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn on_statechange(
+        &self,
+        state: ChannelState,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let app_handle = get_app_handle();
         // 构造断开连接事件的 payload
         let payload = serde_json::json!({

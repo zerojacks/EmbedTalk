@@ -1,41 +1,190 @@
-use crate::config::appconfig::load_config_value;
+use std::collections::{HashMap, HashSet};
+use std::error::Error;
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Cursor};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
+
 use lazy_static::lazy_static;
 use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::{Reader, Writer};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::error::Error;
-use std::fs::File;
-use std::io::{BufReader, BufWriter};
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock, RwLockReadGuard};
-use tauri::fs as tauri_fs;
-use tracing::info; // Add rayon for parallel iterators
+use tracing::info;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+use crate::config::appconfig::load_config_value;
+
+// 定义树节点结构
+#[derive(Clone, Debug)]
+pub struct XmlNode {
+    // 基本数据
+    id: Option<String>,
+    id_name: Option<String>,
+    name: String,
+    value: Option<String>,
+    attributes: HashMap<String, String>,
+
+    // 树结构
+    parent: Option<usize>, // 父节点的索引
+    children: Vec<usize>,  // 子节点的索引列表
+
+    // 用于快速查找的索引
+    depth: u32,   // 节点深度
+    path: String, // 从根节点到当前节点的路径
+}
+
+// 定义树结构
+#[derive(Debug)]
+pub struct XmlTree {
+    nodes: Vec<XmlNode>,                             // 所有节点的存储
+    root: usize,                                     // 根节点索引
+    id_index: HashMap<String, HashSet<usize>>,       // id -> 节点索引的映射
+    protocol_index: HashMap<String, HashSet<usize>>, // protocol -> 节点索引的映射
+    region_index: HashMap<String, HashSet<usize>>,   // region -> 节点索引的映射
+}
+
+impl XmlTree {
+    pub fn new() -> Self {
+        XmlTree {
+            nodes: Vec::new(),
+            root: 0,
+            id_index: HashMap::new(),
+            protocol_index: HashMap::new(),
+            region_index: HashMap::new(),
+        }
+    }
+
+    // 添加节点
+    pub fn add_node(&mut self, node: XmlNode) -> usize {
+        let index = self.nodes.len();
+
+        // 更新索引
+        if let Some(id) = &node.id {
+            self.id_index
+                .entry(id.clone())
+                .or_insert_with(HashSet::new)
+                .insert(index);
+        }
+
+        if let Some(protocol) = node.attributes.get("protocol") {
+            self.protocol_index
+                .entry(protocol.clone())
+                .or_insert_with(HashSet::new)
+                .insert(index);
+        }
+
+        if let Some(region) = node.attributes.get("region") {
+            self.region_index
+                .entry(region.clone())
+                .or_insert_with(HashSet::new)
+                .insert(index);
+        }
+
+        self.nodes.push(node);
+        index
+    }
+
+    // 快速查找指定ID的节点
+    pub fn find_by_id(&self, id: &str, protocol: &str, region: &str) -> Option<&XmlNode> {
+        if let Some(node_indices) = self.id_index.get(id) {
+            // 获取协议和区域的节点集合
+            let protocol_nodes = self.protocol_index.get(protocol);
+            let region_nodes = self.region_index.get(region);
+            let south_grid_nodes = if region != "南网" {
+                self.region_index.get("南网")
+            } else {
+                None
+            };
+
+            // 查找满足所有条件的节点
+            for &index in node_indices {
+                let node = &self.nodes[index];
+                if self.matches_criteria(
+                    node,
+                    protocol,
+                    region,
+                    protocol_nodes,
+                    region_nodes,
+                    south_grid_nodes,
+                ) {
+                    return Some(node);
+                }
+            }
+        }
+        None
+    }
+
+    // 检查节点是否满足查询条件
+    fn matches_criteria(
+        &self,
+        node: &XmlNode,
+        protocol: &str,
+        region: &str,
+        protocol_nodes: Option<&HashSet<usize>>,
+        region_nodes: Option<&HashSet<usize>>,
+        south_grid_nodes: Option<&HashSet<usize>>,
+    ) -> bool {
+        let node_protocol = node.attributes.get("protocol");
+        let node_region = node.attributes.get("region");
+
+        // 检查协议匹配
+        let protocol_match = node_protocol.map_or(false, |p| p.eq_ignore_ascii_case(protocol));
+
+        // 检查区域匹配
+        let region_match = node_region.map_or(false, |r| {
+            r.eq_ignore_ascii_case(region) || (region != "南网" && r.eq_ignore_ascii_case("南网"))
+        });
+
+        protocol_match && region_match
+    }
+
+    // 获取节点的完整路径
+    pub fn get_node_path(&self, index: usize) -> Vec<usize> {
+        let mut path = Vec::new();
+        let mut current = Some(index);
+
+        while let Some(idx) = current {
+            path.push(idx);
+            current = self.nodes[idx].parent;
+        }
+
+        path.reverse();
+        path
+    }
+
+    // 获取节点的所有子节点
+    pub fn get_children(&self, index: usize) -> &[usize] {
+        &self.nodes[index].children
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct XmlElement {
     pub name: String,
-    attributes: HashMap<String, String>,
-    value: Option<String>,
-    children: Vec<XmlElement>,
-}
-
-#[derive(Debug)]
-pub struct XmlConfig {
-    root: XmlElement,
-}
-
-pub struct QframeConfig {
-    config: RwLock<Option<XmlConfig>>,
-    config_cache: RwLock<Cache>, // Wrap Cache in RwLock
-    config_path: RwLock<Option<PathBuf>>,
+    pub attributes: HashMap<String, String>,
+    pub value: Option<String>,
+    pub children: Vec<XmlElement>,
 }
 
 impl XmlElement {
+    // Helper method to trim value string
+    fn trim_value(value: Option<String>) -> Option<String> {
+        value
+            .map(|v| {
+                let trimmed = v.trim();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                }
+            })
+            .flatten()
+    }
+
     pub fn get_children(&self) -> Vec<XmlElement> {
         self.children.clone()
     }
+
     pub fn get_child(&self, name: &str) -> Option<&XmlElement> {
         self.children.iter().find(|child| child.name == name)
     }
@@ -45,10 +194,7 @@ impl XmlElement {
     }
 
     pub fn get_child_text(&self, name: &str) -> Option<String> {
-        self.children
-            .iter()
-            .find(|child| child.name == name)
-            .and_then(|child| child.value.clone())
+        self.get_child(name).and_then(|child| child.value.clone())
     }
 
     pub fn get_items(&self, name: &str) -> Vec<XmlElement> {
@@ -87,35 +233,27 @@ impl XmlElement {
         }
     }
 
-    // 查找子节点中name="name"的节点的value
     fn get_name_node_value(&self) -> Option<&String> {
-        self.children.iter()
+        self.children
+            .iter()
             .find(|child| child.name == "name")
             .and_then(|name_node| name_node.value.as_ref())
     }
 
-    // 检查是否是相同的节点结构
     fn is_matching_structure(&self, other: &XmlElement) -> bool {
-        // 首先检查节点名称是否相同
         if self.name != other.name {
             return false;
         }
 
-        // 获取两个节点的name子节点的value
         match (self.get_name_node_value(), other.get_name_node_value()) {
-            (Some(self_name_value), Some(other_name_value)) => {
-                // 比较name节点的value是否相同
-                self_name_value == other_name_value
-            }
-            _ => false
+            (Some(self_name_value), Some(other_name_value)) => self_name_value == other_name_value,
+            _ => false,
         }
     }
 
     pub fn update_child(&mut self, new_child: &XmlElement) -> bool {
-        // 首先检查直接子节点
         for child in &mut self.children {
             if child.is_matching_structure(new_child) {
-                // 保持原有的attributes不变
                 let original_attrs = child.attributes.clone();
                 *child = new_child.clone();
                 child.attributes = original_attrs;
@@ -123,7 +261,6 @@ impl XmlElement {
             }
         }
 
-        // 如果直接子节点没找到，递归查找
         for child in &mut self.children {
             if child.update_child(new_child) {
                 return true;
@@ -132,7 +269,268 @@ impl XmlElement {
 
         false
     }
+}
 
+#[derive(Debug)]
+pub struct XmlConfig {
+    root: XmlElement,
+}
+
+pub struct QframeConfig {
+    config: RwLock<Option<XmlTree>>,
+    config_cache: RwLock<Cache>,
+    config_path: RwLock<Option<PathBuf>>,
+}
+
+impl QframeConfig {
+    pub fn new() -> Self {
+        QframeConfig {
+            config: RwLock::new(None),
+            config_cache: RwLock::new(Cache::new()),
+            config_path: RwLock::new(None),
+        }
+    }
+
+    fn generate_cache_key(item_id: &str, protocol: &str, region: &str) -> String {
+        format!("{}:{}:{}", item_id, protocol, region)
+    }
+
+    fn build_tree(&self, element: &XmlElement) -> XmlTree {
+        let mut tree = XmlTree::new();
+
+        fn build_recursive(
+            tree: &mut XmlTree,
+            element: &XmlElement,
+            parent: Option<usize>,
+            depth: u32,
+            path: String,
+        ) -> usize {
+            let node = XmlNode {
+                id: element.attributes.get("id").cloned(),
+                id_name: element.get_child_text("name"),
+                name: element.name.clone(),
+                value: element.value.clone(),
+                attributes: element.attributes.clone(),
+                parent,
+                children: Vec::new(),
+                depth,
+                path: path.clone(),
+            };
+
+            let node_index = tree.add_node(node);
+
+            for (i, child) in element.children.iter().enumerate() {
+                let child_path = if path.is_empty() {
+                    i.to_string()
+                } else {
+                    format!("{}.{}", path, i)
+                };
+
+                let child_index =
+                    build_recursive(tree, child, Some(node_index), depth + 1, child_path);
+
+                tree.nodes[node_index].children.push(child_index);
+            }
+
+            node_index
+        }
+
+        tree.root = build_recursive(&mut tree, element, None, 0, String::new());
+        tree
+    }
+
+    pub fn load(&self, file_path: &Path) -> Result<(), Arc<dyn Error + Send + Sync>> {
+        let file =
+            File::open(file_path).map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
+        let reader = BufReader::new(file);
+        let mut xml_reader = Reader::from_reader(reader);
+        let mut buf = Vec::new();
+        let mut root = XmlElement {
+            name: String::new(),
+            attributes: HashMap::new(),
+            value: None,
+            children: Vec::new(),
+        };
+        let mut stack: Vec<XmlElement> = Vec::new();
+
+        loop {
+            match xml_reader.read_event(&mut buf) {
+                Ok(Event::Start(ref e)) => {
+                    let name = String::from_utf8_lossy(e.name()).to_string();
+                    let mut attributes = HashMap::new();
+                    for attr in e.attributes() {
+                        if let Ok(attr) = attr {
+                            let key = String::from_utf8_lossy(attr.key).to_string();
+                            let value = String::from_utf8_lossy(&attr.value).to_string();
+                            attributes.insert(key, value);
+                        }
+                    }
+                    let element = XmlElement {
+                        name,
+                        attributes,
+                        value: None,
+                        children: Vec::new(),
+                    };
+                    if stack.is_empty() {
+                        root = element.clone();
+                    } else if let Some(parent) = stack.last_mut() {
+                        let parent: &mut XmlElement = parent;
+                        parent.children.push(element.clone());
+                    }
+                    stack.push(element);
+                }
+                Ok(Event::Text(e)) => {
+                    if let Some(element) = stack.last_mut() {
+                        element.value = Some(
+                            e.unescape_and_decode(&xml_reader)
+                                .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?,
+                        );
+                    }
+                }
+                Ok(Event::End(_)) => {
+                    if let Some(element) = stack.pop() {
+                        if let Some(parent) = stack.last_mut() {
+                            if let Some(last) = parent.children.last_mut() {
+                                *last = element;
+                            }
+                        } else {
+                            root = element;
+                        }
+                    }
+                }
+                Ok(Event::Eof) => break,
+                Err(e) => return Err(Arc::new(e)),
+                _ => (),
+            }
+            buf.clear();
+        }
+
+        let tree = self.build_tree(&root);
+        *self.config.write().unwrap() = Some(tree);
+        *self.config_path.write().unwrap() = Some(file_path.to_path_buf());
+
+        Ok(())
+    }
+
+    pub fn get_item(
+        &self,
+        item_id: &str,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> Option<XmlElement> {
+        let cache_key = Self::generate_cache_key(item_id, protocol, region);
+        {
+            let cache = self.config_cache.read().unwrap();
+            if let Some(cached_result) = cache.get(&cache_key) {
+                return cached_result.clone();
+            }
+        }
+
+        let config = self.config.read().unwrap();
+        if let Some(tree) = config.as_ref() {
+            if let Some(node) = tree.find_by_id(item_id, protocol, region) {
+                let result = Some(self.node_to_element(tree, node));
+                let mut cache = self.config_cache.write().unwrap();
+                cache.insert(cache_key, result.clone());
+                return result;
+            }
+        }
+        None
+    }
+
+    fn node_to_element(&self, tree: &XmlTree, node: &XmlNode) -> XmlElement {
+        let mut element = XmlElement {
+            name: node.name.clone(),
+            attributes: node.attributes.clone(),
+            value: XmlElement::trim_value(node.value.clone()),
+            children: Vec::new(),
+        };
+
+        for &child_index in &node.children {
+            let child_node = &tree.nodes[child_index];
+            element
+                .children
+                .push(self.node_to_element(tree, child_node));
+        }
+
+        element
+    }
+
+    pub fn get_config(&self) -> RwLockReadGuard<Option<XmlTree>> {
+        self.config.read().unwrap()
+    }
+
+    pub async fn get_all_item(&self) -> Vec<ItemConfigList> {
+        let mut result = Vec::new();
+        let config_read = self.config.read().unwrap();
+        if let Some(xml_config) = config_read.as_ref() {
+            // Pre-allocate vector with a reasonable capacity
+            result.reserve(xml_config.nodes.len());
+            self.traverse_element_optimized(xml_config, &mut result);
+        }
+        result
+    }
+
+    fn traverse_element_optimized(&self, xml_tree: &XmlTree, result: &mut Vec<ItemConfigList>) {
+        let mut stack = vec![(
+            xml_tree.root,
+            None::<String>,
+            None::<String>,
+            None::<String>,
+        )];
+
+        while let Some((node_index, parent_protocol, parent_region, parent_dir)) = stack.pop() {
+            let node = &xml_tree.nodes[node_index];
+
+            if node_index != xml_tree.root && node.id.is_none() {
+                continue;
+            }
+
+            if let Some(id_str) = &node.id {
+                let protocol = node
+                    .attributes
+                    .get("protocol")
+                    .map(String::as_str)
+                    .map(String::from)
+                    .or(parent_protocol);
+
+                let region = node
+                    .attributes
+                    .get("region")
+                    .map(String::as_str)
+                    .map(String::from)
+                    .or(parent_region);
+
+                let dir = node
+                    .attributes
+                    .get("dir")
+                    .map(String::as_str)
+                    .map(String::from)
+                    .or(parent_dir);
+
+                let name = node.id_name.clone();
+
+                result.push(ItemConfigList {
+                    item: id_str.clone(),
+                    name,
+                    protocol,
+                    region,
+                    dir,
+                });
+            }
+
+            // Push children to stack in reverse order to maintain original traversal order
+            for &child_index in node.children.iter().rev() {
+                stack.push((
+                    child_index,
+                    node.attributes.get("protocol").map(String::from),
+                    node.attributes.get("region").map(String::from),
+                    node.attributes.get("dir").map(String::from),
+                ));
+            }
+        }
+    }
 }
 
 pub struct Cache {
@@ -157,476 +555,11 @@ impl Cache {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ItemConfigList {
-    item: String,
-    name: Option<String>,
-    protocol: Option<String>,
-    region: Option<String>,
-    dir: Option<String>,
-}
-
-impl QframeConfig {
-    pub fn new() -> Self {
-        QframeConfig {
-            config: RwLock::new(None),
-            config_cache: RwLock::new(Cache::new()),
-            config_path: RwLock::new(None),
-        }
-    }
-
-    pub fn load(&self, file_path: &Path) -> Result<(), Arc<dyn Error + Send + Sync>> {
-        let file =
-            File::open(file_path).map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-        let file = BufReader::new(file);
-        let mut reader = Reader::from_reader(file);
-        reader.trim_text(true);
-
-        let mut stack = Vec::new();
-        let mut root = None;
-        let mut buf = Vec::new();
-
-        loop {
-            match reader.read_event(&mut buf) {
-                Ok(Event::Start(ref e)) => {
-                    let name = String::from_utf8_lossy(e.name()).to_string();
-                    let mut attrs = HashMap::new();
-                    for attr in e.attributes() {
-                        let attr = attr.map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-                        let key = String::from_utf8_lossy(attr.key).to_string();
-                        let value = attr
-                            .unescape_and_decode_value(&reader)
-                            .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-                        attrs.insert(key, value);
-                    }
-                    let element = XmlElement {
-                        name,
-                        attributes: attrs,
-                        value: None,
-                        children: Vec::new(),
-                    };
-                    stack.push(element);
-                }
-                Ok(Event::Text(e)) => {
-                    if let Some(parent) = stack.last_mut() {
-                        let text = e
-                            .unescape_and_decode(&reader)
-                            .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-                        parent.value = Some(text);
-                    }
-                }
-                Ok(Event::End(_)) => {
-                    if let Some(element) = stack.pop() {
-                        if let Some(parent) = stack.last_mut() {
-                            parent.children.push(element);
-                        } else {
-                            root = Some(element);
-                        }
-                    }
-                }
-                Ok(Event::Eof) => break,
-                Err(e) => return Err(Arc::new(e) as Arc<dyn Error + Send + Sync>),
-                _ => {}
-            }
-            buf.clear();
-        }
-
-        if let Some(root) = root {
-            let mut config = self.config.write().unwrap();
-            *config = Some(XmlConfig { root });
-            let mut path = self.config_path.write().unwrap();
-            *path = Some(file_path.to_path_buf());
-        }
-        Ok(())
-    }
-
-    pub fn update_element(
-        &self,
-        target_id: &str,
-        new_element: XmlElement,
-    ) -> Result<(), Arc<dyn Error + Send + Sync>> {
-        let mut config = self.config.write().unwrap();
-        println!("update element:{:?}", target_id);
-
-        if let Some(ref mut xml_config) = *config {
-            // 清除缓存，因为内容已更新
-            let mut cache = self.config_cache.write().unwrap();
-            cache.results.clear();
-            // 更新或添加元素
-            let result =
-                self.update_element_recursive(&mut xml_config.root, target_id, new_element, true);
-            println!("update element:{:?} {:?} success", target_id, result);
-
-            // 保存更新后的配置到文件
-            self.save_to_file(xml_config)?;
-            println!("save element:{:?} success", target_id);
-        }
-        println!("save element:{:?} err", config);
-        Ok(())
-    }
-
-    fn update_element_recursive(
-        &self,
-        current: &mut XmlElement,
-        target_id: &str,
-        new_element: XmlElement,
-        isroot: bool,
-    ) -> Result<bool, Arc<dyn Error + Send + Sync>> {
-        // 检查当前节点是否是目标节点
-        if let Some(id) = current.attributes.get("id") {
-            if id == target_id {
-                *current = new_element;
-                return Ok(true);
-            }
-        }
-
-        // 递归检查子节点
-        for child in current.children.iter_mut() {
-            if self.update_element_recursive(child, target_id, new_element.clone(), false)? {
-                return Ok(true);
-            }
-        }
-
-        if !isroot {
-            return Ok(false);
-        }
-        // 如果没找到目标节点，将新元素添加为子节点
-        if !current.children.iter().any(|child| {
-            child
-                .attributes
-                .get("id")
-                .map_or(false, |id| id == target_id)
-        }) {
-            current.children.push(new_element);
-            return Ok(true);
-        }
-
-        Ok(false)
-    }
-
-    pub fn save_to_file(&self, config: &mut XmlConfig) -> Result<(), Arc<dyn Error + Send + Sync>> {
-        println!("save to file");
-        let path = self.config_path.read().unwrap();
-        println!("{:?} {:?} ", path, config.root);
-        if let (Some(path)) = (path.as_ref()) {
-            let file =
-                File::create(path).map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-            let writer = BufWriter::new(file);
-            let mut xml_writer = Writer::new(writer);
-
-            self.write_element(&mut xml_writer, &config.root, 0)?;
-        }
-
-        Ok(())
-    }
-
-    fn write_element(
-        &self,
-        writer: &mut Writer<BufWriter<File>>,
-        element: &XmlElement,
-        indent_level: usize,
-    ) -> Result<(), Arc<dyn Error + Send + Sync>> {
-        // 写入初始缩进
-        let indent = "    ".repeat(indent_level);
-        writer
-            .write_event(Event::Text(BytesText::from_escaped(indent.as_bytes())))
-            .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-
-        // 创建开始标签
-        let mut elem_start = BytesStart::borrowed_name(element.name.as_bytes());
-
-        // 添加属性
-        for (key, value) in &element.attributes {
-            elem_start.push_attribute((key.as_str(), value.as_str()));
-        }
-
-        // 写入开始标签
-        writer
-            .write_event(Event::Start(elem_start.clone()))
-            .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-
-        // 检查元素内容是否复杂
-        let has_complex_content = !element.children.is_empty();
-
-        if has_complex_content {
-            // 如果是复杂元素，添加换行
-            writer
-                .write_event(Event::Text(BytesText::from_escaped(b"\n")))
-                .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-        }
-
-        // 写入值（如果有）
-        if let Some(ref value) = element.value {
-            if has_complex_content {
-                // 如果是复杂元素，缩进并换行
-                writer
-                    .write_event(Event::Text(BytesText::from_escaped(
-                        format!("{}{}", "    ".repeat(indent_level + 1), value).as_bytes(),
-                    )))
-                    .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-                writer
-                    .write_event(Event::Text(BytesText::from_escaped(b"\n")))
-                    .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-            } else {
-                // 如果是简单元素，直接写入值
-                writer
-                    .write_event(Event::Text(BytesText::from_escaped(value.as_bytes())))
-                    .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-            }
-        }
-
-        // 递归写入子元素
-        for child in &element.children {
-            self.write_element(writer, child, indent_level + 1)?;
-        }
-
-        if has_complex_content {
-            // 如果是复杂元素，在结束标签前添加缩进
-            writer
-                .write_event(Event::Text(BytesText::from_escaped(indent.as_bytes())))
-                .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-        }
-
-        // 写入结束标签
-        writer
-            .write_event(Event::End(BytesEnd::borrowed(element.name.as_bytes())))
-            .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-
-        // 在元素后添加换行（除非是简单元素）
-        if has_complex_content || indent_level > 0 {
-            writer
-                .write_event(Event::Text(BytesText::from_escaped(b"\n")))
-                .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?;
-        }
-
-        Ok(())
-    }
-
-    fn merge_attributes(
-        &self,
-        element: &XmlElement,
-        inherited_attributes: &HashMap<String, String>,
-    ) -> HashMap<String, String> {
-        let mut merged =
-            HashMap::with_capacity(inherited_attributes.len() + element.attributes.len());
-        for (k, v) in inherited_attributes.iter().filter(|&(k, _)| k != "id") {
-            merged.insert(k.clone(), v.clone());
-        }
-        for (k, v) in element.attributes.iter() {
-            merged.insert(k.clone(), v.clone());
-        }
-        merged
-    }
-
-    fn generate_cache_key(target_id: &str, protocol: &str, region: &str) -> String {
-        format!("{}:{}:{}", target_id, protocol, region)
-    }
-
-    pub fn get_template_item(
-        &self,
-        template: &str,
-        protocol: &str,
-        region: &str,
-        dir: Option<u8>,
-    ) -> Option<XmlElement> {
-        let config = self.config.read().unwrap();
-        config.as_ref().and_then(|config| {
-            self.find_target_dataitem(&config.root, template, protocol, region, dir)
-        })
-    }
-
-    fn clean_target_region(target_region: &str) -> String {
-        let mut cleaned = String::from(target_region);
-        cleaned.retain(|c| c != '"');
-        cleaned.to_uppercase()
-    }
-
-    fn is_valid_data_item_with_attributes(
-        &self,
-        attributes: &HashMap<String, String>,
-        target_protocol: &str,
-        target_region: &str,
-        dir: Option<u8>,
-    ) -> bool {
-        if let Some(attri_protocol) = attributes.get("protocol") {
-            let protocols: Vec<String> = attri_protocol
-                .split(',')
-                .map(|s| s.trim().to_uppercase())
-                .collect();
-            if protocols.contains(&target_protocol.to_uppercase()) {
-                if let Some(attri_region) = attributes.get("region") {
-                    let regions: Vec<String> = attri_region
-                        .split(',')
-                        .map(|s| s.trim().to_uppercase())
-                        .collect();
-                    let cleaned_target_region = Self::clean_target_region(target_region);
-                    if regions.contains(&cleaned_target_region) {
-                        if let Some(dir) = dir {
-                            if let Some(attri_dir) = attributes.get("dir") {
-                                return attri_dir.parse::<u8>().unwrap_or(0) == dir;
-                            }
-                        }
-                        return true;
-                    }
-                }
-            }
-        }
-        false
-    }
-
-    pub fn get_item(
-        &self,
-        item_id: &str,
-        protocol: &str,
-        region: &str,
-        dir: Option<u8>,
-    ) -> Option<XmlElement> {
-        let config = self.config.read().unwrap();
-        config.as_ref().and_then(|config| {
-            self.find_target_dataitem(&config.root, item_id, protocol, region, dir)
-        })
-    }
-
-    pub fn find_target_dataitem(
-        &self,
-        root: &XmlElement,
-        target_id: &str,
-        target_protocol: &str,
-        region: &str,
-        dir: Option<u8>,
-    ) -> Option<XmlElement> {
-        let mut cache = self.config_cache.write().unwrap();
-
-        let cache_key = Self::generate_cache_key(target_id, target_protocol, region);
-        if let Some(cached_result) = cache.get(&cache_key) {
-            return cached_result.clone();
-        }
-
-        fn find_recursive<'a>(
-            element: &'a XmlElement,
-            inherited_attributes: &'a HashMap<String, String>,
-            target_id: &str,
-            target_protocol: &str,
-            region: &str,
-            dir: Option<u8>,
-            config: &'a QframeConfig,
-        ) -> Option<XmlElement> {
-            let merged_attributes = config.merge_attributes(element, inherited_attributes);
-
-            if let Some(id) = merged_attributes.get("id") {
-                if id.eq_ignore_ascii_case(target_id)
-                    && config.is_valid_data_item_with_attributes(
-                        &merged_attributes,
-                        target_protocol,
-                        region,
-                        dir,
-                    )
-                {
-                    return Some(element.clone());
-                }
-            }
-
-            element.children.par_iter().find_map_any(|child| {
-                find_recursive(
-                    child,
-                    &merged_attributes,
-                    target_id,
-                    target_protocol,
-                    region,
-                    dir,
-                    config,
-                )
-            })
-        }
-
-        let mut result = find_recursive(
-            root,
-            &root.attributes,
-            target_id,
-            target_protocol,
-            region,
-            dir,
-            self,
-        );
-
-        // 如果第一次查找没有找到结果，且区域不是“南网”，则进行第二次查找
-        if result.is_none() && !region.eq_ignore_ascii_case("南网") {
-            result = find_recursive(
-                root,
-                &root.attributes,
-                target_id,
-                target_protocol,
-                "南网",
-                dir,
-                self,
-            );
-        }
-
-        // 将查找结果插入缓存
-        cache.insert(cache_key, result.clone());
-
-        // 返回结果
-        result
-    }
-
-    pub fn get_config(&self) -> RwLockReadGuard<Option<XmlConfig>> {
-        self.config.read().unwrap() // 返回 RwLock 的读锁
-    }
-
-    pub async fn get_all_item(&self) -> Vec<ItemConfigList> {
-        let mut result = Vec::new();
-
-        let config_read = self.config.read().unwrap(); // 在这个作用域中获取读锁
-        if let Some(xml_config) = config_read.as_ref() {
-            // 传递 xml_config 的引用到异步函数
-            self.traverse_element(&xml_config.root, &mut result, true, None, None, None);
-        }
-        result
-    }
-
-    fn traverse_element(
-        &self,
-        element: &XmlElement,
-        result: &mut Vec<ItemConfigList>,
-        skip_id_check: bool,
-        parent_protocol: Option<&String>,
-        parent_region: Option<&String>,
-        parent_dir: Option<&String>,
-    ) {
-        // 如果 skip_id_check 为 true，则跳过 id 检查
-        if !skip_id_check && element.get_attribute("id").is_none() {
-            return; // 如果不是 root 节点且没有 id 属性，则返回
-        }
-
-        // 处理当前元素
-        if let Some(id_str) = element.get_attribute("id") {
-            // 如果有 id 属性，将其解析并添加到结果中
-            let protocol = element.get_attribute("protocol").or(parent_protocol);
-            let region = element.get_attribute("region").or(parent_region);
-            let name = element.get_child_text("name");
-            let dir = element.get_attribute("dir").or(parent_dir);
-
-            let item = ItemConfigList {
-                item: id_str.clone(),
-                name: name.clone(),
-                protocol: protocol.cloned(),
-                region: region.cloned(),
-                dir: dir.cloned(),
-            };
-            result.push(item);
-        }
-
-        // 遍历子元素
-        for child in element.get_children() {
-            // 对子元素进行递归调用，并设置 skip_id_check 为 false
-            self.traverse_element(
-                &child,
-                result,
-                false,
-                element.get_attribute("protocol"),
-                element.get_attribute("region"),
-                element.get_attribute("dir"),
-            );
-        }
-    }
+    pub item: String,
+    pub name: Option<String>,
+    pub protocol: Option<String>,
+    pub region: Option<String>,
+    pub dir: Option<String>,
 }
 
 lazy_static! {
@@ -720,32 +653,24 @@ impl ProtocolConfigManager {
 
         match find_protocol.as_str() {
             protocol if protocol.contains("CSG13") => {
-                // 匹配 CSG13 协议，使用 GLOBAL_CSG13
-                let item =
-                    GLOBAL_CSG13
-                        .as_ref()
-                        .ok()?
-                        .get_item(data_item_id, protocol, region, dir);
-                item
-            }
-            protocol if protocol.contains("DLT/645") => {
-                // 匹配 DLT/645 协议，使用 GLOBAL_645
-                let item = GLOBAL_645
+                GLOBAL_CSG13
                     .as_ref()
                     .ok()?
-                    .get_item(data_item_id, protocol, region, dir);
-                item
+                    .get_item(data_item_id, protocol, region, dir)
+            }
+            protocol if protocol.contains("DLT/645") => {
+                GLOBAL_645
+                    .as_ref()
+                    .ok()?
+                    .get_item(data_item_id, protocol, region, dir)
             }
             protocol if protocol.contains("CSG16") => {
-                // 匹配 CSG16 协议，使用 GLOBAL_CSG16
-                let item =
-                    GLOBAL_CSG16
-                        .as_ref()
-                        .ok()?
-                        .get_item(data_item_id, protocol, region, dir);
-                item
+                GLOBAL_CSG16
+                    .as_ref()
+                    .ok()?
+                    .get_item(data_item_id, protocol, region, dir)
             }
-            _ => None, // 不匹配任何已知协议时返回 None
+            _ => None,
         }
     }
 
@@ -758,61 +683,50 @@ impl ProtocolConfigManager {
         let find_protocol = protocol.to_uppercase();
 
         match find_protocol.as_str() {
-            protocol if protocol.contains("CSG13") => {
-                // 匹配 CSG13 协议，使用 GLOBAL_CSG13
-                GLOBAL_CSG13
-                    .as_ref()
-                    .ok()?
-                    .get_template_item(template, protocol, region, dir)
-            }
-            protocol if protocol.contains("DLT/645") => {
-                // 匹配 DLT/645 协议，使用 GLOBAL_645
-                GLOBAL_645
-                    .as_ref()
-                    .ok()?
-                    .get_template_item(template, protocol, region, dir)
-            }
-            protocol if protocol.contains("CSG16") => {
-                // 匹配 CSG16 协议，使用 GLOBAL_CSG16
-                GLOBAL_CSG16
-                    .as_ref()
-                    .ok()?
-                    .get_template_item(template, protocol, region, dir)
-            }
-            _ => None, // 不匹配任何已知协议时返回 None
+            protocol if protocol.contains("CSG13") => GLOBAL_CSG13
+                .as_ref()
+                .ok()?
+                .get_item(template, protocol, region, dir),
+            protocol if protocol.contains("DLT/645") => GLOBAL_645
+                .as_ref()
+                .ok()?
+                .get_item(template, protocol, region, dir),
+            protocol if protocol.contains("CSG16") => GLOBAL_CSG16
+                .as_ref()
+                .ok()?
+                .get_item(template, protocol, region, dir),
+            _ => None,
         }
     }
 
     pub fn update_element(
-        target_id: &str,
+        item: &String,
         protocol: &str,
-        element: XmlElement,
-    ) -> Result<(), String> {
-        let find_protocol = protocol.to_uppercase();
+        element: &XmlElement,
+    ) -> Result<(), std::io::Error> {
+        let region = element.get_attribute("region");
+        let dir = element.get_attribute("dir");
 
-        match find_protocol.as_str() {
-            protocol if protocol.contains("CSG13") => {
-                println!("更新 CSG13 配置");
-                match GLOBAL_CSG13.as_ref() {
-                    Ok(config) => config
-                        .update_element(target_id, element)
-                        .map_err(|e| format!("更新失败: {}", e)),
-                    Err(_) => Err("CSG13 配置错误".to_string()),
-                }
-            }
-            protocol if protocol.contains("DLT/645") => match GLOBAL_645.as_ref() {
-                Ok(config) => config
-                    .update_element(target_id, element)
-                    .map_err(|e| format!("更新失败: {}", e)),
-                Err(_) => Err("DLT/645 配置错误".to_string()),
-            },
-            protocol if protocol.contains("CSG16") => match GLOBAL_CSG16.as_ref() {
-                Ok(config) => config
-                    .update_element(target_id, element)
-                    .map_err(|e| format!("更新失败: {}", e)),
-                Err(_) => Err("CSG16 配置错误".to_string()),
-            },
-            _ => Err("不支持的协议类型".to_string()),
+        let region = if let Some(region) = region {
+            region
+        } else {
+            "南网"
+        };
+        let dir = if let Some(dir) = dir {
+            Some(dir.parse::<u8>().unwrap())
+        } else {
+            None
+        };
+        if let Some(mut current_element) =
+            ProtocolConfigManager::get_config_xml(item, protocol, &region, dir)
+        {
+            current_element.update_child(element);
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Element not found",
+            ))
         }
     }
 }

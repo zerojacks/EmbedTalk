@@ -2,11 +2,15 @@ import { TreeItemType } from '../components/TreeItem';
 import { invoke } from "@tauri-apps/api/core";
 import Split from 'react-split';
 import { useFrameTreeStore } from '../stores/useFrameAnalysicStore';
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useProtocolInfoStore } from '../stores/useProtocolInfoStore';
 import { toast } from "../context/ToastProvider";
 import { TreeTableView } from "../components/TreeTable";
 import { TreeTable, Column } from "../components/treeview";
+import { listen } from '@tauri-apps/api/event';
+import { PraseFrame, createPraseFrame, updatePraseFrame, deletePraseFrame, getPraseFrames, searchPraseFrames, getPraseFramesByDateRange } from '../utils/database';
+import { HistoryDrawer } from "../components/HistoryDrawer";
+import { useShortcuts } from "../context/ShortcutProvider";
 
 const initialColumns: Column[] = [
   { name: '帧域', width: 30, minWidth: 100 },
@@ -46,6 +50,7 @@ export default function Home() {
 
     clearTableData();
     setFrame(formattedValue);
+    createPraseFrame(formattedValue);
 
     if (formattedValue === "") {
       return;
@@ -117,7 +122,6 @@ export default function Home() {
 
   }, [selectedframe]);
 
-
   useEffect(() => {
     const textarea = textareaRef.current;
     if(textarea) {
@@ -128,45 +132,103 @@ export default function Home() {
     }
 
   },[frameScroll])
-  
+
   const handleDragEnd = (sizes: number[]) => {
     setSplitSize(sizes);
   };
 
-  return (
-    <div  className="w-full h-full relative">
-      <Split
-        direction="vertical"
-        sizes={splitSize}
-        minSize={[20, 10]}
-        gutterSize={2}
-        snapOffset={30}
-        dragInterval={0}
-        onDragEnd={handleDragEnd}
-        className="flex flex-col w-full h-full"
-      >
-      <div className="w-full overflow-hidden" >
-        <div className="p-[5px] h-full">
-          <textarea 
-            ref={textareaRef}
-            className="textarea w-full h-full text-sm textarea-bordered" 
-            placeholder="请输入报文...."
-            value={frame}
-            onChange={handleInputChange}
-          />
-        </div>
-      </div>
+  const handleParse = async (text: string) => {
+    try {
+      const formattedValue = text
+        .replace(/\s+/g, '')
+        .replace(/(.{2})/g, '$1 ')
+        .trim()
+        .toUpperCase();
 
-      <div className="w-full border-b-2 border-transparent">
-        <div className="p-[5px] h-full overflow-auto" style={{width: "99.99%"}}>
-          <TreeTable 
-            data={tabledata}
-            tableheads={initialColumns}
-            onRowClick={handleRowClick}
-          />
+      clearTableData();
+      setFrame(formattedValue);
+
+      if (formattedValue === "") {
+        return;
+      }
+
+      let currentRegion = region;
+      if (region === "") {
+        try {
+          currentRegion = await invoke<string>("get_region_value");
+        } catch (error) {
+          currentRegion = "南网";
+        }
+        setRegion(currentRegion);
+      }
+      
+      try {
+        const result = await invoke<Response>('on_text_change', { 
+          message: formattedValue, 
+          region: currentRegion
+        });
+        if (result.error) {
+          toast.error("解析失败！");
+          console.log("错误信息：", result.error);
+        } else {
+          setTableData(result.data);
+        }
+      } catch (error) {
+        console.error("调用后端函数出错：", error);
+        toast.error("解析失败！");
+      }
+    } catch (error) {
+      console.error('解析失败:', error);
+    }
+  };
+
+  const { historyVisible, setHistoryVisible } = useShortcuts();
+
+  const handleFrameSelect = (selectedFrame: string) => {
+    handleParse(selectedFrame);
+  };
+
+  return (
+    <>
+      <div className="flex flex-col h-screen">
+        <Split
+          direction="vertical"
+          sizes={splitSize}
+          minSize={[20, 10]}
+          gutterSize={2}
+          snapOffset={30}
+          dragInterval={0}
+          onDragEnd={handleDragEnd}
+          className="flex flex-col w-full h-full"
+        >
+        <div className="w-full overflow-hidden" >
+          <div className="p-[5px] h-full">
+            <textarea 
+              ref={textareaRef}
+              className="textarea w-full h-full text-sm textarea-bordered" 
+              placeholder="请输入报文...."
+              value={frame}
+              onChange={handleInputChange}
+            />
+          </div>
         </div>
+
+        <div className="w-full border-b-2 border-transparent">
+          <div className="p-[5px] h-full overflow-auto" style={{width: "99.99%"}}>
+            <TreeTable 
+              data={tabledata}
+              tableheads={initialColumns}
+              onRowClick={handleRowClick}
+            />
+          </div>
+        </div>
+        </Split>
       </div>
-      </Split>
-    </div>
+      <HistoryDrawer 
+        onSelectFrame={handleFrameSelect} 
+        visible={historyVisible}
+        onClose={() => setHistoryVisible(false)}
+      />
+    </>
   );
 }

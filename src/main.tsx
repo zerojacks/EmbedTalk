@@ -9,6 +9,7 @@ import { TauriProvider } from "./context/TauriProvider";
 import "./styles.css";
 import { SettingsProvider } from "./context/SettingsProvider";
 import { ToastProvider, initializeToast  } from './context/ToastProvider';
+import { ShortcutProvider } from './context/ShortcutProvider';
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import Itemconfig from "./routes/itemconfig"
 import ChannelMonitor from "./routes/ChannelMonitor";
@@ -56,11 +57,13 @@ const router = createBrowserRouter([
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <TauriProvider>
-      <ToastProvider>
-        <SettingsProvider>
-          <RouterProvider router={router} />
-        </SettingsProvider>
-      </ToastProvider>
+      <SettingsProvider>
+        <ToastProvider>
+          <ShortcutProvider>
+            <RouterProvider router={router} />
+          </ShortcutProvider>
+        </ToastProvider>
+      </SettingsProvider>
     </TauriProvider>
   </React.StrictMode>
 );

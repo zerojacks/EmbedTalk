@@ -5,6 +5,7 @@ import AboutInfo from "../settingcomplent/about"
 import Report from "../settingcomplent/report";
 import ConnectBridge from "../settingcomplent/connectbridge";
 import ProtocolConfigPath from '../settingcomplent/protocolpath'
+import ShortcutSetting from '../settingcomplent/shortcut';
 import { useState } from "react";
 
 export default function Settings() {
@@ -28,6 +29,13 @@ export default function Settings() {
         </div>
         <div className="mt-4">
           <ProtocolConfigPath />
+        </div>
+      </div>
+
+      <div className="dropdown">
+        <label className="text-xl flex items-center mt-4 font-bold">快捷键设置</label>
+        <div className="mt-4">
+          <ShortcutSetting />
         </div>
       </div>
 

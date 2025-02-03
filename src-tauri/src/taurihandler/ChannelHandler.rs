@@ -3,7 +3,7 @@ use crate::combridage::CommunicationManager;
 use lazy_static::lazy_static;
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
-use tokio_serial::{SerialPortBuilderExt, available_ports};
+use tokio_serial::{available_ports, SerialPortBuilderExt};
 
 lazy_static! {
     pub static ref CHANNEL_MANAGER: Mutex<CommunicationManager> =

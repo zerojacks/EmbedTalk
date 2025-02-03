@@ -19,7 +19,6 @@ const MS_TYPE_A_GROUP_OF_VIP_USER_TYPES: u8 = 0xFB; //一组重点用户类型 2
 const MS_TYPE_A_SET_OF_USER_EVENT_LEVELS: u8 = 0xFC; //一组用户事件等级 252*/
 const MS_TYPE_VIP_USER_TYPES: u8 = 0xFD; //重点用户 253*/
 const MS_TYPE_A_SET_OF_USER_PORT_NUMBERS: u8 = 0xFE; //一组用户端口号 254*/
-
 pub struct TCMeterTask;
 
 impl TCMeterTask {

@@ -502,14 +502,14 @@ impl FrameFun {
     pub fn ascii_to_str(ascii_array: &[u8]) -> String {
         // 查找第一个零字节的位置
         let zero_pos = ascii_array.iter().position(|&byte| byte == 0);
-        
+
         // 如果找到了零字节，则截取到该位置之前的部分
         let valid_part = if let Some(pos) = zero_pos {
             &ascii_array[..pos]
         } else {
             ascii_array
         };
-        
+
         // 将有效部分转换为字符串
         String::from_utf8_lossy(valid_part).into_owned()
     }

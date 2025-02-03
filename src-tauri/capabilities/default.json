@@ -62,6 +62,7 @@
     "core:window:allow-set-cursor-position",
     "core:window:allow-set-ignore-cursor-events",
     "core:window:allow-start-dragging",
+    "core:window:allow-is-visible",
     "core:menu:allow-new",
     "core:webview:allow-print",
     "core:webview:allow-internal-toggle-devtools",
@@ -70,6 +71,11 @@
     "core:event:allow-listen",
     "core:window:allow-theme",
     "core:window:allow-set-theme",
+    "global-shortcut:allow-is-registered",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-register-all",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-unregister-all",
     "shell:allow-open",
     "dialog:allow-open",
     "dialog:allow-save",
@@ -93,6 +99,11 @@
     "process:default",
     "core:path:allow-dirname",
     "core:path:allow-resolve-directory",
-    "core:path:default"
+    "core:path:default",
+    "sql:default",
+    "sql:allow-close",
+    "sql:allow-execute",
+    "sql:allow-load",
+    "sql:allow-select"
   ]
 }

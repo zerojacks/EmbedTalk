@@ -1,6 +1,6 @@
 use crate::combridage::ChannelType;
 use crate::combridage::CommunicationChannel;
-use crate::combridage::{Message, ChannelState};
+use crate::combridage::{ChannelState, Message};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
@@ -105,7 +105,10 @@ impl CommunicationChannel for MqttChannel {
         Ok(())
     }
 
-    async fn on_statechange(&self, state:ChannelState) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn on_statechange(
+        &self,
+        state: ChannelState,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let app_handle = get_app_handle();
         // 构造断开连接事件的 payload
         let payload = serde_json::json!({

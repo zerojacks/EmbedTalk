@@ -1,20 +1,20 @@
-use crate::combridage::{CommunicationChannel, Message, ChannelState};
+use crate::combridage::messagemanager::{MessageDirection, MessageManager};
+use crate::combridage::{ChannelState, CommunicationChannel, Message};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
 use serde_json;
 use std::error::Error;
+use std::io;
+use std::io::Error as IoError;
 use std::sync::Arc;
 use std::time::Duration;
+use tauri::Emitter;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::broadcast;
 use tokio::sync::{mpsc, Mutex};
+use tokio::task::JoinHandle;
 use tokio::time::timeout;
 use tokio_serial::SerialStream;
-use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
-use tauri::Emitter;
-use std::io::Error as IoError;
-use std::io;
-use crate::combridage::messagemanager::{MessageManager,MessageDirection};
 pub struct SerialPortChannel {
     port_name: String,
     port: Arc<Mutex<Option<SerialStream>>>,
@@ -22,7 +22,7 @@ pub struct SerialPortChannel {
     receiver: mpsc::Receiver<Message>,
     send_task_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
     receive_task_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
-    msg_sender: mpsc::Sender<Message>,  // 添加msg_sender字段来存储发送端
+    msg_sender: mpsc::Sender<Message>, // 添加msg_sender字段来存储发送端
 }
 
 impl SerialPortChannel {
@@ -37,7 +37,7 @@ impl SerialPortChannel {
         // Change to broadcast channel instead of mpsc
         let (tx, _) = broadcast::channel::<Vec<u8>>(100);
         let (msg_tx, msg_rx) = mpsc::channel::<Message>(100);
-        
+
         let port = Arc::new(Mutex::new(None));
         let send_task_handle = Arc::new(Mutex::new(None));
         let receive_task_handle = Arc::new(Mutex::new(None));
@@ -49,11 +49,13 @@ impl SerialPortChannel {
             receiver: msg_rx,
             send_task_handle,
             receive_task_handle,
-            msg_sender: msg_tx,  // 保存msg_sender
+            msg_sender: msg_tx, // 保存msg_sender
         };
 
         // Connect immediately
-        channel.connect(port_name, baud_rate, databit, fowctrl, parity, stopbit).await?;
+        channel
+            .connect(port_name, baud_rate, databit, fowctrl, parity, stopbit)
+            .await?;
         if let Err(e) = channel.on_statechange(ChannelState::Connected).await {
             eprintln!("Failed to send disconnect event: {:?}", e);
             return Err(e); // 返回 on_statechange 的错误
@@ -84,9 +86,7 @@ impl SerialPortChannel {
 
         // Start send and receive tasks
         let app_handle = get_app_handle();
-        let message_manager = MessageManager::new(
-            app_handle,
-        )?;
+        let message_manager = MessageManager::new(app_handle)?;
         message_manager.register_channel(&port_name).await;
         let mut subscriber = message_manager.subscribe_to_messages();
 
@@ -98,12 +98,14 @@ impl SerialPortChannel {
         Ok(())
     }
 
-    async fn start_send_task(&self,
-        message_manager: MessageManager) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn start_send_task(
+        &self,
+        message_manager: MessageManager,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let port = self.port.clone();
         let mut rx = self.sender.subscribe();
         let port_name = self.port_name.clone();
-    
+
         let handle = tokio::spawn(async move {
             while let Ok(data) = rx.recv().await {
                 if let Some(mut port) = port.lock().await.as_mut() {
@@ -113,36 +115,41 @@ impl SerialPortChannel {
                         break;
                     }
 
-                    
                     let payload = serde_json::json!({
                         "data": data
                     });
                     let message = Message::new(payload);
-                    
+
                     // Record the message
-                    if let Err(e) = message_manager.record_message(
-                        "serial",
-                        &port_name,
-                        &message,
-                        MessageDirection::Sent,
-                        None
-                    ).await {
+                    if let Err(e) = message_manager
+                        .record_message(
+                            "serial",
+                            &port_name,
+                            &message,
+                            MessageDirection::Sent,
+                            None,
+                        )
+                        .await
+                    {
                         eprintln!("Error recording message: {:?}", e);
                     }
                 }
             }
         });
-    
+
         // Store the handle
         *self.send_task_handle.lock().await = Some(handle);
         Ok(())
     }
 
-    async fn start_receive_task(&self, message_manager: MessageManager) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn start_receive_task(
+        &self,
+        message_manager: MessageManager,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let port = self.port.clone();
         let msg_tx = self.msg_sender.clone();
         let port_name = self.port_name.clone();
-        
+
         let handle = tokio::spawn(async move {
             let mut buffer = vec![0; 1024];
             while let Some(mut port) = port.lock().await.as_mut() {
@@ -155,20 +162,23 @@ impl SerialPortChannel {
                             "data": received_data
                         });
                         let message = Message::new(payload);
-                        
+
                         // Send Message object using mpsc sender
                         if msg_tx.send(message.clone()).await.is_err() {
                             eprintln!("Receiver dropped");
                             break;
                         }
 
-                        if let Err(e) = message_manager.record_message(
-                            "tcpclient",
-                            &port_name,
-                            &message,
-                            MessageDirection::Received,
-                            None
-                        ).await {
+                        if let Err(e) = message_manager
+                            .record_message(
+                                "tcpclient",
+                                &port_name,
+                                &message,
+                                MessageDirection::Received,
+                                None,
+                            )
+                            .await
+                        {
                             eprintln!("Error recording message: {:?}", e);
                         }
                     }
@@ -182,7 +192,7 @@ impl SerialPortChannel {
                 }
             }
         });
-    
+
         *self.receive_task_handle.lock().await = Some(handle);
         Ok(())
     }
@@ -254,7 +264,10 @@ impl CommunicationChannel for SerialPortChannel {
         Ok(())
     }
 
-    async fn on_statechange(&self, state: ChannelState) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn on_statechange(
+        &self,
+        state: ChannelState,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let app_handle = get_app_handle();
         let payload = serde_json::json!({
             "channeltype": "serial",

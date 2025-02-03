@@ -1,12 +1,12 @@
 use crate::combridage::Message;
-use chrono::{DateTime, Utc, TimeZone};
+use chrono::{DateTime, TimeZone, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tauri::Manager;
 use tauri::Emitter;
+use tauri::Manager;
 use tokio::fs::{self, File, OpenOptions};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{broadcast, Mutex, RwLock};
@@ -40,7 +40,7 @@ pub struct MessageManager {
 impl MessageManager {
     pub fn new(app_handle: tauri::AppHandle) -> Result<Self, Box<dyn Error + Send + Sync>> {
         let (message_sender, _) = broadcast::channel(100);
-        
+
         // 获取应用数据目录
         let base_path = app_handle
             .path()
@@ -66,7 +66,10 @@ impl MessageManager {
             .join(format!("{}.log", channel_id))
     }
 
-    async fn ensure_storage_path(&self, channel_id: &str) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
+    async fn ensure_storage_path(
+        &self,
+        channel_id: &str,
+    ) -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
         let path = self.get_storage_path(channel_id);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
@@ -77,11 +80,11 @@ impl MessageManager {
     async fn start_storage_worker(&self, channel_id: String) {
         let write_queues = self.write_queues.clone();
         let base_path = self.base_path.clone();
-        
+
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-                
+
                 // 获取当前通道的队列
                 let queues = write_queues.read().await;
                 let queue = match queues.get(&channel_id) {
@@ -89,20 +92,20 @@ impl MessageManager {
                     None => continue,
                 };
                 drop(queues); // 释放读锁
-    
+
                 let mut queue_lock = queue.lock().await;
                 if queue_lock.is_empty() {
                     continue;
                 }
-    
+
                 // 获取当天的文件路径
                 let today = Utc::now().format("%Y-%m-%d").to_string();
                 let path = base_path
                     .join(today)
                     .join(format!("{}.log", channel_id.replace(":", "-")));
-    
+
                 let messages_to_write = queue_lock.drain(..).collect::<Vec<_>>();
-                
+
                 if let Err(e) = Self::batch_write_messages(&path, &messages_to_write).await {
                     eprintln!("Error writing messages to storage: {:?}", e);
                     // 写入失败时，将消息放回队列
@@ -132,7 +135,7 @@ impl MessageManager {
             println!("Writing message to storage: {:?} {:?}", record, path);
             file.write_all(record.as_bytes()).await?;
         }
-        
+
         file.flush().await?;
         Ok(())
     }
@@ -141,31 +144,31 @@ impl MessageManager {
         self.message_sender.subscribe()
     }
 
-    pub async fn register_channel(&self, channel_id: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn register_channel(
+        &self,
+        channel_id: &str,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut active_channels = self.active_channels.write().await;
         let mut write_queues = self.write_queues.write().await;
-        
+
         if !active_channels.contains_key(channel_id) {
             active_channels.insert(channel_id.to_string(), true);
-            write_queues.insert(
-                channel_id.to_string(),
-                Arc::new(Mutex::new(Vec::new())),
-            );
-            
+            write_queues.insert(channel_id.to_string(), Arc::new(Mutex::new(Vec::new())));
+
             // 确保存储路径存在
             self.ensure_storage_path(channel_id).await?;
-            
+
             // 启动该通道的存储工作器
             self.start_storage_worker(channel_id.to_string()).await;
         }
-        
+
         Ok(())
     }
 
     pub async fn unregister_channel(&self, channel_id: &str) {
         let mut active_channels = self.active_channels.write().await;
         active_channels.remove(channel_id);
-        
+
         // 等待队列处理完成后再移除
         let mut write_queues = self.write_queues.write().await;
         if let Some(queue) = write_queues.get(channel_id) {

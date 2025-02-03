@@ -70,7 +70,10 @@ impl FrameAnalisyic {
         let mut parsed_data = Vec::new();
 
         // 假设 ConfigManager 是你自己的结构体，并且 get_config_xml 是其方法
-        println!("prase_data data_item_elem: {:?} data_segment{:?}", data_item_elem, data_segment);
+        println!(
+            "prase_data data_item_elem: {:?} data_segment{:?}",
+            data_item_elem, data_segment
+        );
         let need_delete = protocol == ProtocolInfo::ProtocolDLT64507.name();
         println!("need_delete: {:?}", need_delete);
         parsed_data = Self::prase_data_item(
@@ -119,7 +122,10 @@ impl FrameAnalisyic {
             data_str
         };
 
-        println!("prase_data_item data_segment{:?} pos: {:?}", data_segment, pos);
+        println!(
+            "prase_data_item data_segment{:?} pos: {:?}",
+            data_segment, pos
+        );
 
         if !sub_data_item.is_empty() {
             let (sub_result, length) = Self::process_all_item(
@@ -645,12 +651,8 @@ impl FrameAnalisyic {
             .unwrap_or_else(|| "BCD".to_string());
         println!("subitem_type: {:?}", subitem_type);
         let subitem_value = match subitem_type.to_uppercase().as_str() {
-            "BCD" => {
-                FrameFun::bcd_to_decimal(data_segment, decimal, need_delete, sign)
-            }
-            "BIN" => {
-                FrameFun::bin_to_decimal(data_segment, decimal, need_delete, sign, true)
-            }
+            "BCD" => FrameFun::bcd_to_decimal(data_segment, decimal, need_delete, sign),
+            "BIN" => FrameFun::bin_to_decimal(data_segment, decimal, need_delete, sign, true),
             "BIN_FF" => FrameFun::bin_to_decimal(data_segment, decimal, need_delete, sign, false),
             "ASCII" => FrameFun::ascii_to_str(data_segment),
             "PORT" => FrameFun::prase_port(data_segment),
@@ -851,7 +853,10 @@ impl FrameAnalisyic {
             let sub_neme = Self::get_item_name_str(sub_item_id, sub_item_name);
             let sub_item_length = splitlength_item.get_child_text("length");
             subitem_length = sub_data_segment.len();
-            println!("sub_data_segment:{:?} subitem_length:{} data_segment:{:?} sub_item_length{:?}", sub_data_segment, subitem_length,data_segment, sub_item_length);
+            println!(
+                "sub_data_segment:{:?} subitem_length:{} data_segment:{:?} sub_item_length{:?}",
+                sub_data_segment, subitem_length, data_segment, sub_item_length
+            );
             match sub_item_length {
                 Some(sub_item_length) => match sub_item_length.to_uppercase().as_str() {
                     "UNKNOWN" => {
@@ -861,7 +866,7 @@ impl FrameAnalisyic {
                             protocol,
                             region,
                             dir,
-                            None
+                            None,
                         );
                     }
                     _ => {
@@ -883,7 +888,10 @@ impl FrameAnalisyic {
             splitlength_item.update_value("length", subitem_length.to_string());
 
             if subitem_length > sub_data_segment.len() {
-                println!("subitem_length > sub_data_segment.len() {:?}", sub_data_segment.len());
+                println!(
+                    "subitem_length > sub_data_segment.len() {:?}",
+                    sub_data_segment.len()
+                );
                 break;
             }
 
@@ -1013,7 +1021,7 @@ impl FrameAnalisyic {
                 sub_item_result = sub_result;
                 cur_length = length;
             }
-            
+
             if sub_item_result.is_none() {
                 let result_str = format!("[{}]: {}", sub_neme, result_str);
                 // 说明是单一的结果
@@ -1474,7 +1482,7 @@ impl FrameAnalisyic {
             protocol,
             region,
             dir,
-            None
+            None,
         );
 
         if is_singal && ((data_segment.len() / subitem_length) == 1) {

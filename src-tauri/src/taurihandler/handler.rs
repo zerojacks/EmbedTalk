@@ -8,6 +8,13 @@ use serde_json::Value;
 use std::thread;
 use std::time::Instant;
 use tracing::{error, info};
+use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, SetForegroundWindow};
+
+use tauri::Manager;
+use tauri_plugin_global_shortcut::GlobalShortcutExt;
+use tauri_plugin_clipboard_manager::ClipboardExt;
+use inputbot::{KeySequence, KeybdKey::*, MouseButton::*};
+use crate::global::get_app_handle;
 
 #[tauri::command]
 pub async fn get_region_value() -> String {
@@ -133,7 +140,6 @@ pub async fn get_com_list() -> Vec<String> {
 
 #[tauri::command]
 pub async fn get_all_config_item_lists() -> Result<Vec<ItemConfigList>, String> {
-    // 获取配置项并提取数据
     let csg13 = GLOBAL_CSG13
         .as_ref()
         .map_err(|e| format!("Failed to get GLOBAL_CSG13: {}", e))?;
@@ -156,11 +162,7 @@ pub async fn get_all_config_item_lists() -> Result<Vec<ItemConfigList>, String> 
     all_items.extend(csg645_items);
     all_items.extend(csg16_items);
 
-    if all_items.is_empty() {
-        Err(format!("Failed to get any items."))
-    } else {
-        Ok(all_items)
-    }
+    Ok(all_items)
 }
 
 #[derive(serde::Serialize, Debug, Clone, serde::Deserialize)]
@@ -212,6 +214,7 @@ pub async fn get_protocol_config_item(value: &str) -> Result<XmlElement, String>
 
     // 调用 ProtocolConfigManager 的方法
     let element = ProtocolConfigManager::get_config_xml(&item_id, &protocol, &region, dir);
+    println!("get_protocol_config_item: {:?}", element);
     match element {
         Some(element) => Ok(element),
         _ => Err(format!("Failed to get protocol config item")),
@@ -223,15 +226,60 @@ pub async fn save_protocol_config_item(value: &str) -> Result<(), String> {
     let value_json: ProtoConfigParams =
         serde_json::from_str(value).map_err(|e| format!("Failed to parse value: {}", e))?;
     println!("save_protocol_config_item: {:?}", value_json.protocol);
-    if (value_json.protocol.is_some() && value_json.xmlElement.is_some()) {
+    if value_json.protocol.is_some() && value_json.xmlElement.is_some() {
         let protocol = value_json.protocol.clone().unwrap();
         let element = value_json.xmlElement.clone().unwrap();
         println!("save_protocol_config_item: {:?}", protocol);
-        ProtocolConfigManager::update_element(&value_json.item, &protocol, element)?
+        ProtocolConfigManager::update_element(&value_json.item, &protocol, &element)
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        Err("Protocol or xmlElement is missing".to_string())
     }
-    Err(format!("Failed to save protocol config item"))
 }
 
+#[tauri::command]
+pub async fn get_selected_text() -> Result<String, String> {
+    // 获取当前活动窗口
+    let hwnd = unsafe { GetForegroundWindow() };
+    
+    // 保存当前剪贴板内容
+    let app_handle = get_app_handle();
+    let original_text = app_handle.clipboard().read_text().unwrap_or_default();
+    println!("Original clipboard content: {}", original_text);
+
+    // 确保窗口处于活动状态
+    unsafe { 
+        SetForegroundWindow(hwnd);
+    }
+
+    // 模拟 Ctrl+C 按键
+    // 按下 Ctrl 键
+    LControlKey.press();
+    // 按下 C 键
+    CKey.press();
+    // 等待一小段时间确保按键被识别
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    // 释放按键
+    CKey.release();
+    LControlKey.release();
+    
+    // 等待一小段时间确保复制完成
+    std::thread::sleep(std::time::Duration::from_millis(200));
+
+    // 获取新的剪贴板内容
+    let new_text = app_handle.clipboard().read_text().unwrap_or_default();
+    
+    println!("New clipboard content: {}", new_text);
+    // 如果新文本为空或与原文本相同，可能表示复制失败
+    if new_text.is_empty() || new_text == original_text {
+        return Err("Failed to copy selected text".to_string());
+    }
+
+    // 返回复制的文本
+    Ok(new_text)
+    
+}
 #[cfg(target_os = "windows")]
 use windows::UI::ViewManagement::{UIColorType, UISettings};
 
