@@ -8,13 +8,6 @@ use serde_json::Value;
 use std::thread;
 use std::time::Instant;
 use tracing::{error, info};
-use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, SetForegroundWindow};
-
-use tauri::Manager;
-use tauri_plugin_global_shortcut::GlobalShortcutExt;
-use tauri_plugin_clipboard_manager::ClipboardExt;
-use inputbot::{KeySequence, KeybdKey::*, MouseButton::*};
-use crate::global::get_app_handle;
 
 #[tauri::command]
 pub async fn get_region_value() -> String {
@@ -238,48 +231,6 @@ pub async fn save_protocol_config_item(value: &str) -> Result<(), String> {
     }
 }
 
-#[tauri::command]
-pub async fn get_selected_text() -> Result<String, String> {
-    // 获取当前活动窗口
-    let hwnd = unsafe { GetForegroundWindow() };
-    
-    // 保存当前剪贴板内容
-    let app_handle = get_app_handle();
-    let original_text = app_handle.clipboard().read_text().unwrap_or_default();
-    println!("Original clipboard content: {}", original_text);
-
-    // 确保窗口处于活动状态
-    unsafe { 
-        SetForegroundWindow(hwnd);
-    }
-
-    // 模拟 Ctrl+C 按键
-    // 按下 Ctrl 键
-    LControlKey.press();
-    // 按下 C 键
-    CKey.press();
-    // 等待一小段时间确保按键被识别
-    std::thread::sleep(std::time::Duration::from_millis(300));
-    // 释放按键
-    CKey.release();
-    LControlKey.release();
-    
-    // 等待一小段时间确保复制完成
-    std::thread::sleep(std::time::Duration::from_millis(200));
-
-    // 获取新的剪贴板内容
-    let new_text = app_handle.clipboard().read_text().unwrap_or_default();
-    
-    println!("New clipboard content: {}", new_text);
-    // 如果新文本为空或与原文本相同，可能表示复制失败
-    if new_text.is_empty() || new_text == original_text {
-        return Err("Failed to copy selected text".to_string());
-    }
-
-    // 返回复制的文本
-    Ok(new_text)
-    
-}
 #[cfg(target_os = "windows")]
 use windows::UI::ViewManagement::{UIColorType, UISettings};
 
