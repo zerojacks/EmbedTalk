@@ -50,11 +50,12 @@ export default function Home() {
 
     clearTableData();
     setFrame(formattedValue);
-    createPraseFrame(formattedValue);
 
     if (formattedValue === "") {
       return;
     }
+
+    createPraseFrame(formattedValue);
 
     let currentRegion = region;
     if (region === "") {
