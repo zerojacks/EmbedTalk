@@ -2,12 +2,14 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { register, unregister, isRegistered } from '@tauri-apps/plugin-global-shortcut';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
+import { Window } from "@tauri-apps/api/window"
 
 // 定义默认快捷键
 const DEFAULT_SHORTCUTS = {
   toggleWindow: 'Alt+Shift+E',
   parseText: 'Alt+Shift+P',
-  toggleHistory: 'Alt+Shift+H'
+  toggleHistory: 'Alt+Shift+H',
+  quickParse: 'CommandOrControl+Shift+P',
 } as const;
 
 export type ShortcutKey = keyof typeof DEFAULT_SHORTCUTS;
@@ -37,6 +39,13 @@ export const ShortcutProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const lastTriggerTime = React.useRef<{ [key: string]: number }>({});
   const DEBOUNCE_DELAY = 300; // 300ms 内的重复触发将被忽略
 
+  const show_quick_parse_window = async () => {
+    try {
+      await invoke<void>('open_window');
+    } catch (e) {
+      console.error(e);
+    }
+  }
   // 注册快捷键
   const registerShortcut = async (key: ShortcutKey, shortcut: string): Promise<{ success: boolean; message: string }> => {
 
@@ -103,6 +112,9 @@ export const ShortcutProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setHistoryVisible(true);
           } else if (key === 'toggleHistory') {
             setHistoryVisible(prev => !prev);
+          }
+          else if (key === 'quickParse') {
+            show_quick_parse_window();
           }
         });
         console.log(`[Success] Successfully registered shortcut for ${key}: ${shortcut}`);

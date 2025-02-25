@@ -4,7 +4,8 @@
   "description": "permissions that were migrated from v1",
   "local": true,
   "windows": [
-    "main"
+    "main",
+    "quickparse"
   ],
   "permissions": [
     "fs:allow-read-file",
@@ -71,6 +72,11 @@
     "core:event:allow-listen",
     "core:window:allow-theme",
     "core:window:allow-set-theme",
+    "core:window:allow-current-monitor",
+    "core:window:allow-primary-monitor",
+    "core:window:allow-inner-position",
+    "core:window:allow-inner-size",
+    "core:window:deny-is-resizable",
     "global-shortcut:allow-is-registered",
     "global-shortcut:allow-register",
     "global-shortcut:allow-register-all",

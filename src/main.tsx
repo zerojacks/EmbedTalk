@@ -13,6 +13,7 @@ import { ShortcutProvider } from './context/ShortcutProvider';
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import Itemconfig from "./routes/itemconfig"
 import ChannelMonitor from "./routes/ChannelMonitor";
+import QuickParse from "./routes/quick-parse";
 
 const router = createBrowserRouter([
   {
@@ -38,6 +39,10 @@ const router = createBrowserRouter([
       },
     ],
   },
+  {
+    path: "/quick-parse",
+    element: <QuickParse />,
+  }
 ]);
 
 // async function creatmen() {

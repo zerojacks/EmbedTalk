@@ -3307,7 +3307,6 @@ impl FrameCsg {
         let tpv = Self::get_afn_and_seq_result(&frame[14..16], start_pos + 14, result_list);
         let mut length = valid_data_segment.len();
         let mut pos = 0;
-        let index = 16 + 9 + start_pos;
         let mut num = 0;
         let mut sub_result = vec![];
         let mut task_result = vec![];
@@ -3340,6 +3339,8 @@ impl FrameCsg {
         let mut item_count = 0;
 
         let mut task_name = String::new();
+        let mut index = 16 + 9 + start_pos;
+
         if dir == 1 {
             let da = &frame[16..18];
             let item = &frame[18..22];
@@ -3374,36 +3375,71 @@ impl FrameCsg {
             );
 
             let task_kind = frame[22];
+            let task_kind_str = match task_kind {
+                0 => "自描述方式",
+                1 => "任务模板",
+                2 => "补上报数据",
+                _ => "未知",
+            };
             FrameFun::add_data(
                 &mut sub_result,
                 "数据结构方式".to_string(),
                 FrameFun::get_data_str_with_space(&frame[22..23]),
-                "自描述方式".to_string(),
+                task_kind_str.to_string(),
                 vec![22, 23],
                 None,
                 None,
             );
 
-            pncount = frame[23];
-            item_count = frame[24];
-            FrameFun::add_data(
-                &mut sub_result,
-                "数据组数".to_string(),
-                FrameFun::get_data_str_with_space(&frame[23..25]),
-                format!(
-                    "信息点标识数{},数据标识编码数{},共有{}个数据组数",
-                    pncount,
-                    item_count,
-                    pncount * item_count
-                ),
-                vec![23, 25],
-                None,
-                None,
-            );
-
-            data_segment = &valid_data_segment[9..];
-            length -= 9;
-            data_item = cur_data_item;
+            let expire_item = &frame[27..31];
+            println!("expire_item:{:?}", expire_item);
+            let expire_data_item = FrameFun::get_data_str_reverser(expire_item);
+            let data_item_elem = ProtocolConfigManager::get_config_xml(&expire_data_item, protocol, region, Some(dir));
+            println!("data_item_elem:{:?}", data_item_elem);
+            if let Some(data_item_elem) = data_item_elem {
+                pncount = frame[23];
+                item_count = frame[24];
+                FrameFun::add_data(
+                    &mut sub_result,
+                    "数据组数".to_string(),
+                    FrameFun::get_data_str_with_space(&frame[23..25]),
+                    format!(
+                        "信息点标识数{},数据标识编码数{},共有{}个数据组数",
+                        pncount,
+                        item_count,
+                        pncount * item_count
+                    ),
+                    vec![23, 25],
+                    None,
+                    None,
+                );
+    
+                data_segment = &valid_data_segment[9..];
+                length -= 9;
+                data_item = cur_data_item;
+                index = 16 + 9 + start_pos;
+            }
+            else {
+                pncount = frame[23];
+                item_count = 1;
+                FrameFun::add_data(
+                    &mut sub_result,
+                    "数据组数".to_string(),
+                    FrameFun::get_data_str_with_space(&frame[23..24]),
+                    format!(
+                        "共有{}个数据组数",
+                        pncount
+                    ),
+                    vec![23, 24],
+                    None,
+                    None,
+                );
+    
+                data_segment = &valid_data_segment[8..];
+                length -= 8;
+                data_item = cur_data_item;
+                index = 16 + 8 + start_pos;
+            }
         }
 
         let mut pw = false;
