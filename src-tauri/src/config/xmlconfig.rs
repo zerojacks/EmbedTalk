@@ -66,16 +66,19 @@ impl XmlTree {
                 .insert(index);
         }
 
-        if let Some(protocol) = node.attributes.get("protocol") {
+        // 使用节点自身的属性或继承自父节点的属性
+        let protocol = node.attributes.get("protocol").cloned();
+        if let Some(protocol) = protocol {
             self.protocol_index
-                .entry(protocol.clone())
+                .entry(protocol)
                 .or_insert_with(HashSet::new)
                 .insert(index);
         }
 
-        if let Some(region) = node.attributes.get("region") {
+        let region = node.attributes.get("region").cloned();
+        if let Some(region) = region {
             self.region_index
-                .entry(region.clone())
+                .entry(region)
                 .or_insert_with(HashSet::new)
                 .insert(index);
         }
@@ -86,26 +89,17 @@ impl XmlTree {
 
     // 快速查找指定ID的节点
     pub fn find_by_id(&self, id: &str, protocol: &str, region: &str) -> Option<&XmlNode> {
+        // 直接从索引中查找
         if let Some(node_indices) = self.id_index.get(id) {
-            // 获取协议和区域的节点集合
-            let protocol_nodes = self.protocol_index.get(protocol);
-            let region_nodes = self.region_index.get(region);
-            let south_grid_nodes = if region != "南网" {
-                self.region_index.get("南网")
-            } else {
-                None
-            };
-
-            // 查找满足所有条件的节点
             for &index in node_indices {
                 let node = &self.nodes[index];
                 if self.matches_criteria(
                     node,
                     protocol,
                     region,
-                    protocol_nodes,
-                    region_nodes,
-                    south_grid_nodes,
+                    self.protocol_index.get(protocol),
+                    self.region_index.get(region),
+                    if region != "南网" { self.region_index.get("南网") } else { None }
                 ) {
                     return Some(node);
                 }
@@ -304,13 +298,28 @@ impl QframeConfig {
             parent: Option<usize>,
             depth: u32,
             path: String,
+            inherited_protocol: Option<String>,
+            inherited_region: Option<String>,
         ) -> usize {
+            // 合并当前节点和继承的属性
+            let mut attributes = element.attributes.clone();
+            let protocol = attributes.get("protocol").cloned().or(inherited_protocol.clone());
+            let region = attributes.get("region").cloned().or(inherited_region.clone());
+            
+            // 更新属性
+            if let Some(p) = &protocol {
+                attributes.insert("protocol".to_string(), p.clone());
+            }
+            if let Some(r) = &region {
+                attributes.insert("region".to_string(), r.clone());
+            }
+
             let node = XmlNode {
                 id: element.attributes.get("id").cloned(),
                 id_name: element.get_child_text("name"),
                 name: element.name.clone(),
                 value: element.value.clone(),
-                attributes: element.attributes.clone(),
+                attributes,
                 parent,
                 children: Vec::new(),
                 depth,
@@ -319,6 +328,7 @@ impl QframeConfig {
 
             let node_index = tree.add_node(node);
 
+            // 递归处理子节点，传递当前节点的属性
             for (i, child) in element.children.iter().enumerate() {
                 let child_path = if path.is_empty() {
                     i.to_string()
@@ -326,8 +336,15 @@ impl QframeConfig {
                     format!("{}.{}", path, i)
                 };
 
-                let child_index =
-                    build_recursive(tree, child, Some(node_index), depth + 1, child_path);
+                let child_index = build_recursive(
+                    tree, 
+                    child, 
+                    Some(node_index), 
+                    depth + 1, 
+                    child_path,
+                    protocol.clone(),
+                    region.clone(),
+                );
 
                 tree.nodes[node_index].children.push(child_index);
             }
@@ -335,7 +352,7 @@ impl QframeConfig {
             node_index
         }
 
-        tree.root = build_recursive(&mut tree, element, None, 0, String::new());
+        tree.root = build_recursive(&mut tree, element, None, 0, String::new(), None, None);
         tree
     }
 
@@ -419,6 +436,7 @@ impl QframeConfig {
         region: &str,
         dir: Option<u8>,
     ) -> Option<XmlElement> {
+        println!("item_id: {}, protocol: {}, region: {}", item_id, protocol, region);
         let cache_key = Self::generate_cache_key(item_id, protocol, region);
         {
             let cache = self.config_cache.read().unwrap();
@@ -430,6 +448,12 @@ impl QframeConfig {
         let config = self.config.read().unwrap();
         if let Some(tree) = config.as_ref() {
             if let Some(node) = tree.find_by_id(item_id, protocol, region) {
+                let result = Some(self.node_to_element(tree, node));
+                let mut cache = self.config_cache.write().unwrap();
+                cache.insert(cache_key, result.clone());
+                return result;
+            }
+            if let Some(node) = tree.find_by_id(item_id, protocol, "南网") {
                 let result = Some(self.node_to_element(tree, node));
                 let mut cache = self.config_cache.write().unwrap();
                 cache.insert(cache_key, result.clone());
