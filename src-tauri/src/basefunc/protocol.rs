@@ -155,7 +155,7 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
-            result_str = format!("[{}]: {}", item_name, cur_result);
+            result_str = format!("{}", cur_result);
             sub_item_result = sub_result;
             cur_length = length;
         } else if data_item_elem.get_child("unit").is_some() {
@@ -181,7 +181,7 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
-            result_str = format!("[{}]: {}", item_name, cur_result);
+            result_str = format!("{}", cur_result);
             sub_item_result = sub_result;
             cur_length = length;
         } else if data_item_elem.get_child("time").is_some() {
@@ -953,7 +953,7 @@ impl FrameAnalisyic {
                     region,
                     dir,
                 );
-                result_str = cur_result;
+                result_str = format!("[{}]: {}", sub_neme, cur_result);
                 sub_item_result = sub_result;
                 cur_length = length;
             } else if splitlength_item.get_child("splitbit").is_some() {
@@ -992,7 +992,7 @@ impl FrameAnalisyic {
                     region,
                     dir,
                 );
-                result_str = cur_result;
+                result_str = format!("[{}]: {}", sub_neme, cur_result);
                 sub_item_result = sub_result;
                 cur_length = length;
             } else if splitlength_item.get_child("item").is_some() {
@@ -1017,13 +1017,13 @@ impl FrameAnalisyic {
                     region,
                     dir,
                 );
-                result_str = cur_result;
+                result_str = format!("[{}]: {}", sub_neme, cur_result);
                 sub_item_result = sub_result;
                 cur_length = length;
             }
 
             if sub_item_result.is_none() {
-                let result_str = format!("[{}]: {}", sub_neme, result_str);
+                let result_str = format!("{}", result_str);
                 // 说明是单一的结果
                 FrameFun::add_data(
                     &mut result,
@@ -1297,24 +1297,24 @@ impl FrameAnalisyic {
         let mut result_vec: Vec<Value> = Vec::new();
         let mut i = 0;
         let mut pos = 0;
-
-        if data_segment.len() % item_len == 0 {
+        let length = 2;
+        if data_segment.len() % length == 0 {
             while pos < data_segment.len() {
-                let sub_data = &data_segment[pos..pos + item_len];
+                let sub_data = &data_segment[pos..pos + length];
                 let item_name = format!("第{}组信息点", i + 1);
                 let item_value = Self::prase_da_data(sub_data);
                 FrameFun::add_data(
                     &mut result_vec,
-                    FrameFun::get_data_str(&data_segment, false, false, true),
                     item_name,
+                    FrameFun::get_data_str(&data_segment, false, false, true),
                     item_value,
-                    vec![index + pos, index + pos + item_len],
+                    vec![index + pos, index + pos + length],
                     None,
                     None,
                 );
 
                 i += 1;
-                pos += item_len;
+                pos += length;
             }
         } else {
             let item_name = "PN".to_string();
@@ -1370,10 +1370,10 @@ impl FrameAnalisyic {
         let mut result_vec: Vec<Value> = Vec::new();
         let mut i = 0;
         let mut pos = 0;
-
-        if data_segment.len() % item_len == 0 {
+        let length = 4;
+        if data_segment.len() % length == 0 {
             while pos < data_segment.len() {
-                let sub_data = &data_segment[pos..pos + item_len];
+                let sub_data = &data_segment[pos..pos + length];
                 let item_name = format!("第{}组数据标识", i + 1);
                 let item_id = FrameFun::get_data_str(sub_data, false, true, false);
                 let mut item_description: String = item_id.clone();
@@ -1391,12 +1391,12 @@ impl FrameAnalisyic {
                     item_name,
                     FrameFun::get_data_str(&data_segment, false, false, true),
                     item_description,
-                    vec![index + pos, index + pos + item_len],
+                    vec![index + pos, index + pos + length],
                     None,
                     None,
                 );
                 i += 1;
-                pos += item_len;
+                pos += length;
             }
         } else {
             let item_name = "ITEM".to_string();
@@ -1465,7 +1465,8 @@ impl FrameAnalisyic {
         let mut i = 0;
         let mut pos = 0;
         let mut item_singal = false;
-        let singal_content = item_element.get_child_text("single");
+        let mut item_element_clone = item_element.clone();
+        let singal_content = item_element_clone.get_child_text("single");
         if let Some(singal_content) = singal_content {
             if singal_content.to_lowercase() == "yes" {
                 item_singal = true;
@@ -1477,7 +1478,7 @@ impl FrameAnalisyic {
         }
 
         let subitem_length = FrameCsg::calculate_item_length(
-            &mut item_element.clone(),
+            &mut item_element_clone,
             &data_segment,
             protocol,
             region,
@@ -1489,7 +1490,7 @@ impl FrameAnalisyic {
             item_singal = true;
         }
 
-        let element_name = item_element.get_child_text("name");
+        let element_name = item_element_clone.get_child_text("name");
         let template_name = element_name
             .as_ref()
             .map(|s| s.to_string())
@@ -1509,7 +1510,7 @@ impl FrameAnalisyic {
                     .unwrap_or_else(|| format!("第{}组数据内容", i + 1));
 
                 let (mut item_value, length) = Self::prase_splitByLength_item(
-                    item_element,
+                    &mut item_element_clone,
                     sub_data,
                     index + pos,
                     need_delete,

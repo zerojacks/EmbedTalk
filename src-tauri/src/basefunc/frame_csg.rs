@@ -1227,13 +1227,14 @@ impl FrameCsg {
         let operator_mapping = HashMap::from([("+", '+'), ("-", '-'), ("*", '*'), ("/", '/')]);
         let mut sub_length = 0;
         let pattern = Regex::new(r"^RANGE\(([^)]+)\)$").unwrap();
-
+        println!("data_subitem_elem:{:?} rules:{:?}", data_subitem_elem, rules);
         // Get length rule
         if !rules.is_empty() {
             // Match the regex pattern
             if let Some(captures) = pattern.captures(&rules) {
                 // Get the captured string
                 let match_string = captures.get(1).unwrap().as_str();
+                println!("match_string:{:?}", match_string);
                 if let Some(vaule) = length_map.get(match_string) {
                     let vaule_data = data_segment[(vaule.0 - vaule.1)..vaule.0][0];
                     let find_data = &data_segment[vaule.0..];
@@ -1247,17 +1248,31 @@ impl FrameCsg {
             }
 
             // Split the rule using regex
-            let components: Vec<&str> =
-                rules.split_whitespace().filter(|s| !s.is_empty()).collect();
-            if components.len() < 3 {
-                return sub_length; // Invalid rule format
+            // 使用正则表达式解析规则，以处理不同格式的规则
+            let mut number_part = "0";
+            let mut operator_part = "+";
+            let mut text_part = "";
+            let mut operator = '+';
+            let rule_regex = Regex::new(r"(\d+)\s*([+\-*/])\s*(.+)").unwrap();
+            if let Some(captures) = rule_regex.captures(&rules) {
+                number_part = captures.get(1).unwrap().as_str();
+                operator_part = captures.get(2).unwrap().as_str();
+                text_part = captures.get(3).unwrap().as_str().trim();
+                
+                operator = match operator_part {
+                    "+" => '+',
+                    "-" => '-',
+                    "*" => '*',
+                    "/" => '/',
+                    _ => *operator_mapping.get(operator_part).unwrap_or(&'?'),
+                };            
+                
+                println!("number_part:{:?} operator_part:{:?} text_part:{:?}", number_part, operator_part, text_part);
+            }else{
+                println!("Invalid rule format");
+                return sub_length;
             }
-
-            let number_part = components[0];
-            let operator_part = components[1];
-            let text_part = components[2];
-            let operator = operator_mapping.get(operator_part).unwrap_or(&'?');
-            println!("number_part:{:?} operator_part:{:?} text_part:{:?}", number_part, operator_part, text_part);
+            println!("length_map:{:?}", length_map);
             let sub_value = if text_part.chars().all(char::is_numeric) {
                 text_part.parse::<usize>().unwrap_or(0)
             } else {
@@ -2164,7 +2179,7 @@ impl FrameCsg {
                     (sub_length, sub_datament)
                 };
                 data_item_elem.update_value("length", sub_length.to_string());
-                println!("sub_datament: {:?}", data_item_elem);
+                // println!("sub_datament: {:?}", data_item_elem);
                 item_data = FrameAnalisyic::prase_data(
                     &mut data_item_elem,
                     protocol,
