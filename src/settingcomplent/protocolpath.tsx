@@ -7,7 +7,7 @@ import { exists } from '@tauri-apps/plugin-fs';
 import { resolveResource } from '@tauri-apps/api/path';
 
 interface Protocol {
-    id: 'nanwang13' | 'dlt645' | 'nanwang16';
+    id: 'nanwang13' | 'dlt645' | 'nanwang16' | 'moudle';
     name: string;
 }
 
@@ -19,6 +19,7 @@ interface SelectedFiles {
     nanwang13: FileInfo;
     dlt645: FileInfo;
     nanwang16: FileInfo;
+    moudle: FileInfo;
 }
 
 interface ProtocolMap {
@@ -29,13 +30,15 @@ const protocolmap: ProtocolMap = {
     nanwang13: 'CSG13',
     dlt645: 'DLT645',
     nanwang16: 'CSG16',
+    moudle: 'MOUDLE'
 };
 
 const ConfigFilePathCom: React.FC = () => {
     const [selectedFiles, setSelectedFiles] = useState<SelectedFiles>({
         nanwang13: { path: '' },
         dlt645: { path: '' },
-        nanwang16: { path: '' }
+        nanwang16: { path: '' },
+        moudle: { path: '' }
     });
 
     useEffect(() => {
@@ -88,26 +91,30 @@ const ConfigFilePathCom: React.FC = () => {
                     extensions: ['xml']
                 }],
                 // 如果有当前路径，设置为默认目录
-                defaultPath: selectedFiles[protocol].path 
+                defaultPath: selectedFiles[protocol]?.path 
                     ? selectedFiles[protocol].path.substring(0, selectedFiles[protocol].path.lastIndexOf('/'))
                     : undefined
             });
 
             if (selected && typeof selected === 'string') {
                 const path = selected.replace(/\\/g, '/');
-                setSelectedFiles(prev => ({
-                    ...prev,
+                // Create updated state object
+                const updatedFiles = {
+                    ...selectedFiles,
                     [protocol]: { path }
-                }));
-                const fileinfo = {...selectedFiles, [protocol]: { path }};
-                save_config(fileinfo)
-            }
-            const result = await confirm("重启以使配置文件生效?", {cancelLabel: '取消', okLabel: '确定'});
-            console.log("重启结果: ", result);
-            if (result) {
-                await relaunch();
-            } else {
-                return;
+                };
+                
+                // Update state
+                setSelectedFiles(updatedFiles);
+                
+                // Save the updated config
+                await save_config(updatedFiles);
+                
+                const result = await confirm("重启以使配置文件生效?", {cancelLabel: '取消', okLabel: '确定'});
+                console.log("重启结果: ", result);
+                if (result) {
+                    await relaunch();
+                }
             }
         } catch (err) {
             console.error(err);
@@ -127,7 +134,7 @@ const ConfigFilePathCom: React.FC = () => {
     }
 
     const renderFileInfo = (fileInfo: FileInfo): string => {
-        if (!fileInfo.path) return '点击选择文件';
+        if (!fileInfo || !fileInfo.path) return '点击选择文件';
     
         // 获取文件名
         console.log(fileInfo.path);
@@ -148,7 +155,8 @@ const ConfigFilePathCom: React.FC = () => {
     const protocols: Protocol[] = [
         { id: 'nanwang13', name: '南网13协议' },
         { id: 'dlt645', name: 'DLT/645协议' },
-        { id: 'nanwang16', name: '南网16协议' }
+        { id: 'nanwang16', name: '南网16协议' },
+        { id: 'moudle', name: '模组协议' }
     ];
 
     return (
@@ -162,7 +170,7 @@ const ConfigFilePathCom: React.FC = () => {
                         <span
                             className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline text-sm block shrink-0 whitespace-nowrap"
                             onClick={handleFileChange(protocol.id)}
-                            title={selectedFiles[protocol.id].path}
+                            title={selectedFiles[protocol.id]?.path || ''}
                         >
                             {renderFileInfo(selectedFiles[protocol.id])}
                         </span>

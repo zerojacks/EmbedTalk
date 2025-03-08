@@ -88,7 +88,7 @@ impl XmlTree {
     }
 
     // 快速查找指定ID的节点
-    pub fn find_by_id(&self, id: &str, protocol: &str, region: &str) -> Option<&XmlNode> {
+    pub fn find_by_id(&self, id: &str, protocol: &str, region: &str, dir: Option<u8>) -> Option<&XmlNode> {
         // 直接从索引中查找
         if let Some(node_indices) = self.id_index.get(id) {
             for &index in node_indices {
@@ -97,6 +97,7 @@ impl XmlTree {
                     node,
                     protocol,
                     region,
+                    dir,
                     self.protocol_index.get(protocol),
                     self.region_index.get(region),
                     if region != "南网" { self.region_index.get("南网") } else { None }
@@ -114,12 +115,14 @@ impl XmlTree {
         node: &XmlNode,
         protocol: &str,
         region: &str,
+        dir: Option<u8>,
         protocol_nodes: Option<&HashSet<usize>>,
         region_nodes: Option<&HashSet<usize>>,
         south_grid_nodes: Option<&HashSet<usize>>,
     ) -> bool {
         let node_protocol = node.attributes.get("protocol");
         let node_region = node.attributes.get("region");
+        let node_dir = node.attributes.get("dir").and_then(|d| d.parse::<u8>().ok());
 
         // 检查协议匹配
         let protocol_match = node_protocol.map_or(false, |p| p.eq_ignore_ascii_case(protocol));
@@ -129,7 +132,19 @@ impl XmlTree {
             r.eq_ignore_ascii_case(region) || (region != "南网" && r.eq_ignore_ascii_case("南网"))
         });
 
-        protocol_match && region_match
+        // 检查方向匹配，如果节点没有dir属性或者传入的dir为None，则认为匹配
+        let dir_match = if dir.is_none() {
+            // 如果没有指定dir，则不检查
+            true
+        } else if node_dir.is_none() {
+            // 如果节点没有dir属性，则不检查
+            true
+        } else {
+            // 如果都有，则必须匹配
+            dir.unwrap() == node_dir.unwrap()
+        };
+
+        protocol_match && region_match && dir_match
     }
 
     // 获取节点的完整路径
@@ -285,8 +300,11 @@ impl QframeConfig {
         }
     }
 
-    fn generate_cache_key(item_id: &str, protocol: &str, region: &str) -> String {
-        format!("{}:{}:{}", item_id, protocol, region)
+    fn generate_cache_key(item_id: &str, protocol: &str, region: &str, dir: Option<u8>) -> String {
+        match dir {
+            Some(d) => format!("{}:{}:{}:{}", item_id, protocol, region, d),
+            None => format!("{}:{}:{}", item_id, protocol, region),
+        }
     }
 
     fn build_tree(&self, element: &XmlElement) -> XmlTree {
@@ -436,8 +454,8 @@ impl QframeConfig {
         region: &str,
         dir: Option<u8>,
     ) -> Option<XmlElement> {
-        println!("item_id: {}, protocol: {}, region: {}", item_id, protocol, region);
-        let cache_key = Self::generate_cache_key(item_id, protocol, region);
+        println!("item_id: {}, protocol: {}, region: {}, dir: {:?}", item_id, protocol, region, dir);
+        let cache_key = Self::generate_cache_key(item_id, protocol, region, dir);
         {
             let cache = self.config_cache.read().unwrap();
             if let Some(cached_result) = cache.get(&cache_key) {
@@ -447,13 +465,13 @@ impl QframeConfig {
 
         let config = self.config.read().unwrap();
         if let Some(tree) = config.as_ref() {
-            if let Some(node) = tree.find_by_id(item_id, protocol, region) {
+            if let Some(node) = tree.find_by_id(item_id, protocol, region, dir) {
                 let result = Some(self.node_to_element(tree, node));
                 let mut cache = self.config_cache.write().unwrap();
                 cache.insert(cache_key, result.clone());
                 return result;
             }
-            if let Some(node) = tree.find_by_id(item_id, protocol, "南网") {
+            if let Some(node) = tree.find_by_id(item_id, protocol, "南网", dir) {
                 let result = Some(self.node_to_element(tree, node));
                 let mut cache = self.config_cache.write().unwrap();
                 cache.insert(cache_key, result.clone());
@@ -662,6 +680,31 @@ lazy_static! {
             }
         }
     };
+    pub static ref GLOBAL_Moudle: Result<QframeConfig, Arc<dyn std::error::Error + Send + Sync>> = {
+        let config = QframeConfig::new();
+        let default_path = "./resources/protocolconfig/MOUDLE.xml".to_string();
+
+        let setpath = load_config_value("ProtocolSetting", "protocolfile")
+            .and_then(|protocol_config| {
+                protocol_config
+                    .get("moudle")
+                    .and_then(|protocol| protocol.get("path"))
+                    .and_then(|path| path.as_str())
+                    .map(String::from)
+            })
+            .unwrap_or(default_path);
+        println!("moudle XML 路径: {}", setpath);
+        match config.load(Path::new(&setpath)) {
+            Ok(_) => {
+                println!("moudle XML 加载成功");
+                Ok(config)
+            }
+            Err(e) => {
+                println!("moudle XML 加载失败: {}", e);
+                Err(e)
+            }
+        }
+    };
 }
 
 pub struct ProtocolConfigManager;
@@ -694,6 +737,12 @@ impl ProtocolConfigManager {
                     .ok()?
                     .get_item(data_item_id, protocol, region, dir)
             }
+            protocol if protocol.contains("MOUDLE") => {
+                GLOBAL_Moudle
+                    .as_ref()
+                    .ok()?
+                    .get_item(data_item_id, protocol, region, dir)
+            }
             _ => None,
         }
     }
@@ -716,6 +765,10 @@ impl ProtocolConfigManager {
                 .ok()?
                 .get_item(template, protocol, region, dir),
             protocol if protocol.contains("CSG16") => GLOBAL_CSG16
+                .as_ref()
+                .ok()?
+                .get_item(template, protocol, region, dir),
+            protocol if protocol.contains("MOUDLE") => GLOBAL_Moudle
                 .as_ref()
                 .ok()?
                 .get_item(template, protocol, region, dir),

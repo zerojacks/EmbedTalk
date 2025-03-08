@@ -3,6 +3,7 @@ use crate::basefunc::frame_cco::FrameCCO;
 use crate::basefunc::frame_csg::FrameCsg;
 use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::frame_tctask::TCMeterTask;
+use crate::basefunc::frame_moudle::FrameMoudle;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement};
 use regex::Regex;
 use serde_json::Value;
@@ -20,6 +21,7 @@ pub enum ProtocolInfo {
     ProtocolCSG13,
     ProtocolCSG16,
     ProtocolDLT64507,
+    ProtocolMoudle,
 }
 
 impl ProtocolInfo {
@@ -28,6 +30,7 @@ impl ProtocolInfo {
             ProtocolInfo::ProtocolCSG13 => "CSG13",
             ProtocolInfo::ProtocolCSG16 => "CSG16",
             ProtocolInfo::ProtocolDLT64507 => "DLT/645-2007",
+            ProtocolInfo::ProtocolMoudle => "moudle",
         }
     }
 }
@@ -48,6 +51,8 @@ impl FrameAnalisyic {
             let result = Frame645::analysic_645_frame_by_afn(frame, &mut parsed_data, 0, region);
         } else if FrameCCO::is_cco_frame(frame) {
             FrameCCO::analysic_cco_frame_by_afn(frame, &mut parsed_data, 0, region);
+        } else if FrameMoudle::is_moudle_frame(frame) {
+            FrameMoudle::analysic_moudle_frame(frame, &mut parsed_data, 0, region);
         } else if TCMeterTask::is_meter_task(frame) {
             let result = TCMeterTask::analysic_meter_task(frame, &mut parsed_data, 0, region);
             match result {
@@ -466,9 +471,9 @@ impl FrameAnalisyic {
         let (value_str, element) = Self::find_value_from_elements(&value_elements, &value);
 
         value_name = if value_str.is_empty() {
-            format!("[{}]-{}", value_name, value)
+            format!("[{}]: {}", value_name, value)
         } else {
-            format!("[{}]-{}", value_name, value_str)
+            format!("[{}]: {}", value_name, value_str)
         };
         // 获取 color 属性并使用 `.cloned()` 将 Option<&String> 转换为 Option<String>
         color = data_item_elem.get_attribute("color").cloned();
@@ -616,7 +621,7 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
-            println!("ret: {:?}", ret);
+            println!("ret: {:?}, data_segment: {:?}, data_item_elem: {:?}", ret, data_segment, data_item_elem);
             if let Some(value) = ret {
                 subitem_value = value;
             } else {
@@ -677,7 +682,6 @@ impl FrameAnalisyic {
         let pos = data_segment.len();
 
         let all_bits = splitbit_elem.get_items("bit");
-
         for bit_elem in all_bits.iter() {
             let bit_id_attr = bit_elem.get_attribute("id").unwrap();
             let bit_name_elem = bit_elem.get_child_text("name");
@@ -702,7 +706,6 @@ impl FrameAnalisyic {
                 check_end_bit,
                 FrameFun::hex_array_to_int(&data_segment[start_pos..end_pos], need_delete),
             );
-
             let value_elements = bit_elem.get_items("value");
             let (mut value_name, element) =
                 Self::find_value_from_elements(&value_elements, &bit_value);
@@ -719,7 +722,7 @@ impl FrameAnalisyic {
                 None
             };
 
-            value_name = format!("[{}]-{}", name_str, value_name);
+            value_name = format!("[{}]: {}", name_str, value_name);
 
             FrameFun::add_data(
                 &mut sub_item_result, // Pass mutable reference here
@@ -914,7 +917,7 @@ impl FrameAnalisyic {
                 sub_item_result = sub_result;
                 cur_length = length;
             } else if splitlength_item.get_child("unit").is_some() {
-                let (cur_result, sub_result, length) = Self::prase_singal_item(
+                let (mut cur_result, sub_result, length) = Self::prase_singal_item(
                     &splitlength_item,
                     subitem_content,
                     index + pos,
@@ -923,7 +926,10 @@ impl FrameAnalisyic {
                     region,
                     dir,
                 );
-                result_str = cur_result;
+                if cur_result.is_empty() {
+                    cur_result = FrameFun::get_data_str(&subitem_content, false, false, false);
+                }
+                result_str = format!("[{}]: {}", sub_neme, cur_result);
                 sub_item_result = sub_result;
                 cur_length = length;
                 println!(
@@ -944,7 +950,7 @@ impl FrameAnalisyic {
                 sub_item_result = sub_result;
                 cur_length = length;
             } else if splitlength_item.get_child("time").is_some() {
-                let (cur_result, sub_result, length) = Self::prase_time_item(
+                let (mut cur_result, sub_result, length) = Self::prase_time_item(
                     &splitlength_item,
                     subitem_content,
                     index + pos,
@@ -953,6 +959,9 @@ impl FrameAnalisyic {
                     region,
                     dir,
                 );
+                if cur_result.is_empty() {
+                    cur_result = FrameFun::get_data_str(&subitem_content, false, false, false);
+                }
                 result_str = format!("[{}]: {}", sub_neme, cur_result);
                 sub_item_result = sub_result;
                 cur_length = length;
@@ -969,6 +978,7 @@ impl FrameAnalisyic {
                 );
                 sub_item_result = Some(sub_result);
                 cur_length = length;
+                result_str = "".to_string();
             } else if splitlength_item.get_child("splitByLength").is_some() {
                 let (sub_result, length) = Self::prase_splitByLength_item(
                     &splitlength_item,
@@ -981,8 +991,9 @@ impl FrameAnalisyic {
                 );
                 sub_item_result = Some(sub_result);
                 cur_length = length;
+                result_str = "".to_string();
             } else if splitlength_item.get_child("type").is_some() {
-                let (cur_result, sub_result, length) = Self::prase_type_item(
+                let (mut cur_result, sub_result, length) = Self::prase_type_item(
                     &mut splitlength_item.clone(),
                     subitem_content,
                     index + pos,
@@ -992,6 +1003,9 @@ impl FrameAnalisyic {
                     region,
                     dir,
                 );
+                if cur_result.is_empty() {
+                    cur_result = FrameFun::get_data_str(&subitem_content, false, false, false);
+                }
                 result_str = format!("[{}]: {}", sub_neme, cur_result);
                 sub_item_result = sub_result;
                 cur_length = length;
@@ -1007,8 +1021,9 @@ impl FrameAnalisyic {
                 );
                 sub_item_result = Some(sub_result);
                 cur_length = length;
+                result_str = "".to_string();
             } else {
-                let (cur_result, sub_result, length) = Self::prase_singal_item(
+                let (mut cur_result, sub_result, length) = Self::prase_singal_item(
                     &splitlength_item,
                     subitem_content,
                     index + pos,
@@ -1017,6 +1032,9 @@ impl FrameAnalisyic {
                     region,
                     dir,
                 );
+                if cur_result.is_empty() {
+                    cur_result = FrameFun::get_data_str(&subitem_content, false, false, false);
+                }
                 result_str = format!("[{}]: {}", sub_neme, cur_result);
                 sub_item_result = sub_result;
                 cur_length = length;
@@ -1037,7 +1055,7 @@ impl FrameAnalisyic {
             } else {
                 // 存在子项
                 let description = if result_str.is_empty() {
-                    FrameFun::get_data_str(&subitem_content, false, false, false)
+                    format!("[{}]: {}", sub_neme, FrameFun::get_data_str(&subitem_content, false, false, false))
                 } else {
                     result_str.clone()
                 };
@@ -1197,6 +1215,7 @@ impl FrameAnalisyic {
         }
 
         let need_delete = false;
+        println!("prase_type_item data_content: {:?} type: {:?}", data_content, sub_type);
         if let Some(parsed_value) = Self::prase_simple_type_data(
             &item_element,
             &data_segment,
@@ -1231,11 +1250,20 @@ impl FrameAnalisyic {
                     );
                     sub_item_result = Some(result_vec);
                 }
-                "FAME645" => {
-                    // Frame645::analysis_645_frame_by_afn(&data_content, result_vec, index, region);
+                "FRAME645" => {
+                    let mut result_vec:Vec<Value> = Vec::new();
+                    Frame645::analysic_645_frame_by_afn(&data_content, &mut result_vec, index, region);
+                    sub_item_result = Some(result_vec);
                 }
                 "FRAMECSG13" => {
-                    // FrameCsg::analysis_csg_frame_by_afn(&data_content, result_vec, index, region);
+                    let mut result_vec:Vec<Value> = Vec::new();
+                    match FrameCsg::analysic_csg_frame_by_afn(&data_content, &mut result_vec, index, region) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            println!("FrameCsg::analysic_csg_frame_by_afn error: {}", e);
+                        }
+                    }
+                    sub_item_result = Some(result_vec);
                 }
                 "IPWITHPORT" => {
                     let result_vec = Self::prase_ip_and_port(
@@ -1252,6 +1280,7 @@ impl FrameAnalisyic {
                     let template_element = ProtocolConfigManager::get_template_element(
                         &sub_type, protocol, region, dir,
                     );
+                    println!("template_element: {:?}, protocol: {:?}, region: {:?}, dir: {:?}", template_element, protocol, region, dir);
                     if let Some(template_element) = template_element {
                         let (result_vec, length) = Self::prase_template_type(
                             &template_element,
@@ -1535,7 +1564,7 @@ impl FrameAnalisyic {
                         item_name,
                         FrameFun::get_data_str(&data_segment, false, false, true),
                         item_description,
-                        vec![index + pos, index + pos + item_len],
+                        vec![index + pos, index + pos + subitem_length],
                         Some(item_value),
                         None,
                     );

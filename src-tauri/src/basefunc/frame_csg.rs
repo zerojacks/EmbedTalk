@@ -1734,14 +1734,15 @@ impl FrameCsg {
         let mut num = 0;
         let mut sub_result = Vec::new();
         let mut tpv_data: &[u8] = &[];
+        let empty_data: &[u8] = &[];
+
         let (pw_data, pw_pos) = if tpv {
             tpv_data = &frame[frame.len() - 7..frame.len() - 2];
             let pw_data = &data_segment[data_segment.len() - 21..data_segment.len() - 5];
             (pw_data, [total_length - 23, total_length - 7])
         } else {
             if data_segment.len() < 16 {
-                let pw_data = &[] as &[u8];
-                (pw_data, [0, 0])
+                (empty_data, [0, 0])
             }else{
                 let pw_data = &data_segment[data_segment.len() - 16..];
                 (pw_data, [total_length - 18, total_length - 2])
@@ -1901,6 +1902,7 @@ impl FrameCsg {
         let mut num = 0;
         let mut sub_result = Vec::new();
         let mut tpv_data: &[u8] = &[];
+        let empty_data: &[u8] = &[];
         let (pw_data, pw_pos) = if tpv {
             tpv_data = &frame[frame.len() - 7..frame.len() - 2];
             let pw_data =
@@ -1908,8 +1910,7 @@ impl FrameCsg {
             (pw_data, [total_length - 23, total_length - 7])
         } else {
             if valid_data_segment.len() < 16 {
-                let pw_data = &[] as &[u8];
-                (pw_data, [0, 0])
+                (empty_data, [0, 0])
             } else {
                 let pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
                 (pw_data, [total_length - 18, total_length - 2])
@@ -2112,6 +2113,7 @@ impl FrameCsg {
         let mut sub_result = Vec::new();
         let mut tpv_data: &[u8] = &[];
         let mut pw_data: &[u8] = &[];
+        let empty_data: &[u8] = &[];
         let (pw_data, pw_pos) = if tpv {
             tpv_data = &frame[frame.len() - 7..frame.len() - 2];
             let pw_data =
@@ -2119,8 +2121,7 @@ impl FrameCsg {
             (pw_data, [total_length - 23, total_length - 7])
         } else {
             if valid_data_segment.len() < 16 {
-                let pw_data = &[] as &[u8];
-                (pw_data, [0, 0])
+                (empty_data, [0, 0])
             } else {
                 let pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
                 (pw_data, [total_length - 18, total_length - 2])
@@ -2322,6 +2323,7 @@ impl FrameCsg {
         let mut num = 0;
         let mut sub_result = vec![];
         let total_length = frame.len();
+        let empty_data: &[u8] = &[];
 
         let (tpv_data, pw_data, pw_pos, length_ref) = if tpv {
             (
@@ -2332,11 +2334,11 @@ impl FrameCsg {
             )
         } else {
             (
-                &[] as &[u8],
+                empty_data,
                 if (valid_data_segment.len() > 16) {
                     &valid_data_segment[valid_data_segment.len() - 16..]
                 } else {
-                    &[] as &[u8]
+                    empty_data
                 },
                 [total_length - 18, total_length - 2],
                 &mut length,
@@ -2567,6 +2569,7 @@ impl FrameCsg {
         let mut num = 0;
         let mut sub_result = vec![];
         let total_length = frame.len();
+        let empty_data: &[u8] = &[];
         let (tpv_data, pw_data, pw_pos, cur_length) = if tpv {
             (
                 &frame[frame.len() - 7..frame.len() - 2],
@@ -2576,11 +2579,11 @@ impl FrameCsg {
             )
         } else {
             (
-                &[] as &[u8],
+                empty_data,
                 if (valid_data_segment.len() > 16) {
                     &valid_data_segment[valid_data_segment.len() - 16..]
                 } else {
-                    &[] as &[u8]
+                    empty_data
                 },
                 [total_length - 18, total_length - 2],
                 length,
@@ -2801,6 +2804,8 @@ impl FrameCsg {
         let mut sub_result = vec![];
         let mut fiirst = true;
         let total_length = frame.len();
+        let empty_data: &[u8] = &[];
+
         let (tpv_data, pw_data, pw_pos, cur_length) = if tpv {
             (
                 &frame[frame.len() - 7..frame.len() - 2],
@@ -2810,11 +2815,11 @@ impl FrameCsg {
             )
         } else {
             (
-                &[] as &[u8],
+                empty_data,
                 if (valid_data_segment.len() > 16) {
                     &valid_data_segment[valid_data_segment.len() - 16..]
                 } else {
-                    &[] as &[u8]
+                    empty_data
                 },
                 [total_length - 18, total_length - 2],
                 length,
@@ -3094,7 +3099,7 @@ impl FrameCsg {
         let mut num = 0;
         let mut sub_result = vec![];
         let total_length = frame.len();
-
+        let empty_data: &[u8] = &[];
         let (tpv_data, pw_data, pw_pos, cur_length) = if tpv {
             (
                 &frame[frame.len() - 7..frame.len() - 2],
@@ -3104,11 +3109,11 @@ impl FrameCsg {
             )
         } else {
             (
-                &[] as &[u8],
+                empty_data,
                 if (valid_data_segment.len() > 16) {
                     &valid_data_segment[valid_data_segment.len() - 16..]
                 } else {
-                    &[] as &[u8]
+                    empty_data
                 },
                 [total_length - 18, total_length - 2],
                 length,
@@ -3337,11 +3342,11 @@ impl FrameCsg {
             )
         } else {
             (
-                &[] as &[u8],
+                &Vec::<u8>::new()[..],
                 if (valid_data_segment.len() > 16) {
                     &valid_data_segment[valid_data_segment.len() - 16..]
                 } else {
-                    &[] as &[u8]
+                    &Vec::<u8>::new()[..]
                 },
                 [total_length - 18, total_length - 2],
                 length,
@@ -4013,6 +4018,7 @@ impl FrameCsg {
         let mut sub_result: Vec<Value> = Vec::new();
         let total_length = frame.len();
         let mut tpv_data: &[u8] = &[];
+        let mut pw_data: &[u8] = &[];
 
         let (pw_data, pw_pos) = if tpv {
             tpv_data = &frame[frame.len() - 7..frame.len() - 2];
@@ -4022,10 +4028,9 @@ impl FrameCsg {
             (pw_data, vec![total_length - 23, total_length - 7])
         } else {
             if valid_data_segment.len() < 16 {
-                let pw_data = &[] as &[u8];
                 (pw_data, vec![0, 0])
             } else {
-                let pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
+                pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
                 (pw_data, vec![total_length - 18, total_length - 2])
             }
         };
@@ -4234,6 +4239,7 @@ impl FrameCsg {
         let mut num = 0;
         let mut sub_result: Vec<Value> = Vec::new();
         let total_length = frame.len();
+        let tmp_pw_data: &[u8] = &[];
 
         let (tpv_data, pw_data, pw_pos) = if tpv {
             let tpv_data = &frame[frame.len() - 7..frame.len() - 2];
@@ -4245,10 +4251,10 @@ impl FrameCsg {
             let pw_data = if (valid_data_segment.len() > 16) {
                 &valid_data_segment[valid_data_segment.len() - 16..]
             } else {
-                &[] as &[u8]
+                tmp_pw_data
             };
             (
-                &[] as &[u8],
+                &Vec::<u8>::new()[..],
                 pw_data,
                 vec![total_length - 18, total_length - 2],
             )
@@ -4503,7 +4509,7 @@ impl FrameCsg {
         let index = 16 + start_pos;
         let mut num = 0;
         let total_length = frame.len();
-
+        let tmp_pw_data: &[u8] = &[];
         let (tpv_data, pw_data, pw_pos) = if tpv {
             let tpv_data = &frame[frame.len() - 7..frame.len() - 2];
             let pw_data =
@@ -4518,10 +4524,10 @@ impl FrameCsg {
             let pw_data = if (valid_data_segment.len() > 16) {
                 &valid_data_segment[valid_data_segment.len() - 16..]
             } else {
-                &[] as &[u8]
+                tmp_pw_data
             };
             (
-                &[] as &[u8],
+                tmp_pw_data,
                 pw_data,
                 vec![start_pos + frame.len() - 18, start_pos + frame.len() - 2],
             )

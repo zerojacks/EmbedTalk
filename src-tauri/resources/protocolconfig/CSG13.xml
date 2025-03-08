@@ -73789,8 +73789,24 @@
         <splitByLength>
             <name>注册码信息</name>
             <length>unknown</length>
-            <lengthrule>76 * 注册码数量</lengthrule>
+            <lengthrule>76*注册码数量</lengthrule>
             <type>APPREGISTERINFO</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem protocol="csg13" region="南网" id="E1800040">
+        <name>终端需量计量参数</name>
+        <length>4</length>
+        <splitByLength>
+            <name>需量周期</name>
+            <length>2</length>
+            <type>BCD</type>
+			<unit>分钟</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>滑差时间</name>
+            <length>2</length>
+            <type>BCD</type>
+			<unit>分钟</unit>
         </splitByLength>
     </dataItem>
 </config>

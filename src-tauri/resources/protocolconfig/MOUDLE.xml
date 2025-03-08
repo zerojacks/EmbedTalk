@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <dataItem id="EC010001" protocol="moudle" region="南网">
+		<name>确认</name>
+		<length>3</length>
+        <splitByLength>
+            <name>等待时间</name>
+            <length>2</length>
+            <unit>秒</unit>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>状态字</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="EC010002" protocol="moudle" region="南网">
+		<name>否认</name>
+		<length>1</length>
+        <splitByLength>
+            <name>错误状态字</name>
+            <length>1</length>
+            <type>BIN</type>
+            <value key="00">通信超时</value>
+            <value key="01">无效数据标识内容</value>
+            <value key="02">长度错误</value>
+            <value key="03">校验错误</value>
+            <value key="04">数据标识编码不存在</value>
+            <value key="05">格式错误</value>
+            <value key="06">表号重复</value>
+            <value key="07">表号不存在</value>
+            <value key="08">电表应用层无应答</value>
+            <value key="09">主节点忙</value>
+            <value key="10">主节点不支持此命令</value>
+            <value key="11">从节点不应答</value>
+            <value key="12">从节点不在网内</value>
+            <value key="13">添加任务时剩余可分配任务数不足</value>
+            <value key="14">上报任务数据时任务不存在</value>
+            <value key="15">任务 ID 重复</value>
+            <value key="16">查询任务时模块没有此任务</value>
+            <value key="17">任务ID不存在</value>
+            <value key="FFH">其他</value>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="EC020101" protocol="moudle" region="南网">
+        <name>复位硬件</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="EC020104" protocol="moudle" region="南网">
+        <name>参数初始化</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="EC000301" protocol="moudle" region="南网" dir="0">
+        <name>查询厂商代码和版本信息</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="EC000301" protocol="moudle" region="南网" dir="1">
+        <name>查询厂商代码和版本信息</name>
+        <length>9</length>
+        <splitByLength>
+            <name>厂商代码</name>
+            <length>2</length>
+            <type>ASCII</type>
+        </splitByLength>
+        <splitByLength>
+            <name>芯片代码</name>
+            <length>2</length>
+            <type>ASCII</type>
+        </splitByLength>
+        <splitByLength>
+            <name>版本时间</name>
+            <length>3</length>
+            <time>DDMMYY</time>
+        </splitByLength>
+        <splitByLength>
+            <name>版本</name>
+            <length>2</length>
+            <type>BCD</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="EC000310" protocol="moudle" region="南网" dir="0">
+        <name>查询功能模块链路信息</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="EC000310" protocol="moudle" region="南网" dir="1">
+        <name>查询功能模块链路信息</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>厂商代码</name>
+            <length>2</length>
+            <type>ASCII</type>
+        </splitByLength>
+        <splitByLength>
+            <name>芯片代码</name>
+            <length>2</length>
+            <type>ASCII</type>
+        </splitByLength>
+        <splitByLength>
+            <name>版本时间</name>
+            <length>3</length>
+            <time>YYMMDD</time>
+        </splitByLength>
+        <splitByLength>
+            <name>版本</name>
+            <length>2</length>
+            <type>BCD</type>
+        </splitByLength>
+        <splitByLength>
+            <name>协议版本号</name>
+            <length>2</length>
+            <type>BCD</type>
+        </splitByLength>
+        <splitByLength>
+            <name>功能模块设备型号</name>
+            <length>12</length>
+            <type>ASCII</type>
+        </splitByLength>
+        <splitByLength>
+            <name>功能模块设备 ID</name>
+            <length>12</length>
+            <type>ASCII</type>
+        </splitByLength>
+        <splitByLength>
+            <name>是否需要时钟同步</name>
+            <length>1</length>
+            <type>BIN</type>
+            <value key="00">不需要时钟同步</value>
+            <value key="01">需要时钟同步</value>
+        </splitByLength>
+        <splitByLength>
+            <name>支持的最大报文长度</name>
+            <length>2</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>虚拟数据通道数</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>数据通道特征</name>
+            <length>unknown</length>
+            <lengthrule>4 * 虚拟数据通道数</lengthrule>
+            <type>DATACHANNEL</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="EC020408" protocol="moudle" region="南网">
+        <name>写功能模块时钟</name>
+        <length>6</length>
+        <time>ssmmhhDDMMYY</time>
+    </dataItem>
+    <template id="DATACHANNEL" protocol="moudle" region="南网">
+        <name>数据通道特征</name>
+        <length>4</length>
+        <splitByLength>
+            <name>接口模式字</name>
+            <length>1</length>
+            <type>BIN</type>
+            <value key="00">异常或非法模式</value>
+            <value key="01">CDC-ACM 模式</value>
+            <value key="02">CDC-ECM 模式；</value>
+            <value key="03">UVC 模式</value>
+            <value key="other">其他模式</value>
+        </splitByLength>
+        <splitByLength>
+            <name>功能模式字</name>
+            <length>1</length>
+            <type>BIN</type>
+            <value key="00">异常或未知功能(保留)</value>
+            <value key="01">功能模块管理通道</value>
+            <value key="02">本地通信</value>
+            <value key="03">RS-485 通信</value>
+            <value key="04">遥信脉冲</value>
+            <value key="05">CAN 通信（预留）</value>
+            <value key="06">M-Bus 通信</value>
+            <value key="07">控制</value>
+            <value key="08">模拟量采集</value>
+            <value key="09">RS-232 通信</value>
+            <value key="10">私有（保留）</value>
+            <value key="11">远程通信管理通道</value>
+            <value key="12">远程通信数据通道</value>
+            <value key="13">分支监测数据通道</value>
+            <value key="14">电池管理数据通道</value>
+            <value key="15">协议扩展通道（保留）</value>
+            <value key="16">厂家扩展通道（保留）</value>
+            <value key="17">保留通道</value>
+            <value key="other">其他功能</value>
+        </splitByLength>
+        <splitByLength>
+            <name>通道属性</name>
+            <length>2</length>
+            <type>BIN</type>
+            <splitbit>
+                <bit id="0-3">
+					<name>支持的最大速率</name>
+                    <value key="0000">自适应</value>
+                    <value key="0001">300</value>
+                    <value key="0010">1200</value>
+                    <value key="0011">2400</value>
+                    <value key="0100">4800</value>
+                    <value key="0101">9600</value>
+                    <value key="0110">19200</value>
+                    <value key="0111">38400</value>
+                    <value key="1000">57600</value>
+                    <value key="1001">115200</value>
+                    <value key="1010">460800</value>
+                    <value key="1011">921600</value>
+                    <value key="1100">1000000</value>
+                    <value key="1101">2000000</value>
+                    <value key="1110">4000000</value>
+                    <value key="1111">无效</value>
+				</bit>
+                <bit id="4-7">
+                    <name>保留</name>
+                </bit>
+                <bit id="8-15">
+                    <name>保留</name>
+                </bit>
+            </splitbit>
+        </splitByLength>
+    </template>
+</config>

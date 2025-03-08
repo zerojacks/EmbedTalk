@@ -18,6 +18,20 @@ impl FrameCCO {
             return false;
         }
         let length = FrameFun::bintodecimal(&frame[1..3]);
+        let bit_array = FrameFun::get_bit_array(frame[3]);
+        let dir = bit_array[0];
+        let prm = bit_array[1];
+        let add = bit_array[2];
+        if add == 0 {
+            if frame.len() < 10 {
+                return false;
+            }
+            let item_data = frame[6..10].to_vec();
+            let item = FrameFun::bintodecimal(&item_data);
+            if item & 0xEC000000 == 0xEC000000 {
+                return false;
+            }
+        }
         return length == frame.len() as u64;
     }
 

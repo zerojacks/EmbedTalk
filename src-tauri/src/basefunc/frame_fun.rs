@@ -135,6 +135,7 @@ impl FrameFun {
         let trans_array = bcd_array.to_vec().clone();
         let mut new_array = trans_array.clone();
 
+        println!("bcd_array: {:?}, decimal_places: {:?}, need_delete: {:?}, sign: {:?}, judge_ff: {:?}", bcd_array, decimal_places, need_delete, sign, judge_ff);
         if judge_ff {
             if Self::is_array_all_ffs(&bcd_array) {
                 return String::from("无效数据");
@@ -429,9 +430,11 @@ impl FrameFun {
     }
 
     pub fn extract_bits(start_bit: usize, end_bit: usize, value: u32) -> String {
+        println!("start_bit: {:?}, end_bit: {:?}, value: {:?}", start_bit, end_bit, value);
         let mask = ((1 << (end_bit - start_bit + 1)) - 1) << start_bit;
         let extracted_bits = (value & mask) >> start_bit;
-        format!("{:0b}", extracted_bits).repeat(end_bit - start_bit + 1)
+        // 使用格式化字符串指定宽度，确保输出正确的位数
+        format!("{:0width$b}", extracted_bits, width = end_bit - start_bit + 1)
     }
 
     pub fn is_array_all_zeros(arr: &[u8]) -> bool {

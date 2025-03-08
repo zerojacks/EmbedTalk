@@ -39,6 +39,7 @@ impl Frame645 {
         updated_index += index;
         let afn = frame[8];
         let protocol = ProtocolInfo::ProtocolDLT64507.name().to_string();
+
         if afn == 0x11 {
             // 下行读取报文
             Self::analysic_read_frame(frame, result_list, updated_index, &protocol, region, dir);
