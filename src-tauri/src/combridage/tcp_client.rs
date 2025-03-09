@@ -210,6 +210,10 @@ impl TcpClientChannel {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut buffer = [0; 1024];
         let mut shutdown_receiver = self.shutdown_signal.subscribe();
+        
+        // 用于跟踪丢弃的消息数量
+        let mut dropped_messages = 0;
+        let mut last_log_time = std::time::Instant::now();
 
         loop {
             tokio::select! {
@@ -227,36 +231,83 @@ impl TcpClientChannel {
                                 "data": received_data
                             });
                             let message = Message::new(payload);
-                            message_manager.record_message(
+                            
+                            // 使用 timeout 包装 record_message 调用，防止长时间阻塞
+                            match timeout(Duration::from_secs(1), message_manager.record_message(
                                 "tcpclient",
                                 &self.adress.clone(),
                                 &message,
                                 MessageDirection::Received,
                                 None
-                            ).await?;
+                            )).await {
+                                Ok(result) => {
+                                    if let Err(e) = result {
+                                        eprintln!("Error recording message: {:?}, but continuing...", e);
+                                        // 记录错误但继续执行，不终止任务
+                                    }
+                                },
+                                Err(timeout_err) => {
+                                    eprintln!("Timeout recording message: {:?}, but continuing...", timeout_err);
+                                    // 超时但继续执行，不终止任务
+                                }
+                            }
 
-                            if let Err(e) = tx_recv.send(received_data).await {
-                                eprintln!("Failed to send received message to queue: {:?}", e);
-                                return Err(Box::new(e)); // 将 SendError 包装成 Box<dyn Error> 并返回
+                            // 使用 try_send 而不是 send，避免在队列满时阻塞
+                            if let Err(e) = tx_recv.try_send(received_data) {
+                                dropped_messages += 1;
+                                
+                                // 每 10 秒或每 100 条丢弃的消息记录一次日志，避免日志过多
+                                let now = std::time::Instant::now();
+                                if dropped_messages % 100 == 0 || now.duration_since(last_log_time).as_secs() >= 10 {
+                                    eprintln!("Queue full, dropped {} messages so far: {:?}", dropped_messages, e);
+                                    last_log_time = now;
+                                }
+                                
+                                // 添加小延迟，给系统一些时间处理队列中的消息
+                                sleep(Duration::from_millis(10)).await;
+                                // 继续循环而不是终止任务
+                            } else {
+                                // 成功发送消息后，如果之前有丢弃的消息，记录恢复日志
+                                if dropped_messages > 0 {
+                                    println!("Queue recovered after dropping {} messages", dropped_messages);
+                                    dropped_messages = 0;
+                                }
                             }
                         }
                         Ok(0) => {
                             println!("Server disconnected (EOF received).");
-                            if let Err(e) = self.on_statechange(ChannelState::Disconnected).await {
-                                eprintln!("Failed to send disconnect event: {:?}", e);
-                                return Err(e); // 返回 on_statechange 的错误
+                            // 使用 timeout 包装 on_statechange 调用
+                            match timeout(Duration::from_secs(1), self.on_statechange(ChannelState::Disconnected)).await {
+                                Ok(result) => {
+                                    if let Err(e) = result {
+                                        eprintln!("Failed to send disconnect event: {:?}, but continuing...", e);
+                                    }
+                                },
+                                Err(timeout_err) => {
+                                    eprintln!("Timeout sending disconnect event: {:?}", timeout_err);
+                                }
                             }
                             return Ok(()); // 正常退出
                         }
                         Ok(_) => {
                             // 处理读取了 0 字节以外的情况
-                            // 这里不应该出现这种情况，因为 `read` 方法不会返回 0 到 n 之间的值
                             eprintln!("Unexpected read result: 0 bytes read but not EOF.");
-                            return Ok(()); // 或者你可以选择其他方式处理这种情况
+                            return Ok(());
                         }
                         Err(e) => {
-                            eprintln!("Failed to receive message or timeout: {:?}", e);
-                            return Err(Box::new(e)); // 返回读取错误
+                            // 区分不同类型的错误
+                            if e.kind() == io::ErrorKind::WouldBlock || e.kind() == io::ErrorKind::TimedOut {
+                                // 这些是可恢复的错误，记录后继续
+                                eprintln!("Temporary read error: {:?}, continuing...", e);
+                                sleep(Duration::from_millis(100)).await;
+                                continue;
+                            } else {
+                                // 其他错误可能是致命的，如连接断开
+                                eprintln!("Fatal read error: {:?}", e);
+                                // 尝试发送断开连接状态，但不阻塞
+                                let _ = timeout(Duration::from_millis(500), self.on_statechange(ChannelState::Disconnected)).await;
+                                return Err(Box::new(e));
+                            }
                         }
                     }
                 }

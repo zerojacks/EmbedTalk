@@ -19,12 +19,18 @@ const ThemeChange = () => {
 
     useEffect(() => {
         async function getconfigTheme() {
-            let theme = await invoke<string>("get_config_value_async", {section: "MainWindow", key: "theme"});
-            if (!theme.length) {
-                theme = "auto";
+            try {
+                let theme = await invoke<string>("get_config_value_async", {section: "MainWindow", key: "theme"});
+                // 检查 theme 是否为 null 或 undefined
+                if (!theme || typeof theme !== 'string' || theme.length === 0) {
+                    theme = "auto";
+                }
+                console.log("getconfigTheme", theme);
+                setSelectTheme(theme);
+            } catch (error) {
+                console.error("Error getting theme config:", error);
+                setSelectTheme("auto"); // 出错时使用默认主题
             }
-            console.log("getconfigTheme", theme);
-            setSelectTheme(theme);
         };
         getconfigTheme();
 

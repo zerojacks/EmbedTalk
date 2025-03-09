@@ -1,15 +1,37 @@
 import React from "react";
 type BlockKeys = "block-1" | "block-2" | "block-3" | "block-4";
 
-function IpInput() {
+interface IpInputProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function IpInput({ value, onChange }: IpInputProps) {
     const [blocks, setBlocks] = React.useState<Record<BlockKeys, string>>({
         "block-1": "",
         "block-2": "",
         "block-3": "",
         "block-4": "",
     });
-    const [ipInput, setIpInput] = React.useState("");
     const [focusedInput, setFocusedInput] = React.useState(1); // Restrict to valid inputs
+    const [internalValue, setInternalValue] = React.useState(value);
+    const isInitialMount = React.useRef(true);
+
+    // 初始化时，根据传入的 value 设置 blocks
+    React.useEffect(() => {
+        if (value && value !== internalValue) {
+            const parts = value.split('.');
+            if (parts.length === 4) {
+                setBlocks({
+                    "block-1": parts[0],
+                    "block-2": parts[1],
+                    "block-3": parts[2],
+                    "block-4": parts[3],
+                });
+                setInternalValue(value);
+            }
+        }
+    }, [value, internalValue]);
 
     React.useEffect(() => {
         const inputElement = document.getElementById(`block-${focusedInput}`);
@@ -18,9 +40,13 @@ function IpInput() {
         }
     }, [focusedInput]);
     
-
-
     React.useEffect(() => {
+        // 跳过首次渲染
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
         const blockKey = `block-${focusedInput}` as BlockKeys; // Type assertion
         const blockArr: string[] = [];
     
@@ -33,7 +59,12 @@ function IpInput() {
         });
     
         if (blockArr.length > 0) {
-            setIpInput(blockArr.join("."));
+            const ipString = blockArr.join(".");
+            // 只有在所有块都有值且 IP 格式正确时才调用 onChange
+            if (blockArr.every(block => block !== "") && isValidIP(ipString) && ipString !== internalValue) {
+                setInternalValue(ipString);
+                onChange(ipString);
+            }
         }
     }, [blocks, focusedInput]);
 
@@ -63,7 +94,8 @@ function IpInput() {
             "block-3": "",
             "block-4": "",
         });
-        setIpInput("");
+        setInternalValue("");
+        onChange("");
         setFocusedInput(1);
     };
 
@@ -76,6 +108,15 @@ function IpInput() {
             }
         }
     };    
+
+    const isValidIP = (ip: string) => {
+        const parts = ip.split('.');
+        if (parts.length !== 4) return false;
+        for (const part of parts) {
+            if (isNaN(Number(part)) || Number(part) < 0 || Number(part) > 255) return false;
+        }
+        return true;
+    };
 
     return (
         <div className="flex flex-col items-center">
@@ -99,10 +140,10 @@ function IpInput() {
                     ))}
                 </div>
                 <button
-                    className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                    className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
                     onClick={handleClear}
                 >
-                    Clear
+                    清除
                 </button>
             </header>
         </div>

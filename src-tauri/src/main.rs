@@ -19,14 +19,15 @@ pub mod config;
 pub mod global;
 pub mod taurihandler;
 // use once_cell::sync::OnceCell;
+use crate::combridage::ChannelType;
 use crate::config::appconfig::{get_config_value_async, set_config_value_async};
+use crate::taurihandler::ChannelHandler::{connect_channel, disconnect_channel, list_serial_ports};
 use crate::taurihandler::handler::{
     app_close, check_update, get_all_config_item_lists, get_app_info, get_com_list,
     get_protocol_config_item, get_region_value, get_system_theme, on_text_change, save_file,
     save_protocol_config_item, set_region_value, open_window, update_window_position, 
     get_window_position, WindowState
 };
-use crate::taurihandler::ChannelHandler::{connect_channel, disconnect_channel, list_serial_ports};
 // 用来格式化日志的输出时间格式
 struct LocalTimer;
 

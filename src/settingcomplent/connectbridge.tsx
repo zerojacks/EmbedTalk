@@ -8,6 +8,14 @@ import { listen, UnlistenFn } from '@tauri-apps/api/event';
 
 type ChannelType = "tcpclient" | "tcpserver" | "serial" | "mqtt" | "bluetooth";
 
+// 定义蓝牙接口，仅用于类型提示，不与导入的接口冲突
+interface BluetoothConfig {
+    bluetoothname?: string;
+    uuid?: string;
+    adapter?: string;
+    state?: connectionState;
+}
+
 const comlist = ["COM1", "COM2", "COM3"];
 const baurdatelist = [9600, 14400, 19200];
 const partylist = ["奇校验", "偶校验", "无校验"];
@@ -81,7 +89,9 @@ const ConnectBridge = () => {
                     setDefaultState(connectinfo);
                     setDefaultInfo(connectinfo);
                     setConnectInfo(connectinfo);
-                    // Update other states if necessary
+                    
+                    // 加载配置后立即验证连接状态
+                    verifyConnections(connectinfo);
                 } else {
                     console.log("Failed to fetch configuration");
                     setDefaultInfo(connectinfo);
@@ -97,9 +107,64 @@ const ConnectBridge = () => {
         }
 
         getConnectInfo();
+        
+        // 组件挂载时验证所有通道的实际连接状态
+        async function verifyConnections(currentConnectInfo: ConnectBridgeInfo) {
+            if (!currentConnectInfo) return;
+            
+            // 检查每个可能的通道类型
+            const channelTypes: ChannelType[] = ['tcpclient', 'tcpserver', 'serial', 'mqtt', 'bluetooth'];
+            
+            for (const channelType of channelTypes) {
+                // 只检查存在且状态为 connected 的通道
+                if (currentConnectInfo[channelType] && currentConnectInfo[channelType]?.state === 'connected') {
+                    try {
+                        // 调用后端验证连接状态
+                        const isConnected = await invoke<boolean>('check_channel_connection', { 
+                            channel_type: channelType 
+                        });
+                        
+                        // 如果实际已断开但状态仍为连接，则更新状态
+                        if (!isConnected) {
+                            // 获取最新状态
+                            const latestConnectInfo = useConnectStore.getState().connectInfo;
+                            if (!latestConnectInfo) continue;
+                            
+                            setConnectInfo({
+                                ...latestConnectInfo,
+                                [channelType]: {
+                                    ...latestConnectInfo[channelType],
+                                    state: 'disconnected'
+                                }
+                            });
+                            
+                            // 同时设置监听器以便接收后续事件
+                            setupChannelListener(channelType);
+                        }
+                    } catch (error) {
+                        console.error(`Error verifying ${channelType} connection:`, error);
+                        // 连接验证失败，假定已断开
+                        // 获取最新状态
+                        const latestConnectInfo = useConnectStore.getState().connectInfo;
+                        if (!latestConnectInfo) continue;
+                        
+                        setConnectInfo({
+                            ...latestConnectInfo,
+                            [channelType]: {
+                                ...latestConnectInfo[channelType],
+                                state: 'disconnected'
+                            }
+                        });
+                    }
+                }
+            }
+        }
+        
+        // 如果 connectInfo 已加载，则验证连接状态
+        if (connectInfo) {
+            verifyConnections(connectInfo);
+        }
     }, []);
-
-
 
     const getToastMessage = (channel: ChannelType, payload: any, action: connectionState) => {
         switch (channel) {
@@ -126,7 +191,7 @@ const ConnectBridge = () => {
         }
 
         // 设置新的监听器
-        const unlistenFn = await listen('channel-disconnected', (event) => {
+        const unlistenFn = await listen('channel-state', (event) => {
             const payload = JSON.parse(event.payload as string);
             if (payload.channel !== channel) return; // 只处理对应通道的事件
             const toast_message = getToastMessage(channel, payload, 'disconnected');
@@ -138,22 +203,62 @@ const ConnectBridge = () => {
             // 根据不同的通道类型更新状态
             switch (channel) {
                 case "tcpclient":
-                    setConnectInfo({
-                        tcpclient: {
-                            ...connectInfo?.tcpclient,
-                            state: 'disconnected' as connectionState,
-                        }
-                    });
+                    if (connectInfo) {
+                        setConnectInfo({
+                            ...connectInfo,
+                            tcpclient: {
+                                ...connectInfo.tcpclient,
+                                state: 'disconnected'
+                            }
+                        });
+                    }
                     break;
                 case "tcpserver":
-                    setConnectInfo({
-                        tcpserver: {
-                            ...connectInfo?.tcpserver,
-                            state: 'disconnected' as connectionState,
-                        }
-                    });
+                    if (connectInfo) {
+                        setConnectInfo({
+                            ...connectInfo,
+                            tcpserver: {
+                                ...connectInfo.tcpserver,
+                                state: 'disconnected'
+                            }
+                        });
+                    }
                     break;
-                // ... 其他通道的处理
+                case "serial":
+                    if (connectInfo) {
+                        setConnectInfo({
+                            ...connectInfo,
+                            serial: {
+                                ...connectInfo.serial,
+                                state: 'disconnected'
+                            }
+                        });
+                    }
+                    break;
+                case "mqtt":
+                    if (connectInfo) {
+                        setConnectInfo({
+                            ...connectInfo,
+                            mqtt: {
+                                ...connectInfo.mqtt,
+                                state: 'disconnected'
+                            }
+                        });
+                    }
+                    break;
+                case "bluetooth":
+                    if (connectInfo) {
+                        setConnectInfo({
+                            ...connectInfo,
+                            bluetooth: {
+                                ...connectInfo.bluetooth,
+                                state: 'disconnected'
+                            }
+                        });
+                    }
+                    break;
+                default:
+                    break;
             }
         });
 
@@ -188,45 +293,74 @@ const ConnectBridge = () => {
 
     // 修改连接处理函数
     const handleChannelConnection = async (channel: ChannelType, action: 'connect' | 'disconnect') => {
-        if (!connectInfo?.tcpclient) return;
+        if (!connectInfo) return;
+        
+        // 确保通道信息存在
+        if (!connectInfo[channel]) {
+            console.error(`Channel ${channel} info not found`);
+            return;
+        }
 
         try {
             const params = getChannelParams(channel); // 获取对应通道的参数
             const commandName = action === 'connect' ? "connect_channel" : "disconnect_channel";
             let curr_state = action === 'connect' ? 'connecting' : 'disconnecting' as connectionState;
+            
+            // 更新状态
             setConnectInfo({
+                ...connectInfo,
                 [channel]: {
                     ...connectInfo[channel],
-                    state: curr_state,
+                    state: curr_state
                 }
             });
+            
             let toast_message = getToastMessage(channel, params, curr_state);
             toast.info(toast_message);
             const result = await invoke(commandName, { channel: channel, values: JSON.stringify(params) });
-
             if (action === 'connect') {
-                await setupChannelListener(channel);
+                setupChannelListener(channel);
             } else {
                 await cleanupChannelListener(channel);
             }
+            
+            // 获取最新的状态，因为在异步操作期间可能已经改变
+            const currentConnectInfo = useConnectStore.getState().connectInfo;
+            if (!currentConnectInfo) return;
+            
             curr_state = curr_state === 'connecting' ? 'connected' : 'disconnected' as connectionState;
+            
             setConnectInfo({
+                ...currentConnectInfo,
                 [channel]: {
-                    ...connectInfo[channel],
-                    state: curr_state,
+                    ...currentConnectInfo[channel],
+                    state: curr_state
                 }
             });
+            
             toast_message = getToastMessage(channel, params, curr_state);
             toast.success(toast_message);
+            
+            // 同步更新配置文件
+            await invoke("set_config_value_async", {
+                section: "connectcfg",
+                key: "",
+                value: JSON.stringify(useConnectStore.getState().connectInfo)
+            });
         } catch (error) {
-            console.error(`Error ${action}ing ${channel}:`, error);
+            console.error(`Error ${action === 'connect' ? 'connecting to' : 'disconnecting from'} ${channel}:`, error);
             const err_type = (action === 'connect' ? "连接" : "断开");
             toast.error(`${getChannelNmae(channel)}${err_type}失败:${error}`, 'end', 'bottom', 3000);
 
+            // 获取最新的状态
+            const currentConnectInfo = useConnectStore.getState().connectInfo;
+            if (!currentConnectInfo) return;
+            
             setConnectInfo({
+                ...currentConnectInfo,
                 [channel]: {
-                    ...connectInfo[channel],
-                    state: action === 'connect' ? 'disconnected' : 'connected',
+                    ...currentConnectInfo[channel],
+                    state: action === 'connect' ? 'disconnected' : 'connected'
                 }
             });
         }
@@ -234,18 +368,50 @@ const ConnectBridge = () => {
 
     // 获取通道参数的辅助函数
     const getChannelParams = (channel: ChannelType) => {
+        // 确保 connectInfo 不为 null
+        if (!connectInfo) {
+            console.error("Connection info is null");
+            return {};
+        }
+        
         switch (channel) {
             case "tcpclient":
                 return {
-                    ip: connectInfo?.tcpclient?.ip,
-                    port: connectInfo?.tcpclient?.port
+                    ip: connectInfo.tcpclient?.ip || "127.0.0.1",
+                    port: connectInfo.tcpclient?.port || 8080,
                 };
             case "tcpserver":
                 return {
-                    ip: connectInfo?.tcpserver?.ip,
-                    port: connectInfo?.tcpserver?.port
+                    ip: connectInfo.tcpserver?.ip || "0.0.0.0",
+                    port: connectInfo.tcpserver?.port || 8080,
                 };
-            // ... 其他通道的参数获取
+            case "serial":
+                return {
+                    comname: connectInfo.serial?.comname || "COM1",
+                    baurdate: connectInfo.serial?.baurdate || 9600,
+                    databit: connectInfo.serial?.databit || 8,
+                    flowctrl: connectInfo.serial?.flowctrl || 0,
+                    parity: connectInfo.serial?.parity || "无校验",
+                    stopbit: connectInfo.serial?.stopbit || 1,
+                };
+            case "mqtt":
+                return {
+                    ip: connectInfo.mqtt?.ip || "127.0.0.1",
+                    port: connectInfo.mqtt?.port || 1883,
+                    username: connectInfo.mqtt?.username || "",
+                    password: connectInfo.mqtt?.password || "",
+                    clientid: "embedtalk_client",
+                    qos: connectInfo.mqtt?.qos || 0,
+                    topic: "embedtalk/topic",
+                };
+            case "bluetooth":
+                return {
+                    adapter: connectInfo.bluetooth?.adapter || "default",
+                    bluetoothname: connectInfo.bluetooth?.bluetoothname || "",
+                    uuid: connectInfo.bluetooth?.uuid || "",
+                };
+            default:
+                return {};
         }
     };
 
@@ -339,7 +505,6 @@ const ConnectBridge = () => {
                 username: "", // 提供默认值
                 password: "", // 提供默认值
                 qos: 2, // 提供默认值
-                version: "3.1.1", // 提供默认值
                 state: 'disconnected', // 提供默认值
             }
         }
@@ -567,7 +732,6 @@ const ConnectBridge = () => {
                     state: connectInfo?.mqtt?.state ?? 'disconnected', // 提供默认值
                     username: connectInfo?.mqtt?.username ?? "", // 提供默认值
                     password: connectInfo?.mqtt?.password ?? "", // 提供默认值
-                    version: connectInfo?.mqtt?.version ?? "3.1.1", // 提供默认值
                     qos: connectInfo?.mqtt?.qos ?? 2, // 提供默认值
                 }
             })
@@ -585,7 +749,6 @@ const ConnectBridge = () => {
                 state: connectInfo?.mqtt?.state ?? 'disconnected', // 提供默认值
                 username: connectInfo?.mqtt?.username ?? "", // 提供默认值
                 password: connectInfo?.mqtt?.password ?? "", // 提供默认值
-                version: connectInfo?.mqtt?.version ?? "3.1.1", // 提供默认值
                 qos: connectInfo?.mqtt?.qos ?? 2, // 提供默认值
             }
         });
@@ -601,7 +764,6 @@ const ConnectBridge = () => {
                 state: connectInfo?.mqtt?.state ?? 'disconnected', // 提供默认值
                 username: e.target.value, // 提供默认值
                 password: connectInfo?.mqtt?.password ?? "", // 提供默认值
-                version: connectInfo?.mqtt?.version ?? "3.1.1", // 提供默认值
                 qos: connectInfo?.mqtt?.qos ?? 2, // 提供默认值
             }
         });
@@ -617,23 +779,6 @@ const ConnectBridge = () => {
                 state: connectInfo?.mqtt?.state ?? 'disconnected', // 提供默认值
                 username: connectInfo?.mqtt?.username ?? "", // 提供默认值
                 password: e.target.value, // 提供默认值
-                version: connectInfo?.mqtt?.version ?? "3.1.1", // 提供默认值
-                qos: connectInfo?.mqtt?.qos ?? 2, // 提供默认值
-            }
-        });
-    }
-
-    const handleMqttversionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        console.log(e.target.value);
-        setConnectInfo({
-            mqtt: {
-                ...connectInfo?.mqtt,
-                ip: connectInfo?.mqtt?.ip ?? "127.0.0.1", // 提供默认值
-                port: connectInfo?.mqtt?.port ?? 1883, // 提供默认值
-                state: connectInfo?.mqtt?.state ?? 'disconnected', // 提供默认值
-                username: connectInfo?.mqtt?.username ?? "", // 提供默认值
-                password: connectInfo?.mqtt?.password ?? "", // 提供默认值
-                version: e.target.value, // 提供默认值
                 qos: connectInfo?.mqtt?.qos ?? 2, // 提供默认值
             }
         });
@@ -649,7 +794,6 @@ const ConnectBridge = () => {
                 state: connectInfo?.mqtt?.state ?? 'disconnected', // 提供默认值
                 username: connectInfo?.mqtt?.username ?? "", // 提供默认值
                 password: connectInfo?.mqtt?.password ?? "", // 提供默认值
-                version: connectInfo?.mqtt?.version ?? "3.1.1", // 提供默认值
                 qos: Number(e.target.value), // 提供默认值
             }
         });
@@ -819,21 +963,6 @@ const ConnectBridge = () => {
                     <div className="flex items-center gap-2 m-2">
                         <label className="w-16 flex-shrink-0 justify-between-text">密码</label>
                         <input type="text" className="w-1/6 input input-bordered" disabled={connectInfo?.mqtt?.state !== 'disconnected'} value={connectInfo?.mqtt?.password} onChange={handleMqttpasswordChange} />
-                    </div>
-                    <div className="flex items-center gap-2 m-2">
-                        <label className="w-16 flex-shrink-0 justify-between-text">版本</label>
-                        <select
-                            className="select mr-3 bg-base-200 select-bordered h-1 w-1/6" // 将 select 靠右
-                            disabled={connectInfo?.mqtt?.state !== 'disconnected'}
-                            value={connectInfo?.mqtt?.version}
-                            onChange={handleMqttversionChange}
-                        >
-                            {mqttversionlist.map((version, index) => (
-                                <option key={index} value={version}>
-                                    {version}
-                                </option>
-                            ))}
-                        </select>
                     </div>
                     <div className="flex items-center gap-2 m-2">
                         <label className="w-16 flex-shrink-0 justify-between-text">Qos</label>

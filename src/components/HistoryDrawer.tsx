@@ -25,7 +25,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({ onSelectFrame, vis
   }, [visible]);
 
   const loadConfig = async () => {
-    const limit = await getConfigValue('historyLimit');
+    const limit = await getConfigValue('settings', 'historyLimit');
     setHistoryLimit(Number(limit) || 100);
   };
 

@@ -42,7 +42,7 @@ impl Message {
         Self {
             id: Uuid::new_v4().to_string(),
             content: content,
-            timestamp: chrono::Utc::now().timestamp(), // 添加此行以初始化timestamp
+            timestamp: chrono::Utc::now().timestamp_millis(), // 使用 timestamp_millis 获取毫秒级时间戳
         }
     }
 }

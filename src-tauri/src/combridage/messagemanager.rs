@@ -221,7 +221,7 @@ impl MessageManager {
         let payload = serde_json::json!({
             "channeltype": record.channeltype,
             "channelId": record.channel_id,
-            "timestamp": record.timestamp.to_rfc3339(),
+            "timestamp": record.timestamp.timestamp_millis(), // 使用毫秒级数字时间戳
             "direction": record.direction,
             "content": record.content,
             "metadata": record.metadata,

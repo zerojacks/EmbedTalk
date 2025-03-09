@@ -187,7 +187,12 @@ const ProtocolConfigPath = () => {
     return (
         <div className="join join-vertical collapse bg-base-200 shadow-md w-full">
             <div className="collapse collapse-arrow join-item border-base-300 border">
-                <input type="radio" name="my-accordion-4" checked={is_check} onClick={() => setCheck(!is_check)} />
+                <input 
+                    type="radio" 
+                    name="my-accordion-4" 
+                    checked={is_check} 
+                    onChange={() => setCheck(!is_check)} 
+                />
                 <div className="collapse-title flex items-center ">
                     <SetFileIcon className="size-6" />
                     <p className="ml-2">配置文件</p> {/* 添加左侧间距 */}

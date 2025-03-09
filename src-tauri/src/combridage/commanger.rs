@@ -131,4 +131,15 @@ impl CommunicationManager {
 
         Ok(()) // 确保返回 Ok(()) 作为成功的结果
     }
+
+    pub async fn is_channel_connected(&self, channel_type: &ChannelType) -> Result<bool, String> {
+        // 首先检查通道是否存在于管理器中
+        if self.channels.contains_key(channel_type) {
+            // 如果通道存在，则认为它是已连接的
+            Ok(true)
+        } else {
+            // 通道不存在，返回 false 而不是错误
+            Ok(false)
+        }
+    }
 }
