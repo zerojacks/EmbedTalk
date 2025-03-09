@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Clock, Play, Pause, AlertCircle, X } from 'lucide-react';
 import { ChannelType } from '../types/channel';
+import { ChannelService } from '../services/channelService';
 
 interface MessageSenderProps {
   channelType: ChannelType;
@@ -19,27 +20,59 @@ const MessageSender: React.FC<MessageSenderProps> = ({
   const [showTimerSettings, setShowTimerSettings] = useState(false);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [intervalTime, setIntervalTime] = useState(1000);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 清除定时器
+  // 组件加载时检查定时发送状态
   useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+    async function checkTimerStatus() {
+      try {
+        const status = await ChannelService.getTimerStatus(channelType);
+        if (status) {
+          // 如果存在定时任务，更新状态
+          const [interval, messageBytes] = status;
+          setIntervalTime(interval);
+          setIsTimerActive(true);
+          
+          // 尝试将字节数组转换回消息
+          try {
+            // 尝试检测是否为文本
+            let isText = true;
+            for (const byte of messageBytes) {
+              if (byte > 127 || (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13)) {
+                isText = false;
+                break;
+              }
+            }
+            
+            if (isText) {
+              // 转换为文本
+              const textDecoder = new TextDecoder();
+              const text = textDecoder.decode(new Uint8Array(messageBytes));
+              setMessage(text);
+              setIsHex(false);
+            } else {
+              // 转换为十六进制
+              const hexArray = messageBytes.map(byte => byte.toString(16).padStart(2, '0'));
+              setMessage(hexArray.join(' '));
+              setIsHex(true);
+            }
+          } catch (e) {
+            console.error('无法解析定时消息内容', e);
+          }
+        }
+      } catch (error) {
+        console.error('获取定时发送状态失败', error);
       }
+    }
+    
+    if (channelType) {
+      checkTimerStatus();
+    }
+    
+    // 组件卸载时清理
+    return () => {
+      // 不需要停止定时发送，因为它现在在后端运行
     };
-  }, []);
-
-  // 当通道类型变化时，停止定时发送
-  useEffect(() => {
-    stopTimer();
   }, [channelType]);
-
-  // 设置发送间隔
-  const updateInterval = (value: number) => {
-    setIntervalTime(value);
-  };
 
   // 切换定时设置显示
   const toggleTimerSettings = () => {
@@ -51,28 +84,35 @@ const MessageSender: React.FC<MessageSenderProps> = ({
   };
 
   // 开始定时发送
-  const startTimer = () => {
+  const startTimer = async () => {
     if (message.trim() === '') return;
     
-    // 先发送一次
-    handleSend();
-    
-    // 设置定时器
-    timerRef.current = setInterval(() => {
-      handleSend();
-    }, intervalTime) as unknown as NodeJS.Timeout;
-    
-    setIsTimerActive(true);
-    setShowTimerSettings(false);
+    try {
+      // 使用后端的定时发送功能
+      await ChannelService.startTimerSend(
+        channelType,
+        message,
+        intervalTime,
+        isHex
+      );
+      
+      setIsTimerActive(true);
+      setShowTimerSettings(false);
+    } catch (error) {
+      console.error('启动定时发送失败', error);
+      setError('启动定时发送失败: ' + (error instanceof Error ? error.message : String(error)));
+    }
   };
 
   // 停止定时发送
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+  const stopTimer = async () => {
+    try {
+      await ChannelService.stopTimerSend(channelType);
+      setIsTimerActive(false);
+    } catch (error) {
+      console.error('停止定时发送失败', error);
+      setError('停止定时发送失败: ' + (error instanceof Error ? error.message : String(error)));
     }
-    setIsTimerActive(false);
   };
 
   // 处理十六进制输入
@@ -160,7 +200,7 @@ const MessageSender: React.FC<MessageSenderProps> = ({
                       type="number"
                       className="input input-bordered input-sm w-20 text-xs"
                       value={intervalTime}
-                      onChange={(e) => updateInterval(Math.max(100, parseInt(e.target.value) || 1000))}
+                      onChange={(e) => setIntervalTime(Math.max(100, parseInt(e.target.value) || 1000))}
                       min="100"
                       disabled={disabled}
                       title="发送间隔 (毫秒)"

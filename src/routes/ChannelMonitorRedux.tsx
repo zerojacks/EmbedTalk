@@ -470,6 +470,9 @@ const ChannelMonitorRedux: React.FC = () => {
     const channelConfigs = useAppSelector(state => state.channel.channels);
     const dispatch = useAppDispatch();
 
+    // Get all message statistics from Redux store
+    const allMessageStats = useAppSelector(state => state.channel.messageStats);
+
     // Local state
     const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -683,6 +686,46 @@ const ChannelMonitorRedux: React.FC = () => {
             }
         }
     }, [channelConfigs]); // 只在 channelConfigs 变化时更新
+
+    // 更新所有通道的消息统计
+    useEffect(() => {
+        setChannels(prevChannels => {
+            return prevChannels.map(channel => {
+                // 获取该通道的消息统计
+                let stats;
+                if (channel.channeltype === 'tcpclient' && channel.address) {
+                    // TCP客户端使用地址作为ID
+                    stats = allMessageStats[channel.address] || { sent: 0, received: 0 };
+                } else {
+                    // 其他通道使用通道ID
+                    stats = allMessageStats[channel.channelid] || { sent: 0, received: 0 };
+                }
+
+                // 更新通道的消息统计
+                const updatedChannel = {
+                    ...channel,
+                    sentCount: stats.sent,
+                    receivedCount: stats.received
+                };
+
+                // 如果是TCP服务器，更新所有客户端的消息统计
+                if (channel.channeltype === 'tcpserver' && channel.clients) {
+                    const updatedClients = channel.clients.map(client => {
+                        const clientId = `${client.ip}:${client.port}`;
+                        const clientStats = allMessageStats[clientId] || { sent: 0, received: 0 };
+                        return {
+                            ...client,
+                            sentCount: clientStats.sent,
+                            receivedCount: clientStats.received
+                        };
+                    });
+                    updatedChannel.clients = updatedClients;
+                }
+
+                return updatedChannel;
+            });
+        });
+    }, [channelConfigs, allMessageStats]); // 依赖于channelConfigs和allMessageStats的变化
 
     // 更新选中通道的消息统计
     useEffect(() => {

@@ -21,7 +21,10 @@ pub mod taurihandler;
 // use once_cell::sync::OnceCell;
 use crate::combridage::ChannelType;
 use crate::config::appconfig::{get_config_value_async, set_config_value_async};
-use crate::taurihandler::ChannelHandler::{connect_channel, disconnect_channel, list_serial_ports, send_message};
+use crate::taurihandler::ChannelHandler::{
+    connect_channel, disconnect_channel, list_serial_ports, send_message,
+    start_timer_send, stop_timer_send, get_timer_status
+};
 use crate::taurihandler::handler::{
     app_close, check_update, get_all_config_item_lists, get_app_info, get_com_list,
     get_protocol_config_item, get_region_value, get_system_theme, on_text_change, save_file,
@@ -112,6 +115,9 @@ fn main() {
             save_protocol_config_item,
             list_serial_ports,
             send_message,
+            start_timer_send,
+            stop_timer_send,
+            get_timer_status,
             open_window,
             update_window_position,
             get_window_position

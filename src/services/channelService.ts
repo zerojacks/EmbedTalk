@@ -215,6 +215,113 @@ export class ChannelService {
   }
   
   /**
+   * 启动定时发送
+   * @param channelType 通道类型
+   * @param message 消息内容
+   * @param intervalMs 发送间隔（毫秒）
+   * @param isHex 是否为十六进制格式
+   */
+  static async startTimerSend(
+    channelType: ChannelType,
+    message: string,
+    intervalMs: number,
+    isHex: boolean = false
+  ): Promise<void> {
+    try {
+      // 获取通道ID
+      const channelId = this.channelIds.get(channelType);
+      if (!channelId) {
+        throw new Error(`通道未连接: ${channelType}`);
+      }
+      
+      // 处理消息内容
+      let messageBytes: number[] = [];
+      
+      if (isHex) {
+        // 移除所有空格，确保格式正确
+        const cleanHex = message.replace(/\s+/g, '');
+        
+        // 验证十六进制格式
+        if (!/^[0-9A-Fa-f]*$/.test(cleanHex)) {
+          throw new Error('无效的十六进制格式');
+        }
+        
+        // 将十六进制字符串转换为字节数组
+        for (let i = 0; i < cleanHex.length; i += 2) {
+          const byte = parseInt(cleanHex.substr(i, 2), 16);
+          messageBytes.push(byte);
+        }
+      } else {
+        // 普通文本转换为字节数组
+        for (let i = 0; i < message.length; i++) {
+          messageBytes.push(message.charCodeAt(i));
+        }
+      }
+
+      console.log(`启动定时发送到 ${channelType} (ID: ${channelId})`, { 
+        message,
+        messageBytes,
+        intervalMs,
+        isHex
+      });
+
+      return invoke('start_timer_send', {
+        channelId,
+        message: messageBytes,
+        intervalMs
+      });
+    } catch (error) {
+      console.error(`启动定时发送失败:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 停止定时发送
+   * @param channelType 通道类型
+   */
+  static async stopTimerSend(channelType: ChannelType): Promise<void> {
+    try {
+      // 获取通道ID
+      const channelId = this.channelIds.get(channelType);
+      if (!channelId) {
+        throw new Error(`通道未连接: ${channelType}`);
+      }
+
+      console.log(`停止定时发送 ${channelType} (ID: ${channelId})`);
+
+      return invoke('stop_timer_send', {
+        channelId
+      });
+    } catch (error) {
+      console.error(`停止定时发送失败:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取定时发送状态
+   * @param channelType 通道类型
+   * @returns 如果正在定时发送，返回 [间隔毫秒, 消息字节数组]，否则返回 null
+   */
+  static async getTimerStatus(channelType: ChannelType): Promise<[number, number[]] | null> {
+    try {
+      // 获取通道ID
+      const channelId = this.channelIds.get(channelType);
+      if (!channelId) {
+        throw new Error(`通道未连接: ${channelType}`);
+      }
+
+      return invoke<[number, number[]] | null>('get_timer_status', {
+        channelId
+      });
+    } catch (error) {
+      console.error(`获取定时发送状态失败:`, error);
+      throw error;
+    }
+  }
+  
+  /**
    * 获取通道ID
    * @param channelType 通道类型
    * @returns 通道ID
