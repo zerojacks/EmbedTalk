@@ -18,6 +18,8 @@ use tokio::time::{sleep, timeout, Duration};
 //global.rs
 use crate::combridage::messagemanager::{MessageDirection, MessageManager};
 use crate::global::get_app_handle;
+use bincode;
+
 #[derive(Clone, Debug)]
 pub struct TcpClientChannel {
     adress: String,
@@ -184,10 +186,16 @@ impl TcpClientChannel {
         message_manager: MessageManager,
     ) -> Result<(), IoError> {
         while let Some(data) = rx_send.recv().await {
-            let message: serde_json::Value = serde_json::from_slice(&data)?;
-            let message = Message::new(message);
-            println!("TcpClientChannel received {:?}", message);
-            message_manager
+            // 直接写入数据，不尝试解析
+            writer.write_all(&data).await?;
+            writer.flush().await?;
+            
+            println!("TcpClientChannel sent data of size: {}", data.len());
+            let payload = serde_json::json!({
+                "data": data
+            });
+            let message = Message::new(payload);
+            let _ = message_manager
                 .record_message(
                     "tcpclient",
                     &self.adress.clone(),
@@ -195,9 +203,8 @@ impl TcpClientChannel {
                     MessageDirection::Sent,
                     None,
                 )
-                .await
-                .map_err(|e| IoError::new(io::ErrorKind::Other, e))?; // 修改此行
-            writer.write_all(&data).await?;
+            .await
+            .map_err(|e| IoError::new(io::ErrorKind::Other, e))?; // 修改此行
         }
         Ok(())
     }
@@ -319,13 +326,38 @@ impl TcpClientChannel {
 #[async_trait]
 impl CommunicationChannel for TcpClientChannel {
     async fn send(&self, message: &Message) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let mut stream = self.stream.lock().await;
-        let message_bytes = bincode::serialize(message)?;
+        // 获取消息内容
+        let content = message.get_content();
+        
+        // 从消息内容中提取 data 字段
+        let bytes_to_send = if content.is_object() && content.get("data").is_some() {
+            let data = &content["data"];
+            
+            if data.is_array() {
+                // 如果 data 是数组，将其转换为字节数组
+                let mut bytes = Vec::new();
+                for item in data.as_array().unwrap() {
+                    if let Some(byte) = item.as_u64() {
+                        bytes.push(byte as u8);
+                    }
+                }
+                bytes
+            } else {
+                // 如果 data 不是数组，序列化 data 字段
+                serde_json::to_vec(data)
+                    .map_err(|e| Box::<dyn Error + Send + Sync>::from(format!("Failed to serialize data field: {:?}", e)))?
+            }
+        } else {
+            // 如果没有 data 字段，序列化整个内容
+            serde_json::to_vec(content)
+                .map_err(|e| Box::<dyn Error + Send + Sync>::from(format!("Failed to serialize message content: {:?}", e)))?
+        };
 
-        // 发送提取的 u8 数组
-        stream.write_all(&message_bytes).await?;
-        stream.flush().await?;
-        println!("TcpClientChannel sent {:?}", message_bytes);
+        // 使用 tx_send 发送提取的数据
+        self.tx_send.send(bytes_to_send).await
+            .map_err(|e| Box::<dyn Error + Send + Sync>::from(format!("Failed to send message: {:?}", e)))?;
+            
+        println!("TcpClientChannel sent data of size: ");
         Ok(())
     }
 

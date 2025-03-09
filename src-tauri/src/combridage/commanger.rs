@@ -8,22 +8,29 @@ use crate::combridage::TcpClientChannel;
 use crate::combridage::TcpServerChannel;
 use rumqttc::QoS;
 use std::collections::HashMap;
+use std::error::Error;
+use std::sync::Arc;
+use async_trait::async_trait;
+use serde_json::Value;
+use uuid::Uuid;
 
 pub struct CommunicationManager {
     channels: HashMap<ChannelType, Box<dyn CommunicationChannel>>,
+    channel_ids: HashMap<ChannelType, String>,
 }
 
 impl CommunicationManager {
     pub fn new() -> Self {
         CommunicationManager {
             channels: HashMap::new(),
+            channel_ids: HashMap::new(),
         }
     }
 
     pub async fn add_channel(
         &mut self,
         channel_type: ChannelType,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<String, Box<dyn Error + Send + Sync>> {
         let channel: Box<dyn CommunicationChannel> = match &channel_type {
             ChannelType::TcpClient(ipaddr, port) => {
                 Box::new(TcpClientChannel::new(ipaddr, *port).await?)
@@ -78,15 +85,23 @@ impl CommunicationManager {
                 Box::new(BluetoothChannel::new().await?)
             }
         };
-        self.channels.insert(channel_type, channel);
-        Ok(())
+
+        // 生成唯一的通道ID
+        let channel_id = Uuid::new_v4().to_string();
+        
+        // 存储通道和通道ID的映射关系
+        self.channels.insert(channel_type.clone(), channel);
+        self.channel_ids.insert(channel_type, channel_id.clone());
+        
+        // 返回通道ID
+        Ok(channel_id)
     }
 
     pub async fn send(
         &self,
         channel_type: &ChannelType,
         message: &Message,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         if let Some(channel) = self.channels.get(channel_type) {
             channel.send(message).await
         } else {
@@ -97,7 +112,7 @@ impl CommunicationManager {
     pub async fn receive(
         &self,
         channel_type: &ChannelType,
-    ) -> Result<Message, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Message, Box<dyn Error + Send + Sync>> {
         if let Some(channel) = self.channels.get(channel_type) {
             channel.receive().await
         } else {
@@ -110,7 +125,7 @@ impl CommunicationManager {
         channel_type: &ChannelType,
         message: &Message,
         timeout_secs: u64,
-    ) -> Result<Message, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Message, Box<dyn Error + Send + Sync>> {
         if let Some(channel) = self.channels.get(channel_type) {
             channel.send_and_wait(message, timeout_secs).await
         } else {
@@ -121,7 +136,7 @@ impl CommunicationManager {
     pub async fn close(
         &self,
         channel_type: &ChannelType,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         if let Some(channel) = self.channels.get(channel_type) {
             // 使用 `?` 运算符来传播错误
             channel.close().await?;

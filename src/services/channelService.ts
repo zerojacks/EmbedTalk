@@ -13,6 +13,9 @@ export class ChannelService {
   private static channelStateUnlistener: UnlistenFn | null = null;
   private static messageUnlistener: UnlistenFn | null = null;
   private static dispatch: ThunkDispatch<RootState, undefined, AnyAction> | null = null;
+  
+  // 存储通道ID映射
+  private static channelIds: Map<ChannelType, string> = new Map();
 
   /**
    * 初始化通道服务，设置全局监听器
@@ -83,12 +86,23 @@ export class ChannelService {
    * 连接通道
    * @param channelType 通道类型
    * @param params 连接参数
+   * @returns 通道ID
    */
-  static async connectChannel(channelType: ChannelType, params: ConnectionParams): Promise<void> {
-    return invoke('connect_channel', { 
-      channel: channelType, 
-      values: JSON.stringify(params) 
-    });
+  static async connectChannel(channelType: ChannelType, params: ConnectionParams): Promise<string> {
+    try {
+      const channelId = await invoke<string>('connect_channel', { 
+        channel: channelType, 
+        values: JSON.stringify(params) 
+      });
+      
+      // 存储通道ID
+      this.channelIds.set(channelType, channelId);
+      
+      return channelId;
+    } catch (error) {
+      console.error(`连接通道失败: ${channelType}`, error);
+      throw error;
+    }
   }
 
   /**
@@ -97,10 +111,24 @@ export class ChannelService {
    * @param params 连接参数
    */
   static async disconnectChannel(channelType: ChannelType, params: ConnectionParams): Promise<void> {
-    return invoke('disconnect_channel', { 
-      channel: channelType, 
-      values: JSON.stringify(params) 
-    });
+    try {
+      // 获取通道ID
+      const channelId = this.channelIds.get(channelType);
+      if (!channelId) {
+        throw new Error(`通道未连接: ${channelType}`);
+      }
+      
+      // 调用后端断开连接
+      await invoke('disconnect_channel', { 
+        channelId 
+      });
+      
+      // 移除通道ID
+      this.channelIds.delete(channelType);
+    } catch (error) {
+      console.error(`断开通道失败: ${channelType}`, error);
+      throw error;
+    }
   }
 
   /**
@@ -126,5 +154,72 @@ export class ChannelService {
    */
   static async listSerialPorts(): Promise<string[]> {
     return invoke('list_serial_ports');
+  }
+
+  /**
+   * 发送消息
+   * @param channelType 通道类型
+   * @param message 消息内容
+   * @param isHex 是否为十六进制格式
+   */
+  static async sendMessage(
+    channelType: ChannelType, 
+    message: string, 
+    isHex: boolean = false
+  ): Promise<void> {
+    try {
+      // 获取通道ID
+      const channelId = this.channelIds.get(channelType);
+      if (!channelId) {
+        throw new Error(`通道未连接: ${channelType}`);
+      }
+      
+      // 处理消息内容
+      let messageBytes: number[] = [];
+      
+      if (isHex) {
+        // 移除所有空格，确保格式正确
+        const cleanHex = message.replace(/\s+/g, '');
+        
+        // 验证十六进制格式
+        if (!/^[0-9A-Fa-f]*$/.test(cleanHex)) {
+          throw new Error('无效的十六进制格式');
+        }
+        
+        // 将十六进制字符串转换为字节数组
+        for (let i = 0; i < cleanHex.length; i += 2) {
+          const byte = parseInt(cleanHex.substr(i, 2), 16);
+          messageBytes.push(byte);
+        }
+      } else {
+        // 普通文本转换为字节数组
+        for (let i = 0; i < message.length; i++) {
+          messageBytes.push(message.charCodeAt(i));
+        }
+      }
+
+      console.log(`发送消息到 ${channelType} (ID: ${channelId})`, { 
+        message,
+        messageBytes,
+        isHex
+      });
+
+      return invoke('send_message', {
+        channelId: channelId,
+        message: messageBytes
+      });
+    } catch (error) {
+      console.error(`发送消息失败:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * 获取通道ID
+   * @param channelType 通道类型
+   * @returns 通道ID
+   */
+  static getChannelId(channelType: ChannelType): string | undefined {
+    return this.channelIds.get(channelType);
   }
 }

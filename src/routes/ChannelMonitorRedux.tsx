@@ -34,6 +34,9 @@ import {
     clearChannelMessages 
 } from '../store/slices/channelSlice';
 import { RootState } from '../store';
+import MessageSender from '../components/MessageSender';
+import { ChannelService } from '../services/channelService';
+import { toast } from '../context/ToastProvider';
 
 // 辅助函数 - 获取通道类型名称
 const getChannelTypeName = (type: ChannelType): string => {
@@ -449,13 +452,16 @@ const mapReduxStateToChannelState = (state: ConnectionState): ConnectionState =>
     return state;
 };
 
-// 分隔面板的拖动把手组件
+// 水平分隔面板的拖动把手组件
 const ResizeHandle = () => (
-    <PanelResizeHandle className="w-1 hover:w-1 group relative">
-        <div className="absolute top-0 right-0 bottom-0 left-0 group-hover:bg-primary/20 transition-colors">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-8 rounded-full bg-base-300 group-hover:bg-primary/50 transition-colors" />
-        </div>
+    <PanelResizeHandle className="w-0.5 bg-base-300 hover:bg-primary/50 transition-colors cursor-col-resize group relative">
+        <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-transparent" />
     </PanelResizeHandle>
+);
+
+// 垂直分隔面板的拖动把手组件
+const VerticalResizeHandle = () => (
+    <PanelResizeHandle className="h-0.5 bg-base-300 hover:bg-primary/50 transition-colors cursor-row-resize" />
 );
 
 // Main Component
@@ -866,63 +872,114 @@ const ChannelMonitorRedux: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* 消息列表 */}
-                            <MessageList
-                                messages={selectedClient ? selectedClient.messages : messages}
-                                className="flex-1"
-                                onClearMessages={() => {
-                                    // 创建一个更新后的对象，清空消息并重置计数器
-                                    if (selectedClient) {
-                                        // 获取客户端ID
-                                        const clientId = `${selectedClient.ip}:${selectedClient.port}`;
+                            {/* 消息列表和发送组件 */}
+                            <div className="flex-1 overflow-hidden">
+                                {selectedChannel.state === 'connected' ? (
+                                    <PanelGroup direction="vertical">
+                                        <Panel defaultSize={80} minSize={30}>
+                                            <MessageList
+                                                messages={selectedClient ? selectedClient.messages : messages}
+                                                className="h-full"
+                                                onClearMessages={() => {
+                                                    // 创建一个更新后的对象，清空消息并重置计数器
+                                                    if (selectedClient) {
+                                                        // 获取客户端ID
+                                                        const clientId = `${selectedClient.ip}:${selectedClient.port}`;
+                                                        
+                                                        // 清空 Redux store 中的消息
+                                                        dispatch(clearChannelMessages(clientId));
+                                                        
+                                                        // 更新客户端对象
+                                                        const updatedClient = { 
+                                                            ...selectedClient, 
+                                                            messages: [],
+                                                            sentCount: 0,
+                                                            receivedCount: 0
+                                                        };
+                                                        setSelectedClient(updatedClient);
+                                                        
+                                                        // 更新所属通道的客户端列表
+                                                        if (selectedChannel && selectedChannel.clients) {
+                                                            const updatedClients = selectedChannel.clients.map(client => 
+                                                                client.channelid === updatedClient.channelid ? updatedClient : client
+                                                            );
+                                                            setSelectedChannel({
+                                                                ...selectedChannel,
+                                                                clients: updatedClients
+                                                            });
+                                                        }
+                                                    } else if (selectedChannel) {
+                                                        // 获取通道ID
+                                                        let channelId = selectedChannel.channelid;
+                                                        
+                                                        // 如果是TCP客户端通道，并且有地址信息，使用地址作为ID
+                                                        if (selectedChannel.channeltype === 'tcpclient' && selectedChannel.address) {
+                                                            channelId = selectedChannel.address;
+                                                        }
+                                                        
+                                                        // 清空 Redux store 中的消息
+                                                        dispatch(clearChannelMessages(channelId));
+                                                        
+                                                        // 更新通道对象
+                                                        setSelectedChannel({
+                                                            ...selectedChannel,
+                                                            messages: [],
+                                                            sentCount: 0,
+                                                            receivedCount: 0
+                                                        });
+                                                    }
+                                                    
+                                                    // 可以考虑添加一个通知提示
+                                                    console.log('消息已清空，计数器已重置');
+                                                }}
+                                            />
+                                        </Panel>
                                         
-                                        // 清空 Redux store 中的消息
-                                        dispatch(clearChannelMessages(clientId));
+                                        <VerticalResizeHandle />
                                         
-                                        // 更新客户端对象
-                                        const updatedClient = { 
-                                            ...selectedClient, 
-                                            messages: [],
-                                            sentCount: 0,
-                                            receivedCount: 0
-                                        };
-                                        setSelectedClient(updatedClient);
-                                        
-                                        // 更新所属通道的客户端列表
-                                        if (selectedChannel && selectedChannel.clients) {
-                                            const updatedClients = selectedChannel.clients.map(client => 
-                                                client.channelid === updatedClient.channelid ? updatedClient : client
-                                            );
-                                            setSelectedChannel({
-                                                ...selectedChannel,
-                                                clients: updatedClients
-                                            });
-                                        }
-                                    } else if (selectedChannel) {
-                                        // 获取通道ID
-                                        let channelId = selectedChannel.channelid;
-                                        
-                                        // 如果是TCP客户端通道，并且有地址信息，使用地址作为ID
-                                        if (selectedChannel.channeltype === 'tcpclient' && selectedChannel.address) {
-                                            channelId = selectedChannel.address;
-                                        }
-                                        
-                                        // 清空 Redux store 中的消息
-                                        dispatch(clearChannelMessages(channelId));
-                                        
-                                        // 更新通道对象
-                                        setSelectedChannel({
-                                            ...selectedChannel,
-                                            messages: [],
-                                            sentCount: 0,
-                                            receivedCount: 0
-                                        });
-                                    }
-                                    
-                                    // 可以考虑添加一个通知提示
-                                    console.log('消息已清空，计数器已重置');
-                                }}
-                            />
+                                        <Panel defaultSize={20} minSize={15}>
+                                            {/* 消息发送组件 */}
+                                            <div className="h-full">
+                                                <MessageSender
+                                                    channelType={selectedChannel.channeltype}
+                                                    onSendMessage={async (message, isHex) => {
+                                                        try {
+                                                            await ChannelService.sendMessage(
+                                                                selectedChannel.channeltype,
+                                                                message,
+                                                                isHex
+                                                            );
+                                                            
+                                                            // 显示成功提示
+                                                            toast.success(
+                                                                `成功发送${isHex ? "十六进制" : "ASCII"}消息`,
+                                                                'end',
+                                                                'bottom',
+                                                                2000
+                                                            );
+                                                        } catch (error) {
+                                                            console.error('发送消息失败:', error);
+                                                            
+                                                            // 显示错误提示
+                                                            toast.error(
+                                                                `消息发送失败: ${error instanceof Error ? error.message : String(error)}`,
+                                                                'end',
+                                                                'bottom',
+                                                                3000
+                                                            );
+                                                        }
+                                                    }}
+                                                    disabled={selectedChannel.state !== 'connected'}
+                                                />
+                                            </div>
+                                        </Panel>
+                                    </PanelGroup>
+                                ) : (
+                                    <div className="h-full flex items-center justify-center text-gray-500">
+                                        <p>通道未连接，请先连接通道</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     ) : (
                         <div className="h-full flex items-center justify-center text-gray-500">

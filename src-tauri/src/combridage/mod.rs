@@ -38,12 +38,17 @@ pub struct Message {
 }
 
 impl Message {
-    fn new(content: Value) -> Self {
+    pub fn new(content: Value) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             content: content,
             timestamp: chrono::Utc::now().timestamp_millis(), // 使用 timestamp_millis 获取毫秒级时间戳
         }
+    }
+    
+    // 添加 getter 方法，获取 content 字段
+    pub fn get_content(&self) -> &Value {
+        &self.content
     }
 }
 
