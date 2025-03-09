@@ -150,8 +150,1006 @@
         <length>6</length>
         <time>ssmmhhDDMMYY</time>
     </dataItem>
+    <dataItem id="EC020409" protocol="moudle" region="南网">
+        <name>模块控制模式字</name>
+        <length>2</length>
+        <splitbit>
+            <bit id="0-6">
+                <name>保留</name>
+            </bit>
+            <bit id="7">
+                <name>主动上报</name>
+                <value key="00">允许主动上报</value>
+                <value key="01">不允许主动上报</value>
+            </bit>
+        </splitbit>
+    </dataItem> 
+    <dataItem id="EC050501" protocol="moudle" region="南网">
+        <name>上报复位信息</name>
+        <length>2</length>
+        <splitbit>
+            <bit id="0-6">
+                <name>保留</name>
+            </bit>
+            <bit id="7">
+                <name>复位后需要重设时钟</name>
+                <value key="00">不需要重设时钟</value>
+                <value key="01">需要重设时钟</value>
+            </bit>
+        </splitbit>
+    </dataItem> 
+    <dataItem id="EC060601" protocol="moudle" region="南网" dir="1">
+        <name>请求终端时间</name>
+        <length>0</length>
+    </dataItem> 
+    <dataItem id="EC060601" protocol="moudle" region="南网" dir="0">
+        <name>请求终端时间</name>
+        <length>6</length>
+        <time>ssmmhhDDMMYY</time>
+    </dataItem> 
+    <dataItem id="EC020701" protocol="moudle" region="南网" dir="1">
+        <name>启动文件传输</name>
+        <length>17</length>
+        <splitByLength>
+            <name>文件性质</name>
+            <length>1</length>
+            <type>BIN</type>
+            <value key="00">清除下装文件</value>
+            <value key="04">USB 功能模块</value>
+        </splitByLength>
+        <splitByLength>
+            <name>文件 ID</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>目的地址</name>
+            <length>6</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>文件总段数 n</name>
+            <length>2</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>文件大小</name>
+            <length>4</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>文件总校验</name>
+            <length>2</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>文件传输超时时间</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+    </dataItem> 
+    <dataItem id="EC020702" protocol="moudle" region="南网" dir="0">
+        <name>传输文件内容</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>文件段号</name>
+            <length>2</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>文件段长度</name>
+            <length>2</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>文件段内容</name>
+            <length>unknown</length>
+            <lengthrule>1 * 文件段长度</lengthrule>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>文件段校验</name>
+            <length>2</length>
+            <type>BIN</type>
+        </splitByLength>
+    </dataItem> 
+    <dataItem id="EC000703" protocol="moudle" region="南网" dir="0">
+        <name>请求文件信息</name>
+        <length>0</length>
+    </dataItem> 
+    <dataItem id="EC000703" protocol="moudle" region="南网" dir="1">
+        <name>请求文件信息</name>
+        <length>18</length>
+        <splitByLength>
+            <name>文件性质</name>
+            <length>1</length>
+            <type>BIN</type>
+            <value key="00">清除下装文件</value>
+            <value key="04">USB 功能模块</value>
+        </splitByLength>
+        <splitByLength>
+            <name>文件 ID</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>目的地址</name>
+            <length>6</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>文件总段数 n</name>
+            <length>2</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>文件大小</name>
+            <length>4</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>文件总校验</name>
+            <length>2</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>已成功接收文件段数 m</name>
+            <length>2</length>
+            <type>BIN</type>
+            <value key="00">尚未开始传输</value>
+        </splitByLength>
+    </dataItem> 
+    <dataItem id="EC004101" protocol="moudle" region="南网" dir="1">
+        <name>查询最近一次遥信脉冲数据</name>
+        <length>0</length>
+    </dataItem> 
+    <dataItem id="EC004101" protocol="moudle" region="南网" dir="0">
+        <name>查询最近一次遥信脉冲数据</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>有效遥信脉冲路数</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>遥信变位总次数</name>
+            <length>4</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>最近 1 次遥信状态</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>最近 1 次变位状态</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>最近 1 次遥信变位时间</name>
+            <length>8</length>
+            <time>YYMMDDhhmmssxxxx</time>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>遥信脉冲数据</name>
+            <length>unknown</length>
+            <lengthrule>18 * 有效遥信脉冲路数</lengthrule>
+            <type>YAOXINDATA</type>
+        </splitByLength>
+    </dataItem> 
+    <dataItem id="EC004102" protocol="moudle" region="南网" dir="0">
+        <name>查询最近10次遥信变位记录</name>
+        <length>0</length>
+    </dataItem> 
+    <dataItem id="EC004102" protocol="moudle" region="南网" dir="1">
+        <name>查询最近10次遥信变位记录</name>
+        <length>105</length>
+        <splitByLength>
+            <name>有效遥信脉冲路数</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>遥信变位总次数</name>
+            <length>4</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>遥信变位数据</name>
+            <length>100</length>
+            <lengthrule>10 * 10</lengthrule>
+            <type>YAOXINCHANGEDATA</type>
+        </splitByLength>
+    </dataItem> 
+    <dataItem id="EC004103" protocol="moudle" region="南网" dir="0">
+        <name>查询遥信防抖时间</name>
+        <length>0</length>
+    </dataItem> 
+    <dataItem id="EC004103" protocol="moudle" region="南网" dir="1">
+        <name>查询遥信防抖时间</name>
+        <length>2</length>
+        <splitByLength>
+            <name>遥信防抖时间</name>
+            <length>2</length>
+            <type>BIN</type>
+        </splitByLength>
+    </dataItem> 
+    <dataItem id="EC024104" protocol="moudle" region="南网">
+        <name>设置遥信防抖时间</name>
+        <length>2</length>
+        <type>BIN</type>
+        <unit>毫秒</unit>
+    </dataItem> 
+    <dataItem id="EC004105" protocol="moudle" region="南网" dir="0">
+        <name>查询通道功能配置</name>
+        <length>0</length>
+    </dataItem> 
+    <dataItem id="EC004105" protocol="moudle" region="南网" dir="1">
+        <name>查询通道功能配置</name>
+        <length>1</length>
+        <type>BIN</type>
+        <splitbit>
+            <bit id="0">
+                <name>第1路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="1">
+                <name>第2路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="2">
+                <name>第3路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="3">
+                <name>第4路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="4">
+                <name>第5路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="5">
+                <name>第6路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="6">
+                <name>第7路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="7">
+                <name>第8路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+        </splitbit>
+    </dataItem> 
+    <dataItem id="EC024106" protocol="moudle" region="南网">
+        <name>设置通道功能配置</name>
+        <length>1</length>
+        <type>BIN</type>
+        <splitbit>
+            <bit id="0">
+                <name>第1路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="1">
+                <name>第2路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="2">
+                <name>第3路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="3">
+                <name>第4路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="4">
+                <name>第5路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="5">
+                <name>第6路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="6">
+                <name>第7路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+            <bit id="7">
+                <name>第8路的功能配置</name>
+                <value key="0">遥信功能</value>
+                <value key="1">脉冲计数功能</value>
+            </bit>
+        </splitbit>
+    </dataItem> 
+    <dataItem id="EC054201" protocol="moudle" region="南网">
+        <name>遥信变位上报</name>
+        <length>15</length>
+        <splitByLength>
+            <name>有效遥信脉冲路数</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>遥信变位总次数</name>
+            <length>4</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>最近 1 次遥信状态</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>最近 1 次遥信变位状态</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>最近 1 次遥信变位时间</name>
+            <length>8</length>
+            <time>YYMMDDhhmmssxxxx</time>
+            <type>BIN</type>
+        </splitByLength>
+    </dataItem> 
+    <dataItem id="EC024301" protocol="moudle" region="南网">
+        <name>设置遥控开关输出模式</name>
+        <length>17</length>
+        <splitByLength>
+            <name>遥控开关输出模式</name>
+            <length>1</length>
+            <type>BIN</type>
+            <value key="00">脉冲模式</value>
+            <value key="01">电平模式</value>
+        </splitByLength>
+        <splitByLength>
+            <name>第 1 路遥控开关输出脉冲宽度</name>
+            <length>2</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 2 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 3 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 4 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 5 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 6 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 7 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 8 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+    </dataItem> 
+    <dataItem id="EC004302" protocol="moudle" region="南网">
+        <name>查询遥控开关输出模式</name>
+        <length>17</length>
+                <splitByLength>
+            <name>遥控开关输出模式</name>
+            <length>1</length>
+            <type>BIN</type>
+            <value key="00">脉冲模式</value>
+            <value key="01">电平模式</value>
+        </splitByLength>
+        <splitByLength>
+            <name>第 1 路遥控开关输出脉冲宽度</name>
+            <length>2</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 2 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 3 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 4 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 5 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 6 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 7 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>第 8 路遥控开关输出脉冲宽度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="EC004303" protocol="moudle" region="南网" dir="0">
+        <name>查询控制回路状态</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="EC004303" protocol="moudle" region="南网" dir="1">
+        <name>查询控制回路状态</name>
+        <length>2</length>
+        <type>BIN</type>
+        <value key="0000">回路正常</value>
+        <value key="0001">回路断开</value>
+    </dataItem>
+    <dataItem id="EC024304" protocol="moudle" region="南网">
+        <name>设置控制命令状态</name>
+        <length>4</length>
+        <splitByLength>
+            <name>控制开关输出状态</name>
+            <length>2</length>
+            <type>BIN</type>
+            <value key="00">停止</value>
+            <value key="01">启动</value>
+        </splitByLength>
+        <splitByLength>
+            <name>控制开关输出状态</name>
+            <length>2</length>
+            <type>BIN</type>
+            <splitbit>
+                <bit id="0-1">
+                    <name>第1路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="2-3">
+                    <name>第2路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="4-5">
+                    <name>第3路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="6-7">
+                    <name>第4路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="8-9">
+                    <name>第5路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="10-11">
+                    <name>第6路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="12-13">
+                    <name>第7路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="14-15">
+                    <name>第8路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+            </splitbit>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="EC004305" protocol="moudle" region="南网" dir="0">
+        <name>查询控制开关输出状态</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="EC004305" protocol="moudle" region="南网" dir="1">
+        <name>查询控制开关输出状态</name>
+        <length>4</length>
+        <splitByLength>
+            <name>控制开关输出状态</name>
+            <length>2</length>
+            <type>BIN</type>
+            <value key="00">停止</value>
+            <value key="01">启动</value>
+        </splitByLength>
+        <splitByLength>
+            <name>控制开关输出状态</name>
+            <length>2</length>
+            <type>BIN</type>
+            <splitbit>
+                <bit id="0-1">
+                    <name>第1路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="2-3">
+                    <name>第2路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="4-5">
+                    <name>第3路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="6-7">
+                    <name>第4路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="8-9">
+                    <name>第5路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="10-11">
+                    <name>第6路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="12-13">
+                    <name>第7路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+                <bit id="14-15">
+                    <name>第8路控制指示灯状态</name>
+                    <value key="00">长灭</value>
+                    <value key="01">长亮</value>
+                    <value key="10">1Hz 频率闪烁(0.5s 亮，0.5s 灭)</value>
+                    <value key="11">0.5Hz 频率闪烁(1s 亮，1s 灭)</value>
+                </bit>
+            </splitbit>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="EC004401" protocol="moudle" region="南网" dir="0">
+        <name>模拟量值及单位</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="EC004401" protocol="moudle" region="南网" dir="1">
+        <name>模拟量值及单位</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>模拟量路数</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>模拟量采集数据</name>
+            <length>unknown</length>
+            <lengthrule>6 * 模拟量路数</lengthrule>
+            <type>PHYSICALREADDATA</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="EC004501" protocol="moudle" region="南网" dir="0">
+        <name>查询电池基本信息</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="EC004501" protocol="moudle" region="南网" dir="1">
+        <name>查询电池基本信息</name>
+        <length>29</length>
+        <splitByLength>
+            <name>电芯厂家</name>
+            <length>12</length>
+            <type>ASCII</type>
+        </splitByLength>
+        <splitByLength>
+            <name>电芯型号</name>
+            <length>12</length>
+            <type>ASCII</type>
+        </splitByLength>
+        <splitByLength>
+            <name>额定容量</name>
+            <length>2</length>
+            <type>BIN</type>
+            <unit>mAh</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>额定充放次数</name>
+            <length>2</length>
+            <type>BIN</type>
+            <unit>次</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>额定电压</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="EC004502" protocol="moudle" region="南网" dir="0">
+        <name>查询电池当前信息</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="EC004502" protocol="moudle" region="南网" dir="1">
+        <name>查询电池当前信息</name>
+        <length>22</length>
+        <splitByLength>
+            <name>当前电池容量</name>
+            <length>2</length>
+            <type>BIN</type>
+            <unit>mAh</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>当前电池电量</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>%</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>当前充放状态</name>
+            <length>1</length>
+            <type>BIN</type>
+            <value key="00">待机状态</value>
+            <value key="01">恒流充电</value>
+            <value key="02">恒压充电</value>
+            <value key="03">涓流充电</value>
+            <value key="04">正常供电</value>
+            <value key="05">涓流放电</value>
+            <value key="06">维护放电</value>
+            <value key="other">其他状态</value>
+        </splitByLength>
+        <splitByLength>
+            <name>当前电池电压</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>0.1V</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>当前电池电流</name>
+            <length>2</length>
+            <type>BIN</type>
+            <unit>mA</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>当前电池温度</name>
+            <length>1</length>
+            <type>BIN</type>
+            <unit>°C</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>上次充电时间</name>
+            <length>6</length>
+            <type>BIN</type>
+            <time>YYMMDDhhmmss</time>
+        </splitByLength>
+        <splitByLength>
+            <name>当前充电次数</name>
+            <length>2</length>
+            <type>BIN</type>
+            <unit>次</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>上次放电时间</name>
+            <length>6</length>
+            <type>BIN</type>
+            <time>YYMMDDhhmmss</time>
+        </splitByLength>
+        <splitByLength>
+            <name>当前放电次数</name>
+            <length>2</length>
+            <type>BIN</type>
+            <unit>次</unit>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="EC004503" protocol="moudle" region="南网" dir="0">
+        <name>查询电池状态字</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="EC004503" protocol="moudle" region="南网" dir="1">
+        <name>查询电池状态字</name>
+        <length>6</length>
+        <splitByLength>
+            <name>电池异常发生总次数</name>
+            <length>2</length>
+            <type>BIN</type>
+            <unit>次</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>电池状态字</name>
+            <length>2</length>
+            <type>BIN</type>
+            <splitbit>
+                <bit id="0">
+                    <name>其他异常</name>
+                </bit>
+                <bit id="1">
+                    <name>温度过高</name>
+                </bit>
+                <bit id="2">
+                    <name>电池欠压</name>
+                </bit>
+                <bit id="3">
+                    <name>过充</name>
+                </bit>
+                <bit id="4">
+                    <name>过放</name>
+                </bit>
+                <bit id="5">
+                    <name>寿命耗尽</name>
+                </bit>
+                <bit id="6">
+                    <name>维护</name>
+                </bit>
+                <bit id="7">
+                    <name>保留</name>
+                </bit>
+            </splitbit>
+            <splitbit>
+                <bit id="8-15">
+                    <name>保留</name>
+                </bit>
+            </splitbit>
+        </splitByLength>
+        <splitByLength>
+            <name>电池状态变位标志</name>
+            <length>2</length>
+            <type>BIN</type>
+            <splitbit>
+                <bit id="0">
+                    <name>其他异常</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="1">
+                    <name>温度过高</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="2">
+                    <name>电池欠压</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="3">
+                    <name>过充</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="4">
+                    <name>过放</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="5">
+                    <name>寿命耗尽</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="6">
+                    <name>维护</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="7">
+                    <name>保留</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="7">
+                    <name>保留</name>
+                </bit>
+            </splitbit>
+            <splitbit>
+                <bit id="8-15">
+                    <name>保留</name>
+                </bit>
+            </splitbit>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="EC024504" protocol="moudle" region="南网">
+        <name>电池充电回路控制</name>
+        <length>1</length>
+        <type>BIN</type>
+        <value key="00">停止电池输出</value>
+        <value key="01">启动电池输出</value>
+    </dataItem>
+    <dataItem id="EC024505" protocol="moudle" region="南网">
+        <name>电池维护管理</name>
+        <length>1</length>
+        <type>BIN</type>
+        <value key="00">停止维护</value>
+        <value key="01">启动维护</value>
+    </dataItem>
+    <dataItem id="EC024506" protocol="moudle" region="南网">
+        <name>电池放电回路控制</name>
+        <length>1</length>
+        <type>BIN</type>
+        <value key="00">停止电池输出</value>
+        <value key="01">启动电池输出</value>
+    </dataItem>
+    <dataItem id="EC054601" protocol="moudle" region="南网">
+        <name>电池状态字上报</name>
+        <length>6</length>
+        <type>BIN</type>
+        <splitByLength>
+            <name>电池异常发生总次数</name>
+            <length>2</length>
+            <type>BIN</type>
+            <unit>次</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>电池状态字</name>
+            <length>2</length>
+            <type>BIN</type>
+            <splitbit>
+                <bit id="0">
+                    <name>其他异常</name>
+                </bit>
+                <bit id="1">
+                    <name>温度过高</name>
+                </bit>
+                <bit id="2">
+                    <name>电池欠压</name>
+                </bit>
+                <bit id="3">
+                    <name>过充</name>
+                </bit>
+                <bit id="4">
+                    <name>过放</name>
+                </bit>
+                <bit id="5">
+                    <name>寿命耗尽</name>
+                </bit>
+                <bit id="6">
+                    <name>维护</name>
+                </bit>
+                <bit id="7">
+                    <name>保留</name>
+                </bit>
+            </splitbit>
+            <splitbit>
+                <bit id="8-15">
+                    <name>保留</name>
+                </bit>
+            </splitbit>
+        </splitByLength>
+        <splitByLength>
+            <name>电池状态变位标志</name>
+            <length>2</length>
+            <type>BIN</type>
+            <splitbit>
+                <bit id="0">
+                    <name>其他异常</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="1">
+                    <name>温度过高</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="2">
+                    <name>电池欠压</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="3">
+                    <name>过充</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="4">
+                    <name>过放</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="5">
+                    <name>寿命耗尽</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="6">
+                    <name>维护</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="7">
+                    <name>保留</name>
+                    <value key="0">无变位</value>
+                    <value key="1">有变位</value>
+                </bit>
+                <bit id="7">
+                    <name>保留</name>
+                </bit>
+            </splitbit>
+            <splitbit>
+                <bit id="8-15">
+                    <name>保留</name>
+                </bit>
+            </splitbit>
+        </splitByLength>
+    </dataItem>
     <template id="DATACHANNEL" protocol="moudle" region="南网">
-        <name>数据通道特征</name>
+        <name>第%d路数据通道特征</name>
         <length>4</length>
         <splitByLength>
             <name>接口模式字</name>
@@ -218,6 +1216,154 @@
                     <name>保留</name>
                 </bit>
             </splitbit>
+        </splitByLength>
+    </template>
+    <template id="YAOXINDATA" protocol="moudle" region="南网">
+        <name>第%d遥信脉冲数据</name>
+        <length>18</length>
+        <splitByLength>
+            <name>累计脉冲数</name>
+            <length>4</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>累计统计时间</name>
+            <length>2</length>
+            <type>BIN</type>
+            <unit>毫秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>累计统计时间</name>
+            <length>4</length>
+            <type>BIN</type>
+            <unit>秒</unit>
+        </splitByLength>
+        <splitByLength>
+            <name>周期脉冲数</name>
+            <length>4</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>周期统计时间</name>
+            <length>4</length>
+            <type>BIN</type>
+            <unit>豪秒</unit>
+        </splitByLength>
+    </template>
+    <template id="YAOXINCHANGEDATA" protocol="moudle" region="南网">
+        <name>最近%d次遥信变位数据</name>
+        <length>10</length>
+        <splitByLength>
+            <name>遥信状态</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>遥信变位状态</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>遥信变位时间</name>
+            <length>8</length>
+            <time>YYMMDDhhmmssxxxx</time>
+        </splitByLength>
+    </template>
+    <template id="PHYSICALREADDATA" protocol="moudle" region="南网">
+        <name>第%d路模拟量数据</name>
+        <length>6</length>
+        <splitByLength>
+            <name>模拟量值</name>
+            <length>4</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>模拟量换算倍率</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>模拟量单位</name>
+            <length>1</length>
+            <type>BIN</type>
+            <value key="01">a(年)</value>
+            <value key="02">mo(月)</value>
+            <value key="03">wk(周)</value>
+            <value key="04">d(日)</value>
+            <value key="05">h(时)</value>
+            <value key="06">min(分钟)</value>
+            <value key="07">s(秒)</value>
+            <value key="08">°(度)</value>
+            <value key="09">℃(摄氏度)</value>
+            <value key="10">CNY</value>
+            <value key="11">m(米)</value>
+            <value key="12">m/s(米/秒)</value>
+            <value key="13">m^3(体积立方米)</value>
+            <value key="14">m^3(修正的体积立方米)</value>
+            <value key="15">m^3/h(流量立方米/小时)</value>
+            <value key="16">m^3/h(修正的流量立方米/小时)</value>
+            <value key="17">m^3/d(流量立方米/日)</value>
+            <value key="18">m^3/d(修正的流量立方米/日)</value>
+            <value key="19">l(升)</value>
+            <value key="20">kg</value>
+            <value key="21">N</value>
+            <value key="22">Nm</value>
+            <value key="23">Pa</value>
+            <value key="24">bar</value>
+            <value key="25">J</value>
+            <value key="26">J/h</value>
+            <value key="27">W</value>
+            <value key="28">kW</value>
+            <value key="29">VA</value>
+            <value key="30">kVA</value>
+            <value key="31">var</value>
+            <value key="32">kvar</value>
+            <value key="33">kWh</value>
+            <value key="34">kVAh</value>
+            <value key="35">kvarh</value>
+            <value key="36">A</value>
+            <value key="37">C</value>
+            <value key="38">V</value>
+            <value key="39">V/m</value>
+            <value key="40">F</value>
+            <value key="41">Ω</value>
+            <value key="42">Ω m2/m</value>
+            <value key="43">Wb</value>
+            <value key="44">T</value>
+            <value key="45">A/m</value>
+            <value key="46">H</value>
+            <value key="47">Hz</value>
+            <value key="48">1/(Wh)</value>
+            <value key="49">1/(varh)</value>
+            <value key="50">1/(VAh)</value>
+            <value key="51">%</value>
+            <value key="52">byte</value>
+            <value key="53">dBm</value>
+            <value key="54">CNY/kWh</value>
+            <value key="55">Ah</value>
+            <value key="56">ms</value>
+            <value key="57">dbμV</value>
+            <value key="58">V2h</value>
+            <value key="59">A2h</value>
+            <value key="60">Wh/m3</value>
+            <value key="61">J/m3</value>
+            <value key="62">Mo1%</value>
+            <value key="63">g/m3</value>
+            <value key="64">Pa s</value>
+            <value key="65">J/kg</value>
+            <value key="66">kg/s</value>
+            <value key="67">S, mho</value>
+            <value key="68">K</value>
+            <value key="69">1/(V2h)</value>
+            <value key="70">1/(A2h)</value>
+            <value key="71">1/m3</value>
+            <value key="72">dB</value>
+            <value key="73">Wh</value>
+            <value key="74">VAh</value>
+            <value key="75">varh</value>
+            <value key="254">保留</value>
+            <value key="255">无单位、缺单位、计数</value>
+            <value key="other">保留</value>
         </splitByLength>
     </template>
 </config>

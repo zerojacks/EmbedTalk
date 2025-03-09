@@ -468,7 +468,8 @@ impl FrameAnalisyic {
 
         // 获取所有 `value` 子元素
         let value_elements = data_item_elem.get_items("value");
-        let (value_str, element) = Self::find_value_from_elements(&value_elements, &value);
+        let (mut value_str, element) =
+            Self::find_value_from_elements(&value_elements, &value);
 
         value_name = if value_str.is_empty() {
             format!("[{}]: {}", value_name, value)
@@ -1196,7 +1197,8 @@ impl FrameAnalisyic {
         let mut result_str = String::new();
         let mut sub_item_result: Option<Vec<Value>> = Some(Vec::new());
         let mut is_singal = false;
-        let singal_content = item_element.get_child_text("single");
+        let mut item_element_clone = item_element.clone();
+        let singal_content = item_element_clone.get_child_text("single");
         if let Some(singal_content) = singal_content {
             if singal_content.to_lowercase() == "yes" {
                 is_singal = true;
@@ -1207,7 +1209,7 @@ impl FrameAnalisyic {
             is_singal = false;
         }
 
-        let mut sub_type = item_element.get_child_text("type").unwrap();
+        let mut sub_type = item_element_clone.get_child_text("type").unwrap();
 
         let mut data_content = data_segment.to_vec();
         if need_delete {
@@ -1522,7 +1524,19 @@ impl FrameAnalisyic {
         let element_name = item_element_clone.get_child_text("name");
         let template_name = element_name
             .as_ref()
-            .map(|s| s.to_string())
+            .map(|s| {
+                // Check if the string contains format specifiers like %d
+                if s.contains('%') {
+                    // Try to format the string with the current index
+                    match format!("{}", s).replace("%d", &(i + 1).to_string()) {
+                        formatted if formatted != *s => formatted,
+                        _ => format!("第{}组{}", i + 1, s) // Fall back to the original format if formatting failed
+                    }
+                } else {
+                    // Use the original format if no format specifiers are found
+                    format!("第{}组{}", i + 1, s)
+                }
+            })
             .unwrap_or_else(|| format!("第{}组数据内容", i + 1));
 
         println!(
@@ -1535,7 +1549,19 @@ impl FrameAnalisyic {
 
                 let item_name = element_name
                     .as_ref()
-                    .map(|s| format!("第{}组{}", i + 1, s))
+                    .map(|s| {
+                        // Check if the string contains format specifiers like %d
+                        if s.contains('%') {
+                            // Try to format the string with the current index
+                            match format!("{}", s).replace("%d", &(i + 1).to_string()) {
+                                formatted if formatted != *s => formatted,
+                                _ => format!("第{}组{}", i + 1, s) // Fall back to the original format if formatting failed
+                            }
+                        } else {
+                            // Use the original format if no format specifiers are found
+                            format!("第{}组{}", i + 1, s)
+                        }
+                    })
                     .unwrap_or_else(|| format!("第{}组数据内容", i + 1));
 
                 let (mut item_value, length) = Self::prase_splitByLength_item(

@@ -163,6 +163,7 @@ impl FrameFun {
             decimal_places
         );
 
+        println!("bcd_array {:?}", bcd_array);
         // Add decimal point to the string
         let decimal_string = if decimal_places > 0 {
             format!(
@@ -735,8 +736,8 @@ impl FrameFun {
     }
 
     pub fn parse_time_data(data_array: &[u8], format_str: &str, need_delete: bool) -> String {
-        // Define the correct sequence
-        let correct = "CCYYMMDDWWhhmmss";
+        // Define the correct sequence with milliseconds
+        let correct = "CCYYMMDDWWhhmmssxxxx";
 
         // Define format mapping
         let mut format_mapping = HashMap::new();
@@ -748,6 +749,7 @@ impl FrameFun {
         format_mapping.insert("mm", "{:02X}分");
         format_mapping.insert("ss", "{:02X}秒");
         format_mapping.insert("WW", "星期:");
+        format_mapping.insert("xxxx", "{:04X}毫秒");
 
         let mut new_array = data_array.to_vec();
 
@@ -770,29 +772,55 @@ impl FrameFun {
             ("六".to_string()),
         ];
 
-        // Iterate through the format string in chunks of 2 (WW, ss, mm, etc.)
+        // Iterate through the format string
         while pos < correct.len() {
-            let corr = &correct[pos..pos + 2];
-            if let Some(index) = format_str.find(corr) {
-                let array_index = index / 2;
-                let value = new_array[array_index];
-                if let Some(fmt) = format_mapping.get(&format_str[index..index + 2]) {
-                    if corr == "WW" {
-                        // Handle the special case for weekdays
-                        let weekday_index = value as usize;
-                        if weekday_index < weekday_mapping.len() {
-                            formatted_data.push_str(&weekday_mapping[weekday_index]);
-                        } else {
-                            formatted_data.push_str("未知");
+            // Check if we're at the millisecond position (xxxx)
+            if pos <= correct.len() - 4 && &correct[pos..pos + 4] == "xxxx" {
+                if let Some(index) = format_str.find("xxxx") {
+                    let array_index = index / 2;
+                    // For milliseconds, we need to combine two bytes
+                    if array_index + 1 < new_array.len() {
+                        let msb = new_array[array_index] as u16;
+                        let lsb = new_array[array_index + 1] as u16;
+                        let value = (msb << 8) | lsb;
+                        
+                        // Use the format string for milliseconds
+                        if let Some(fmt) = format_mapping.get("xxxx") {
+                            let fmt_string = fmt.replace("{:04X}", &format!("{:04X}", value));
+                            formatted_data.push_str(&fmt_string);
                         }
-                    } else {
-                        // Use the format string directly from format_mapping
-                        let fmt_string = fmt.replace("{:02X}", &format!("{:02X}", value));
-                        formatted_data.push_str(&fmt_string);
                     }
                 }
+                pos += 4; // Move past the 'xxxx'
+            } else if pos <= correct.len() - 2 {
+                // Handle standard 2-character formats (YY, MM, DD, etc.)
+                let corr = &correct[pos..pos + 2];
+                if let Some(index) = format_str.find(corr) {
+                    let array_index = index / 2;
+                    if array_index < new_array.len() {
+                        let value = new_array[array_index];
+                        if let Some(fmt) = format_mapping.get(&format_str[index..index + 2]) {
+                            if corr == "WW" {
+                                // Handle the special case for weekdays
+                                let weekday_index = value as usize;
+                                if weekday_index < weekday_mapping.len() {
+                                    formatted_data.push_str(&weekday_mapping[weekday_index]);
+                                } else {
+                                    formatted_data.push_str("未知");
+                                }
+                            } else {
+                                // Use the format string directly from format_mapping
+                                let fmt_string = fmt.replace("{:02X}", &format!("{:02X}", value));
+                                formatted_data.push_str(&fmt_string);
+                            }
+                        }
+                    }
+                }
+                pos += 2; // Move past the 2-character format
+            } else {
+                // Handle any remaining characters
+                pos += 1;
             }
-            pos += 2;
         }
 
         formatted_data
