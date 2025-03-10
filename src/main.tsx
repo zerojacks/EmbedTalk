@@ -17,6 +17,7 @@ import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import Itemconfig from "./routes/itemconfig"
 import ChannelMonitorRedux from "./routes/ChannelMonitorRedux";
 import QuickParse from "./routes/quick-parse";
+import DLT645Test from "./routes/dlt645-test";
 
 const router = createBrowserRouter([
   {
@@ -39,6 +40,10 @@ const router = createBrowserRouter([
       {
         path: "/settings",
         element: <Settings />,
+      },
+      {
+        path: "/dlt645-test",
+        element: <DLT645Test />,
       },
     ],
   },

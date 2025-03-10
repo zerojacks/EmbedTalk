@@ -14,9 +14,6 @@ export class ChannelService {
   private static messageUnlistener: UnlistenFn | null = null;
   private static dispatch: ThunkDispatch<RootState, undefined, AnyAction> | null = null;
   
-  // 存储通道ID映射
-  private static channelIds: Map<ChannelType, string> = new Map();
-
   /**
    * 初始化通道服务，设置全局监听器
    * @param dispatch Redux dispatch 函数
@@ -95,9 +92,6 @@ export class ChannelService {
         values: JSON.stringify(params) 
       });
       
-      // 存储通道ID
-      this.channelIds.set(channelType, channelId);
-      
       return channelId;
     } catch (error) {
       console.error(`连接通道失败: ${channelType}`, error);
@@ -106,25 +100,16 @@ export class ChannelService {
   }
 
   /**
-   * 断开通道
+   * 断开通道连接
    * @param channelType 通道类型
    * @param params 连接参数
    */
   static async disconnectChannel(channelType: ChannelType, params: ConnectionParams): Promise<void> {
     try {
-      // 获取通道ID
-      const channelId = this.channelIds.get(channelType);
-      if (!channelId) {
-        throw new Error(`通道未连接: ${channelType}`);
-      }
-      
       // 调用后端断开连接
       await invoke('disconnect_channel', { 
-        channelId 
+        channel: channelType
       });
-      
-      // 移除通道ID
-      this.channelIds.delete(channelType);
     } catch (error) {
       console.error(`断开通道失败: ${channelType}`, error);
       throw error;
@@ -160,52 +145,46 @@ export class ChannelService {
    * 发送消息
    * @param channelType 通道类型
    * @param message 消息内容
-   * @param isHex 是否为十六进制格式
+   * @param isHex 是否为十六进制字符串
    */
   static async sendMessage(
-    channelType: ChannelType, 
+    channelid: string, 
     message: string, 
     isHex: boolean = false
   ): Promise<void> {
     try {
-      // 获取通道ID
-      const channelId = this.channelIds.get(channelType);
-      if (!channelId) {
-        throw new Error(`通道未连接: ${channelType}`);
-      }
-      
       // 处理消息内容
       let messageBytes: number[] = [];
       
       if (isHex) {
-        // 移除所有空格，确保格式正确
-        const cleanHex = message.replace(/\s+/g, '');
-        
-        // 验证十六进制格式
-        if (!/^[0-9A-Fa-f]*$/.test(cleanHex)) {
-          throw new Error('无效的十六进制格式');
+        // 如果是十六进制字符串，转换为字节数组
+        const hexString = message.replace(/\s+/g, ''); // 移除所有空白字符
+        if (!/^[0-9A-Fa-f]+$/.test(hexString)) {
+          throw new Error('无效的十六进制字符串');
         }
         
-        // 将十六进制字符串转换为字节数组
-        for (let i = 0; i < cleanHex.length; i += 2) {
-          const byte = parseInt(cleanHex.substr(i, 2), 16);
-          messageBytes.push(byte);
+        if (hexString.length % 2 !== 0) {
+          throw new Error('十六进制字符串长度必须为偶数');
+        }
+        
+        for (let i = 0; i < hexString.length; i += 2) {
+          messageBytes.push(parseInt(hexString.substr(i, 2), 16));
         }
       } else {
-        // 普通文本转换为字节数组
+        // 如果是普通字符串，转换为UTF-8字节数组
         for (let i = 0; i < message.length; i++) {
           messageBytes.push(message.charCodeAt(i));
         }
       }
 
-      console.log(`发送消息到 ${channelType} (ID: ${channelId})`, { 
+      console.log(`发送消息到 ${channelid}`, { 
         message,
         messageBytes,
         isHex
       });
 
       return invoke('send_message', {
-        channelId: channelId,
+        channelid: channelid,
         message: messageBytes
       });
     } catch (error) {
@@ -213,52 +192,46 @@ export class ChannelService {
       throw error;
     }
   }
-  
+
   /**
    * 启动定时发送
    * @param channelType 通道类型
    * @param message 消息内容
-   * @param intervalMs 发送间隔（毫秒）
-   * @param isHex 是否为十六进制格式
+   * @param intervalMs 间隔时间（毫秒）
+   * @param isHex 是否为十六进制字符串
    */
   static async startTimerSend(
-    channelType: ChannelType,
-    message: string,
-    intervalMs: number,
+    channelType: ChannelType, 
+    message: string, 
+    intervalMs: number, 
     isHex: boolean = false
   ): Promise<void> {
     try {
-      // 获取通道ID
-      const channelId = this.channelIds.get(channelType);
-      if (!channelId) {
-        throw new Error(`通道未连接: ${channelType}`);
-      }
-      
       // 处理消息内容
       let messageBytes: number[] = [];
       
       if (isHex) {
-        // 移除所有空格，确保格式正确
-        const cleanHex = message.replace(/\s+/g, '');
-        
-        // 验证十六进制格式
-        if (!/^[0-9A-Fa-f]*$/.test(cleanHex)) {
-          throw new Error('无效的十六进制格式');
+        // 如果是十六进制字符串，转换为字节数组
+        const hexString = message.replace(/\s+/g, ''); // 移除所有空白字符
+        if (!/^[0-9A-Fa-f]+$/.test(hexString)) {
+          throw new Error('无效的十六进制字符串');
         }
         
-        // 将十六进制字符串转换为字节数组
-        for (let i = 0; i < cleanHex.length; i += 2) {
-          const byte = parseInt(cleanHex.substr(i, 2), 16);
-          messageBytes.push(byte);
+        if (hexString.length % 2 !== 0) {
+          throw new Error('十六进制字符串长度必须为偶数');
+        }
+        
+        for (let i = 0; i < hexString.length; i += 2) {
+          messageBytes.push(parseInt(hexString.substr(i, 2), 16));
         }
       } else {
-        // 普通文本转换为字节数组
+        // 如果是普通字符串，转换为UTF-8字节数组
         for (let i = 0; i < message.length; i++) {
           messageBytes.push(message.charCodeAt(i));
         }
       }
 
-      console.log(`启动定时发送到 ${channelType} (ID: ${channelId})`, { 
+      console.log(`启动定时发送到 ${channelType}`, { 
         message,
         messageBytes,
         intervalMs,
@@ -266,7 +239,7 @@ export class ChannelService {
       });
 
       return invoke('start_timer_send', {
-        channelId,
+        channel: channelType,
         message: messageBytes,
         intervalMs
       });
@@ -282,16 +255,10 @@ export class ChannelService {
    */
   static async stopTimerSend(channelType: ChannelType): Promise<void> {
     try {
-      // 获取通道ID
-      const channelId = this.channelIds.get(channelType);
-      if (!channelId) {
-        throw new Error(`通道未连接: ${channelType}`);
-      }
-
-      console.log(`停止定时发送 ${channelType} (ID: ${channelId})`);
+      console.log(`停止定时发送 ${channelType}`);
 
       return invoke('stop_timer_send', {
-        channelId
+        channel: channelType
       });
     } catch (error) {
       console.error(`停止定时发送失败:`, error);
@@ -302,31 +269,15 @@ export class ChannelService {
   /**
    * 获取定时发送状态
    * @param channelType 通道类型
-   * @returns 如果正在定时发送，返回 [间隔毫秒, 消息字节数组]，否则返回 null
    */
   static async getTimerStatus(channelType: ChannelType): Promise<[number, number[]] | null> {
     try {
-      // 获取通道ID
-      const channelId = this.channelIds.get(channelType);
-      if (!channelId) {
-        throw new Error(`通道未连接: ${channelType}`);
-      }
-
       return invoke<[number, number[]] | null>('get_timer_status', {
-        channelId
+        channel: channelType
       });
     } catch (error) {
       console.error(`获取定时发送状态失败:`, error);
-      throw error;
+      return null;
     }
-  }
-  
-  /**
-   * 获取通道ID
-   * @param channelType 通道类型
-   * @returns 通道ID
-   */
-  static getChannelId(channelType: ChannelType): string | undefined {
-    return this.channelIds.get(channelType);
   }
 }

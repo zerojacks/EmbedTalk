@@ -11,7 +11,7 @@ export type MessageType = {
 
 export type ChannelStateMessage = {
     channeltype: string;
-    channelid: string;
+    channelId: string;
     state: 'Connected' | 'Disconnected';
     data?: {
         ip?: string;
@@ -22,7 +22,7 @@ export type ChannelStateMessage = {
 
 export type Channel = {
     channeltype: 'tcpclient' | 'tcpserver' | 'serial' | 'bluetooth' | 'mqtt';
-    channelid: string;
+    channelId: string;
     name: string;
     state: 'Connected' | 'Disconnected';
     clients?: Channel[];
@@ -147,14 +147,14 @@ const useChannelStore = create<ChannelStore>((set, get) => ({
         console.log('[updateChannelState] Processing message:', message);
         
         set((state) => {
-            const existingChannel = state.channels.find(ch => ch.channelid === message.channelid);
+            const existingChannel = state.channels.find(ch => ch.channelId === message.channelId);
             
             if (!existingChannel) {
-                console.log('[updateChannelState] Creating new channel:', message.channelid);
+                console.log('[updateChannelState] Creating new channel:', message.channelId);
                 
                 // Create new channel
                 const newChannel: Channel = {
-                    channelid: message.channelid,
+                    channelId: message.channelId,
                     channeltype: message.channeltype as Channel['channeltype'],
                     name: message.channeltype,
                     state: message.state,
@@ -168,7 +168,7 @@ const useChannelStore = create<ChannelStore>((set, get) => ({
                     if (message.data.ip) {
                         const clientId = `${message.data.ip}:${message.data.port}`;
                         newChannel.clients.push({
-                            channelid: clientId,
+                            channelId: clientId,
                             channeltype: 'tcpclient',
                             name: clientId,
                             state: message.state,
@@ -179,13 +179,13 @@ const useChannelStore = create<ChannelStore>((set, get) => ({
 
                 // Mark as active temporarily
                 const newActiveChannels = new Set(state.activeChannels);
-                newActiveChannels.add(newChannel.channelid);
+                newActiveChannels.add(newChannel.channelId);
 
                 // Remove from active after delay
                 setTimeout(() => {
                     set(state => ({
                         activeChannels: new Set(
-                            Array.from(state.activeChannels).filter(id => id !== newChannel.channelid)
+                            Array.from(state.activeChannels).filter(id => id !== newChannel.channelId)
                         )
                     }));
                 }, 1000);
@@ -196,20 +196,20 @@ const useChannelStore = create<ChannelStore>((set, get) => ({
                 };
             }
 
-            console.log('[updateChannelState] Updating existing channel:', message.channelid);
+            console.log('[updateChannelState] Updating existing channel:', message.channelId);
 
             // Update existing channel
             const newChannels = state.channels.map(channel => {
-                if (channel.channelid === message.channelid) {
+                if (channel.channelId === message.channelId) {
                     // Mark as active temporarily
                     const newActiveChannels = new Set(state.activeChannels);
-                    newActiveChannels.add(channel.channelid);
+                    newActiveChannels.add(channel.channelId);
 
                     // Remove from active after delay
                     setTimeout(() => {
                         set(state => ({
                             activeChannels: new Set(
-                                Array.from(state.activeChannels).filter(id => id !== channel.channelid)
+                                Array.from(state.activeChannels).filter(id => id !== channel.channelId)
                             )
                         }));
                     }, 1000);
@@ -247,7 +247,7 @@ const useChannelStore = create<ChannelStore>((set, get) => ({
         };
 
         set((state) => {
-            const currentChannel = state.channels.find(ch => ch.channelid === channelId);
+            const currentChannel = state.channels.find(ch => ch.channelId === channelId);
             console.log('[addMessage] Current channel state:', {
                 channelId,
                 found: !!currentChannel,
@@ -255,7 +255,7 @@ const useChannelStore = create<ChannelStore>((set, get) => ({
             });
 
             const newChannels = state.channels.map(channel => {
-                if (channel.channelid === channelId) {
+                if (channel.channelId === channelId) {
                     const updatedChannel = {
                         ...channel,
                         messages: [...channel.messages, message],

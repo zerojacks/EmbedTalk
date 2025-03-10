@@ -50,6 +50,11 @@ impl Message {
     pub fn get_content(&self) -> &Value {
         &self.content
     }
+    
+    // 添加 get_payload 方法作为 get_content 的别名，以保持兼容性
+    pub fn get_payload(&self) -> &Value {
+        &self.content
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]

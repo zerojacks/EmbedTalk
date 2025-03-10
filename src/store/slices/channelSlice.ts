@@ -202,7 +202,7 @@ export const saveChannelConfig = createAsyncThunk<
 
 // 异步 Thunk - 连接通道
 export const connectChannel = createAsyncThunk<
-  { channelType: ChannelType; state: ConnectionState },
+  { channelType: ChannelType; state: ConnectionState; channelId: string },
   { channelType: ChannelType; params: any },
   { state: RootState; rejectValue: { channelType: ChannelType; error: string } }
 >(
@@ -213,13 +213,13 @@ export const connectChannel = createAsyncThunk<
       dispatch(updateChannelState({ channelType, state: 'connecting' }));
       
       // 调用服务连接通道
-      await ChannelService.connectChannel(channelType, params);
+      const channelId = await ChannelService.connectChannel(channelType, params);
       
       // 显示连接成功通知
       const message = getToastMessage(channelType, params, 'connected');
       toast.success(message, 'end', 'bottom', 3000);
       
-      return { channelType, state: 'connected' as ConnectionState };
+      return { channelType, state: 'connected' as ConnectionState, channelId };
     } catch (error) {
       console.error(`Error connecting to ${channelType}:`, error);
       
@@ -451,12 +451,13 @@ const channelSlice = createSlice({
         // 状态已经在 thunk 中更新为 connecting
       })
       .addCase(connectChannel.fulfilled, (state, action) => {
-        const { channelType, state: connectionState } = action.payload;
+        const { channelType, state: connectionState, channelId } = action.payload;
         
         if (state.channels[channelType]) {
           state.channels[channelType] = {
             ...state.channels[channelType],
-            state: connectionState
+            state: connectionState,
+            channelId: channelId ?? state.channels[channelType].channelId
           };
         }
       })

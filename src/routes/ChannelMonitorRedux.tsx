@@ -24,7 +24,9 @@ import {
     MqttConfig,
     BluetoothConfig,
     TcpServerClient,
-    ChannelConfigMap
+    ChannelConfigMap,
+    Channel,
+    Client
 } from '../types/channel';
 import { 
     selectChannelMessages, 
@@ -50,41 +52,15 @@ const getChannelTypeName = (type: ChannelType): string => {
     }
 };
 
-// Type definitions
+interface ChannelIconProps {
+    type: Channel['channeltype'];
+    state: Channel['state'];
+}
+
 interface MessageListProps {
     messages: ChannelMessage[];
     className?: string;
     onClearMessages?: () => void;
-}
-
-interface Client {
-    ip: string;
-    port: number;
-    state: ConnectionState;
-    channelid: string;
-    name: string;
-    messages: ChannelMessage[];
-    sentCount?: number;
-    receivedCount?: number;
-}
-
-interface Channel {
-    channelid: string;
-    channeltype: ChannelType;
-    name: string;
-    state: ConnectionState;
-    clients?: Client[];
-    messages: ChannelMessage[];
-    lastActivityTime?: number;
-    sentCount: number;
-    receivedCount: number;
-    config?: TcpClientConfig | TcpServerConfig | SerialConfig | MqttConfig | BluetoothConfig;
-    address?: string;
-}
-
-interface ChannelIconProps {
-    type: Channel['channeltype'];
-    state: Channel['state'];
 }
 
 interface ChannelDetailDialogProps {
@@ -400,9 +376,9 @@ const ClientList: React.FC<{
     <div className="flex flex-wrap gap-2">
         {clients.map((client) => (
             <button
-                key={`${client.channelid}`}
+                key={`${client.channelId}`}
                 onClick={() => onClientSelect(client)}
-                className={`btn btn-sm ${selectedClient?.channelid === client.channelid
+                className={`btn btn-sm ${selectedClient?.channelId === client.channelId
                     ? 'btn-primary'
                     : client.state === 'connected'
                         ? 'btn-outline'
@@ -481,7 +457,7 @@ const ChannelMonitorRedux: React.FC = () => {
     // 处理通道选择
     const handleChannelSelect = (channel: Channel) => {
         // 如果已经选中，则取消选中
-        if (selectedChannel?.channelid === channel.channelid && 
+        if (selectedChannel?.channelId === channel.channelId && 
             selectedChannel?.channeltype === channel.channeltype) {
             setSelectedChannel(null);
             setSelectedClient(null);
@@ -493,7 +469,7 @@ const ChannelMonitorRedux: React.FC = () => {
 
     // 处理客户端选择
     const handleClientSelect = (client: Client) => {
-        console.log(`Selected client: ${client.name}, ID: ${client.channelid}`);
+        console.log(`Selected client: ${client.name}, ID: ${client.channelId}`);
         setSelectedClient(client);
     };
 
@@ -518,7 +494,7 @@ const ChannelMonitorRedux: React.FC = () => {
             return clientMessages;
         } else if (selectedChannel) {
             // 否则使用通道ID获取消息
-            console.log(`获取通道消息 - 通道: ${selectedChannel.name}, ID: ${selectedChannel.channelid}`);
+            console.log(`获取通道消息 - 通道: ${selectedChannel.name}, ID: ${selectedChannel.channelId}`);
             
             // 如果是TCP客户端通道，并且有地址信息，使用地址作为ID
             if (selectedChannel.channeltype === 'tcpclient' && selectedChannel.address) {
@@ -533,8 +509,8 @@ const ChannelMonitorRedux: React.FC = () => {
             }
             
             // 检查Redux store中是否有该通道的消息
-            const channelMessages = selectChannelMessages(state, selectedChannel.channelid);
-            console.log(`通道 ${selectedChannel.channelid} 的消息数量: ${channelMessages.length}`);
+            const channelMessages = selectChannelMessages(state, selectedChannel.channelId);
+            console.log(`通道 ${selectedChannel.channelId} 的消息数量: ${channelMessages.length}`);
             
             return channelMessages;
         }
@@ -559,95 +535,71 @@ const ChannelMonitorRedux: React.FC = () => {
                 return selectChannelMessageStats(state, clientId);
             }
             
-            return selectChannelMessageStats(state, selectedChannel.channelid);
+            return selectChannelMessageStats(state, selectedChannel.channelId);
         }
         return { sent: 0, received: 0 };
     });
 
-    // 将 Redux 中的通道配置转换为组件需要的格式
+    // 直接从 Redux store 获取通道列表
     useEffect(() => {
-        const newChannels: Channel[] = [];
+        // 从 Redux store 中的通道配置创建通道列表
+        const channelList: Channel[] = [];
         
-        // 处理 TCP 客户端
-        if (channelConfigs.tcpclient) {
-            const { state, ip, port } = channelConfigs.tcpclient;
-            // 构建地址字符串
-            const address = ip && port ? `${ip}:${port}` : undefined;
-            
-            newChannels.push({
-                channelid: 'tcpclient',
-                channeltype: 'tcpclient',
-                name: `TCP客户端 (${ip}:${port})`,
-                state,
-                sentCount: 0,
-                receivedCount: 0,
-                config: channelConfigs.tcpclient,
-                address, // 添加地址字段
-                messages: [] // 添加空的消息数组
-            });
-        }
-        
-        // 处理 TCP 服务器
-        if (channelConfigs.tcpserver) {
-            const { state, ip, port } = channelConfigs.tcpserver;
-            const clients: Client[] = [];
-            
-            // 如果有客户端连接，添加到列表
-            if (channelConfigs.tcpserver.children) {
-                channelConfigs.tcpserver.children.forEach(client => {
-                    clients.push({
-                        ip: client.ip,
-                        port: client.port,
-                        state: client.state,
-                        channelid: `${client.ip}:${client.port}`,
-                        name: `${client.ip}:${client.port}`,
-                        messages: [],
-                        sentCount: 0,
-                        receivedCount: 0
-                    });
-                });
-            }
-            
-            newChannels.push({
-                channelid: 'tcpserver',
-                channeltype: 'tcpserver',
-                name: `TCP服务器 (${ip}:${port})`,
-                state,
-                sentCount: 0,
-                receivedCount: 0,
-                clients,
-                config: channelConfigs.tcpserver,
-                messages: [] // 添加空的消息数组
-            });
-        }
-        
-        // 处理其他通道类型
-        Object.entries(channelConfigs).forEach(([channelId, config]) => {
-            if (config && config.state && channelId !== 'tcpclient' && channelId !== 'tcpserver') {
-                const channelType = channelId as ChannelType;
-                const stats = selectChannelMessageStats(
-                    { channel: { channels: channelConfigs, messageStats: {}, messageHistory: {}, loading: false, error: null, serviceInitialized: true } } as RootState, 
-                    channelId
-                );
+        // 处理所有通道类型
+        Object.entries(channelConfigs).forEach(([channelType, config]) => {
+            if (config && config.channelId) {
+                const type = channelType as ChannelType;
+                const stats = allMessageStats[config.channelId] || { sent: 0, received: 0 };
                 
                 // 创建基本通道信息
                 const channel: Channel = {
-                    channelid: channelId,
-                    channeltype: channelType,
-                    name: getChannelTypeName(channelType),
+                    channelId: config.channelId,
+                    channeltype: type,
+                    name: getChannelTypeName(type),
                     state: config.state,
-                    sentCount: stats.sent,
-                    receivedCount: stats.received,
+                    sentCount: stats.sent || 0,
+                    receivedCount: stats.received || 0,
                     config: config as any,
-                    messages: [] // 添加空的消息数组
+                    messages: [] // 消息会在需要时从 Redux store 获取
                 };
 
                 // 根据通道类型添加特定信息
-                switch (channelType) {
+                switch (type) {
+                    case 'tcpclient': {
+                        const tcpConfig = config as TcpClientConfig;
+                        if (tcpConfig.ip && tcpConfig.port) {
+                            channel.name = `TCP客户端 (${tcpConfig.ip}:${tcpConfig.port})`;
+                            channel.address = `${tcpConfig.ip}:${tcpConfig.port}`;
+                        }
+                        break;
+                    }
+                    case 'tcpserver': {
+                        const tcpConfig = config as TcpServerConfig;
+                        if (tcpConfig.ip && tcpConfig.port) {
+                            channel.name = `TCP服务器 (${tcpConfig.ip}:${tcpConfig.port})`;
+                            channel.address = `${tcpConfig.ip}:${tcpConfig.port}`;
+                        }
+                        
+                        // 处理客户端连接
+                        if (tcpConfig.children) {
+                            channel.clients = tcpConfig.children.map(client => ({
+                                ip: client.ip,
+                                port: client.port,
+                                state: client.state,
+                                channelId: client.channelId || `${client.ip}:${client.port}`,
+                                name: `${client.ip}:${client.port}`,
+                                messages: [],
+                                sentCount: 0,
+                                receivedCount: 0
+                            }));
+                        }
+                        break;
+                    }
                     case 'serial': {
                         const serialConfig = config as SerialConfig;
                         if (serialConfig.comname) {
                             channel.name = `串口 (${serialConfig.comname})`;
+                            channel.address = serialConfig.comname;
                         }
                         break;
                     }
@@ -655,6 +607,7 @@ const ChannelMonitorRedux: React.FC = () => {
                         const mqttConfig = config as MqttConfig;
                         if (mqttConfig.ip && mqttConfig.port) {
                             channel.name = `MQTT (${mqttConfig.ip}:${mqttConfig.port})`;
+                            channel.address = `${mqttConfig.ip}:${mqttConfig.port}`;
                         }
                         break;
                     }
@@ -662,30 +615,34 @@ const ChannelMonitorRedux: React.FC = () => {
                         const bluetoothConfig = config as BluetoothConfig;
                         if (bluetoothConfig.bluetoothname) {
                             channel.name = `蓝牙 (${bluetoothConfig.bluetoothname})`;
+                            channel.address = bluetoothConfig.bluetoothname;
                         }
                         break;
                     }
                 }
 
-                newChannels.push(channel);
+                channelList.push(channel);
             }
         });
 
-        setChannels(newChannels);
+        setChannels(channelList);
 
         // 如果当前选中的通道存在于新的列表中，更新它
         if (selectedChannel) {
-            const updatedChannel = newChannels.find(c => 
-                c.channelid === selectedChannel.channelid && 
+            const updatedChannel = channelList.find(c => 
+                c.channelId === selectedChannel.channelId && 
                 c.channeltype === selectedChannel.channeltype
             );
             if (!updatedChannel) {
                 // 如果选中的通道不在新列表中，清除选择
                 setSelectedChannel(null);
                 setSelectedClient(null);
+            } else if (updatedChannel !== selectedChannel) {
+                // 更新选中的通道
+                setSelectedChannel(updatedChannel);
             }
         }
-    }, [channelConfigs]); // 只在 channelConfigs 变化时更新
+    }, [channelConfigs, allMessageStats]);
 
     // 更新所有通道的消息统计
     useEffect(() => {
@@ -698,7 +655,7 @@ const ChannelMonitorRedux: React.FC = () => {
                     stats = allMessageStats[channel.address] || { sent: 0, received: 0 };
                 } else {
                     // 其他通道使用通道ID
-                    stats = allMessageStats[channel.channelid] || { sent: 0, received: 0 };
+                    stats = allMessageStats[channel.channelId] || { sent: 0, received: 0 };
                 }
 
                 // 更新通道的消息统计
@@ -725,7 +682,7 @@ const ChannelMonitorRedux: React.FC = () => {
                 return updatedChannel;
             });
         });
-    }, [channelConfigs, allMessageStats]); // 依赖于channelConfigs和allMessageStats的变化
+    }, [channelConfigs, allMessageStats]);
 
     // 更新选中通道的消息统计
     useEffect(() => {
@@ -756,7 +713,7 @@ const ChannelMonitorRedux: React.FC = () => {
                     setSelectedChannel(updatedChannel);
                     setChannels(prevChannels => 
                         prevChannels.map(channel => 
-                            channel.channelid === selectedChannel.channelid ? updatedChannel : channel
+                            channel.channelId === selectedChannel.channelId ? updatedChannel : channel
                         )
                     );
                 }
@@ -764,7 +721,7 @@ const ChannelMonitorRedux: React.FC = () => {
             // 如果没有选择客户端，更新通道的消息统计
             else {
                 const updatedChannel = channels.find(c => 
-                    c.channelid === selectedChannel.channelid && 
+                    c.channelId === selectedChannel.channelId && 
                     c.channeltype === selectedChannel.channeltype
                 );
                 
@@ -782,14 +739,14 @@ const ChannelMonitorRedux: React.FC = () => {
                     setSelectedChannel(newChannel);
                     setChannels(prevChannels => 
                         prevChannels.map(channel => 
-                            channel.channelid === selectedChannel.channelid ? newChannel : channel
+                            channel.channelId === selectedChannel.channelId ? newChannel : channel
                         )
                     );
                 }
             }
         }
-    }, [messageStats, channels, selectedChannel, selectedClient]); // 添加selectedClient作为依赖项
-    
+    }, [messageStats, channels, selectedChannel, selectedClient]);
+
     return (
         <div className="h-full">
             <PanelGroup direction="horizontal">
@@ -800,9 +757,9 @@ const ChannelMonitorRedux: React.FC = () => {
                             {channels.length > 0 ? (
                                 channels.map((channel: Channel) => (
                                     <div
-                                        key={`${channel.channeltype}-${channel.channelid}`}
+                                        key={`${channel.channeltype}-${channel.channelId}`}
                                         className={`card bg-base-100 shadow hover:shadow-md transition-all duration-300 cursor-pointer
-                                            ${selectedChannel?.channelid === channel.channelid && 
+                                            ${selectedChannel?.channelId === channel.channelId && 
                                               selectedChannel?.channeltype === channel.channeltype ? 'ring-1 ring-primary' : ''}`}
                                         onClick={() => handleChannelSelect(channel)}
                                     >
@@ -834,7 +791,7 @@ const ChannelMonitorRedux: React.FC = () => {
                                                 <div className="flex flex-wrap gap-1 mt-1.5">
                                                     {channel.clients.map((client) => (
                                                         <div
-                                                            key={`${channel.channeltype}-${channel.channelid}-${client.channelid}`}
+                                                            key={`${channel.channeltype}-${channel.channelId}-${client.channelId}`}
                                                             className="flex items-center gap-1 px-1.5 py-0.5 bg-base-200 rounded text-xs"
                                                         >
                                                             <ConnectionIndicator 
@@ -897,9 +854,9 @@ const ChannelMonitorRedux: React.FC = () => {
                                                 </button>
                                                 {selectedChannel.clients.map((client) => (
                                                     <button
-                                                        key={`${selectedChannel.channeltype}-${selectedChannel.channelid}-${client.channelid}`}
+                                                        key={`${selectedChannel.channeltype}-${selectedChannel.channelId}-${client.channelId}`}
                                                         onClick={() => handleClientSelect(client)}
-                                                        className={`btn btn-xs ${selectedClient?.channelid === client.channelid ? 'btn-primary' : 'btn-ghost'} gap-1`}
+                                                        className={`btn btn-xs ${selectedClient?.channelId === client.channelId ? 'btn-primary' : 'btn-ghost'} gap-1`}
                                                     >
                                                         <ConnectionIndicator 
                                                             connected={client.state === 'connected'} 
@@ -944,7 +901,7 @@ const ChannelMonitorRedux: React.FC = () => {
                                                         // 更新所属通道的客户端列表
                                                         if (selectedChannel && selectedChannel.clients) {
                                                             const updatedClients = selectedChannel.clients.map(client => 
-                                                                client.channelid === updatedClient.channelid ? updatedClient : client
+                                                                client.channelId === updatedClient.channelId ? updatedClient : client
                                                             );
                                                             setSelectedChannel({
                                                                 ...selectedChannel,
@@ -953,7 +910,7 @@ const ChannelMonitorRedux: React.FC = () => {
                                                         }
                                                     } else if (selectedChannel) {
                                                         // 获取通道ID
-                                                        let channelId = selectedChannel.channelid;
+                                                        let channelId = selectedChannel.channelId;
                                                         
                                                         // 如果是TCP客户端通道，并且有地址信息，使用地址作为ID
                                                         if (selectedChannel.channeltype === 'tcpclient' && selectedChannel.address) {
@@ -988,7 +945,7 @@ const ChannelMonitorRedux: React.FC = () => {
                                                     onSendMessage={async (message, isHex) => {
                                                         try {
                                                             await ChannelService.sendMessage(
-                                                                selectedChannel.channeltype,
+                                                                selectedChannel.channelId,
                                                                 message,
                                                                 isHex
                                                             );

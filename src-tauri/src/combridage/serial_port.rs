@@ -271,7 +271,7 @@ impl CommunicationChannel for SerialPortChannel {
         let app_handle = get_app_handle();
         let payload = serde_json::json!({
             "channeltype": "serial",
-            "channelid": self.port_name.clone(),
+            "channelId": self.port_name.clone(),
             "state": state,
             "data": serde_json::Value::Null,
             "reason": "The TCP Client has disconnected",

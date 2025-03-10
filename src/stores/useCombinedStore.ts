@@ -13,7 +13,7 @@ export interface ConnectBridgeInfo {
 
 export type ChannelStateMessage = {
     channeltype: string;
-    channelid: string;
+    channelId: string;
     state: 'Connected' | 'Disconnected';
     data?: {
         ip?: string;
@@ -24,7 +24,7 @@ export type ChannelStateMessage = {
 
 export type Channel = {
     channeltype: 'tcpclient' | 'tcpserver' | 'serial' | 'bluetooth' | 'mqtt';
-    channelid: string;
+    channelId: string;
     name: string;
     state: 'Connected' | 'Disconnected';
     clients?: Channel[];
@@ -63,10 +63,10 @@ const useCombinedStore = create<CombinedStore>((set, get) => ({
 
     updateChannelState: (message) => {
         set((state) => {
-            const existingChannel = state.channels.find(ch => ch.channelid === message.channelid);
+            const existingChannel = state.channels.find(ch => ch.channelId === message.channelId);
             if (!existingChannel) {
                 const newChannel: Channel = {
-                    channelid: message.channelid,
+                    channelId: message.channelId,
                     channeltype: message.channeltype as Channel['channeltype'],
                     name: message.channeltype,
                     state: message.state,
@@ -74,12 +74,12 @@ const useCombinedStore = create<CombinedStore>((set, get) => ({
                 };
                 return {
                     channels: [...state.channels, newChannel],
-                    activeChannels: new Set(state.activeChannels).add(newChannel.channelid),
+                    activeChannels: new Set(state.activeChannels).add(newChannel.channelId),
                 };
             }
 
             const newChannels = state.channels.map(channel => {
-                if (channel.channelid === message.channelid) {
+                if (channel.channelId === message.channelId) {
                     return {
                         ...channel,
                         state: message.state,

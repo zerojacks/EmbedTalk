@@ -406,7 +406,7 @@ impl CommunicationChannel for TcpClientChannel {
         });
         let payload = serde_json::json!({
             "channeltype": "tcpclient",
-            "channelid": self.adress.clone(),
+            "channelId": self.adress.clone(),
             "state": state,
             "data": data,
             "reason": "The TCP Client has disconnected",

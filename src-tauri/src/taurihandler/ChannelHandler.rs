@@ -109,12 +109,12 @@ pub async fn connect_channel(
 /// 断开通道
 #[tauri::command]
 pub async fn disconnect_channel(
-    channel_id: &str,
+    channelid: &str,
 ) -> Result<(), String> {
     // 获取通道ID对应的ChannelType
     let channel_type = {
         let id_map = CHANNEL_ID_MAP.lock().await;
-        id_map.get(channel_id).cloned().ok_or(format!("Channel ID not found: {}", channel_id))?
+        id_map.get(channelid).cloned().ok_or(format!("Channel ID not found: {}", channelid))?
     };
 
     // 获取通道管理器
@@ -127,7 +127,7 @@ pub async fn disconnect_channel(
     // 从映射中移除通道ID
     {
         let mut id_map = CHANNEL_ID_MAP.lock().await;
-        id_map.remove(channel_id);
+        id_map.remove(channelid);
     }
 
     Ok(())
@@ -135,13 +135,13 @@ pub async fn disconnect_channel(
 
 #[tauri::command]
 pub async fn send_message(
-    channel_id: String,
+    channelid: String,
     message: Vec<u8>,
 ) -> Result<(), String> {
     // 获取通道ID对应的ChannelType
     let channel_type = {
         let id_map = CHANNEL_ID_MAP.lock().await;
-        id_map.get(&channel_id).cloned().ok_or(format!("Channel ID not found: {}", channel_id))?
+        id_map.get(&channelid).cloned().ok_or(format!("Channel ID not found: {}", channelid))?
     };
 
     // 获取通道管理器
@@ -270,7 +270,7 @@ pub fn get_timer_status(channel_id: String) -> Result<Option<(u64, Vec<u8>)>, St
 }
 
 /// 获取通道管理器实例
-fn get_channel_manager() -> &'static Mutex<CommunicationManager> {
+pub fn get_channel_manager() -> &'static Mutex<CommunicationManager> {
     &CHANNEL_MANAGER
 }
 

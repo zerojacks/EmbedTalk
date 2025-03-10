@@ -63727,7 +63727,7 @@
 		</splitByLength>
 	</dataItem>
 	<template id="UNRECEIVEIDLIST" protocol="csg13" region="南网">
-		<name>第%d组未成功接收的段号<name>
+		<name>第%d组未成功接收的段号</name>
 		<length>2</length>
 		<type>BIN</type>
 	</template>

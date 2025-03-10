@@ -34,6 +34,13 @@ export default function Layout() {
               })}
             />
           </Link>
+          <Link className={linkClass} to="/dlt645-test">
+            <AiOutlineCode
+              className={clsx(defaultClass, {
+                [selectedClass]: location.pathname === "/dlt645-test",
+              })}
+            />
+          </Link>
           <div className="flex-grow" />
           <Link className={linkClass} to="/settings">
             <AiOutlineSetting

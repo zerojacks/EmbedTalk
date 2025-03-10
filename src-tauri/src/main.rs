@@ -18,6 +18,7 @@ pub mod combridage;
 pub mod config;
 pub mod global;
 pub mod taurihandler;
+pub mod protocol;
 // use once_cell::sync::OnceCell;
 use crate::combridage::ChannelType;
 use crate::config::appconfig::{get_config_value_async, set_config_value_async};
@@ -30,6 +31,9 @@ use crate::taurihandler::handler::{
     get_protocol_config_item, get_region_value, get_system_theme, on_text_change, save_file,
     save_protocol_config_item, set_region_value, open_window, update_window_position, 
     get_window_position, WindowState
+};
+use crate::taurihandler::dlt645_handler::{
+    parse_dlt645_frame, build_dlt645_frame, list_channels
 };
 // 用来格式化日志的输出时间格式
 struct LocalTimer;
@@ -85,6 +89,16 @@ fn main() {
         .setup(|app| {
             let handle = app.app_handle();
             global::set_app_handle(handle.clone()); // Set the global app handle
+            
+            // 初始化协议栈
+            let app_handle = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                match protocol::initialize_protocol_stack().await {
+                    Ok(_) => info!("Protocol stack initialized successfully"),
+                    Err(e) => error!("Failed to initialize protocol stack: {}", e),
+                }
+            });
+            
             Ok(())
         })
         .on_window_event(|window, event| match event {
@@ -120,7 +134,19 @@ fn main() {
             get_timer_status,
             open_window,
             update_window_position,
-            get_window_position
+            get_window_position,
+            // DLT645 相关命令
+            parse_dlt645_frame,
+            build_dlt645_frame,
+            list_channels,
+            // 协议相关命令
+            taurihandler::protocol_handler::get_supported_protocols,
+            taurihandler::protocol_handler::configure_channel_protocol,
+            taurihandler::protocol_handler::get_channel_protocol_config,
+            taurihandler::protocol_handler::parse_protocol_data,
+            taurihandler::protocol_handler::build_protocol_message,
+            taurihandler::protocol_handler::send_protocol_message,
+            taurihandler::protocol_handler::handle_protocol_message
         ])
         .build(ctx)
         .expect("error while running tauri application")

@@ -44,6 +44,7 @@ export interface MessageStats {
  */
 export interface BaseChannelConfig {
   state: ConnectionState;
+  channelId?: string;
 }
 
 /**
@@ -57,10 +58,9 @@ export interface TcpClientConfig extends BaseChannelConfig {
 /**
  * TCP服务器客户端
  */
-export interface TcpServerClient {
+export interface TcpServerClient extends BaseChannelConfig {
   ip: string;
   port: number;
-  state: ConnectionState;
 }
 
 /**
@@ -126,6 +126,37 @@ export interface ConnectBridgeInfo {
   serial?: SerialConfig;
   mqtt?: MqttConfig;
   bluetooth?: BluetoothConfig;
+}
+
+export interface Client {
+  ip: string;
+  port: number;
+  state: ConnectionState;
+  channelId: string;
+  name: string;
+  messages: ChannelMessage[];
+  sentCount?: number;
+  receivedCount?: number;
+}
+
+export interface Channel {
+  channelId: string;
+  channeltype: ChannelType;
+  name: string;
+  state: ConnectionState;
+  clients?: Client[];
+  messages: ChannelMessage[];
+  lastActivityTime?: number;
+  sentCount: number;
+  receivedCount: number;
+  config?: TcpClientConfig | TcpServerConfig | SerialConfig | MqttConfig | BluetoothConfig;
+  address?: string;
+  protocol?: string;
+  protocolConfig?: any;
+  autoParseProtocol?: boolean;
+  errorMessage?: string;
+  lastConnectedTime?: number;
+  reconnectAttempts?: number;
 }
 
 /**
