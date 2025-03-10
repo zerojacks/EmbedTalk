@@ -449,6 +449,15 @@ impl FrameCsg {
                 &protocol,
                 region,
             )?,
+            0x0F => Self::analysic_csg_filetrans_frame(
+                frame,
+                dir,
+                prm,
+                result_list,
+                index,
+                &protocol,
+                region,
+            )?,
             0x23 => Self::analysic_csg_topo_frame(
                 frame,
                 dir,
@@ -4702,6 +4711,198 @@ impl FrameCsg {
             Some(sub_result),
             None,
         );
+        Ok(())
+    }
+
+    pub fn analysic_csg_filetrans_frame(
+        frame: &[u8],
+        dir: u8,
+        prm: u8,
+        result_list: &mut Vec<Value>,
+        start_pos: usize,
+        protocol: &str,
+        region: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        let total_length = frame.len();
+        let valid_data_segment = &frame[16..frame.len() - 2];
+        let tpv = Self::get_afn_and_seq_result(&frame[14..16], start_pos + 14, result_list);
+        let mut length = valid_data_segment.len();
+        let mut pos = 0;
+        let index = 16 + start_pos;
+        let mut num = 0;
+        let mut sub_result = Vec::new();
+        let mut tpv_data: &[u8] = &[];
+        let mut pw_data: &[u8] = &[];
+        let empty_data: &[u8] = &[];
+        let (pw_data, pw_pos) = if tpv {
+            tpv_data = &frame[frame.len() - 7..frame.len() - 2];
+            let pw_data =
+                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
+            (pw_data, [total_length - 23, total_length - 7])
+        } else {
+            if valid_data_segment.len() < 16 {
+                (empty_data, [0, 0])
+            } else {
+                let pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
+                (pw_data, [total_length - 18, total_length - 2])
+            }
+        };
+
+        let data_segment = &valid_data_segment[..length];
+        let mut pw = false;
+
+        while pos < length {
+            let DA = &data_segment[pos..pos + 2];
+            let item = &data_segment[pos + 2..pos + 6];
+
+            let point_str = Self::prase_da_data([DA[0], DA[1]]);
+            let data_item = FrameFun::get_data_str_reverser(item);
+
+            FrameFun::add_data(
+                &mut sub_result,
+                format!("<第{}组>信息点标识DA", num + 1),
+                FrameFun::get_data_str_with_space(DA),
+                point_str,
+                vec![index + pos, index + pos + 2],
+                None,
+                None,
+            );
+            pos += 2;
+
+            let data_item_elem =
+                ProtocolConfigManager::get_config_xml(&data_item, protocol, region, Some(dir));
+            let mut item_data = Vec::new();
+            let mut sub_length = 0;
+            let mut sub_datament: &[u8] = &[];
+            let mut dis_data_identifier: String = String::new();
+            if let Some(mut data_item_elem) = data_item_elem {
+                (sub_length, sub_datament) = if dir == 1 && prm == 0 {
+                    (1, &data_segment[pos + 4..pos + 4 + 1])
+                } else {
+                    let sub_length_cont = data_item_elem.get_child_text("length");
+                    let sub_length = if let Some(sub_length_cont) = sub_length_cont {
+                        if sub_length_cont.to_uppercase() == "UNKNOWN" {
+                            Self::calculate_item_length(
+                                &mut data_item_elem,
+                                &data_segment[pos + 4..],
+                                protocol,
+                                region,
+                                Some(dir),
+                                None,
+                            )
+                        } else {
+                            sub_length_cont.parse::<usize>().unwrap()
+                        }
+                    } else {
+                        data_segment[4..].len()
+                    };
+                    let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
+                    (sub_length, sub_datament)
+                };
+                data_item_elem.update_value("length", sub_length.to_string());
+                // println!("sub_datament: {:?}", data_item_elem);
+                item_data = FrameAnalisyic::prase_data(
+                    &mut data_item_elem,
+                    protocol,
+                    region,
+                    sub_datament,
+                    index + pos + 4,
+                    Some(dir),
+                );
+                let name = data_item_elem.get_child_text("name").unwrap();
+                dis_data_identifier = format!("数据标识编码：[{}]-{}", data_item, name);
+            } else {
+                (sub_length, sub_datament) = if dir == 1 && prm == 0 {
+                    (1, &data_segment[pos + 4..pos + 4 + 1])
+                } else {
+                    let err_str =
+                        format!("未查找到数据标识：{},请检查配置文件！", data_item).to_string();
+                    let err = CustomError::new(1, err_str);
+                    break;
+                };
+                dis_data_identifier = format!("数据标识编码：[{}]", data_item);
+            };
+
+            FrameFun::add_data(
+                &mut sub_result,
+                format!("<第{}组>数据标识编码DI", num + 1),
+                FrameFun::get_data_str_with_space(item),
+                dis_data_identifier,
+                vec![index + pos, index + pos + 4],
+                None,
+                None,
+            );
+            let mut result_str = String::new();
+            if sub_length > 0 {
+                result_str = format!(
+                    "数据标识[{}]数据内容：{}",
+                    data_item,
+                    FrameFun::get_data_str_reverser(sub_datament)
+                );
+                FrameFun::add_data(
+                    &mut sub_result,
+                    format!("<第{}组>数据标识内容", num + 1),
+                    FrameFun::get_data_str_with_space(sub_datament),
+                    result_str,
+                    vec![index + pos + 4, index + pos + 4 + sub_length],
+                    Some(item_data),
+                    None,
+                );
+            }
+            pos += (sub_length + 4);
+            num += 1;
+            if length - pos == 16 {
+                pw = Self::guest_is_exit_pw(
+                    length,
+                    pw_data,
+                    None,
+                    None,
+                    false,
+                    protocol,
+                    region,
+                    Some(dir),
+                );
+
+                if pw {
+                    length -= 16;
+                }
+            }
+        }
+
+        if pw {
+            let pw_str = "PW由16个字节组成，是由主站按系统约定的认证算法产生，并在主站发送的报文中下发给终端，由终端进行校验认证。".to_string();
+            FrameFun::add_data(
+                &mut sub_result,
+                "消息验证码Pw".to_string(),
+                FrameFun::get_data_str_with_space(pw_data),
+                pw_str,
+                pw_pos.to_vec(),
+                None,
+                None,
+            );
+        }
+        if tpv {
+            let tpv_str = Self::prase_tpv_data(tpv_data);
+            FrameFun::add_data(
+                &mut sub_result,
+                "时间标签Tp".to_string(),
+                FrameFun::get_data_str_with_space(tpv_data),
+                tpv_str,
+                vec![total_length - 7, total_length - 2],
+                None,
+                None,
+            );
+        }
+        FrameFun::add_data(
+            result_list,
+            "信息体".to_string(),
+            FrameFun::get_data_str_with_space(&frame[16..frame.len() - 2]),
+            "".to_string(),
+            vec![16, total_length - 2],
+            Some(sub_result),
+            None,
+        );
+
         Ok(())
     }
 }

@@ -58,7 +58,7 @@ const ConnectBridgeRedux = () => {
       return;
     }
 
-    if (channels[channelType].state === 'connected') {
+    if (channels[channelType]?.state === 'connected') {
       await dispatch(disconnectChannel({ channelType, params: channels[channelType] }));
     } else {
       await dispatch(connectChannel({ channelType, params: channels[channelType] }));
