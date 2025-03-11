@@ -63540,20 +63540,20 @@
             <name>文件性质</name>
             <length>2</length>
             <type>BIN</type>
-			<value key="00">终端升级文件</value>
-			<value key="01">终端普通文件</value>
-			<value key="02">远程通信模块文件</value>
-			<value key="03">APP升级文件</value>
-			<value key="11">集中器本地通信模块文件</value>
-			<value key="12">从节点本地通信模块文件</value>
-			<value key="13">采集器文件</value>
-			<value key="15">电表升级文件</value>
-			<value key="20">RS-485模块</value>
-			<value key="21">遥信模块</value>
-			<value key="22">遥控模块</value>
-			<value key="23">分支监测模块</value>
-			<value key="24">M-Bus通信模块</value>
-			<value key="0F">清除正在传输的文件</value>
+			<value key="0000">终端升级文件</value>
+			<value key="0001">终端普通文件</value>
+			<value key="0002">远程通信模块文件</value>
+			<value key="0003">APP升级文件</value>
+			<value key="0011">集中器本地通信模块文件</value>
+			<value key="0012">从节点本地通信模块文件</value>
+			<value key="0013">采集器文件</value>
+			<value key="0015">电表升级文件</value>
+			<value key="0020">RS-485模块</value>
+			<value key="0021">遥信模块</value>
+			<value key="0022">遥控模块</value>
+			<value key="0023">分支监测模块</value>
+			<value key="0024">M-Bus通信模块</value>
+			<value key="000F">清除正在传输的文件</value>
         </splitByLength>
         <splitByLength>
             <name>文件总段数</name>
@@ -63573,7 +63573,7 @@
 		<splitByLength>
 			<name>总校验</name>
 			<length>2</length>
-			<type>BCD</type>
+			<type>NORMAL</type>
 		</splitByLength>
     </dataItem>
 	<dataItem protocol="csg13" region="南网" id="E3010001" dir="1">
@@ -63597,11 +63597,12 @@
 			<name>文件段内容</name>
 			<length>unknown</length>
 			<lengthrule>1 * 文件段长度</lengthrule>
+			<type>NORMAL</type>
 		</splitByLength>
 		<splitByLength>
 			<name>段校验</name>
 			<length>2</length>
-			<type>BCD</type>
+			<type>NORMAL</type>
 		</splitByLength>
 	</dataItem>
 	<dataItem protocol="csg13" region="南网" id="E3010002" dir="1">
@@ -63616,20 +63617,20 @@
             <name>文件性质</name>
             <length>2</length>
             <type>BIN</type>
-			<value key="00">终端升级文件</value>
-			<value key="01">终端普通文件</value>
-			<value key="02">远程通信模块文件</value>
-			<value key="03">APP升级文件</value>
-			<value key="11">集中器本地通信模块文件</value>
-			<value key="12">从节点本地通信模块文件</value>
-			<value key="13">采集器文件</value>
-			<value key="15">电表升级文件</value>
-			<value key="20">RS-485模块</value>
-			<value key="21">遥信模块</value>
-			<value key="22">遥控模块</value>
-			<value key="23">分支监测模块</value>
-			<value key="24">M-Bus通信模块</value>
-			<value key="0F">清除正在传输的文件</value>
+			<value key="0000">终端升级文件</value>
+			<value key="0001">终端普通文件</value>
+			<value key="0002">远程通信模块文件</value>
+			<value key="0003">APP升级文件</value>
+			<value key="0011">集中器本地通信模块文件</value>
+			<value key="0012">从节点本地通信模块文件</value>
+			<value key="0013">采集器文件</value>
+			<value key="0015">电表升级文件</value>
+			<value key="0020">RS-485模块</value>
+			<value key="0021">遥信模块</value>
+			<value key="0022">遥控模块</value>
+			<value key="0023">分支监测模块</value>
+			<value key="0024">M-Bus通信模块</value>
+			<value key="000F">清除正在传输的文件</value>
         </splitByLength>
         <splitByLength>
             <name>文件总段数</name>
@@ -63649,7 +63650,7 @@
 		<splitByLength>
 			<name>总校验</name>
 			<length>2</length>
-			<type>BCD</type>
+			<type>NORMAL</type>
 		</splitByLength>
 		<splitByLength>
 			<name>查询起始段号</name>
@@ -63669,20 +63670,20 @@
             <name>文件性质</name>
             <length>2</length>
             <type>BIN</type>
-			<value key="00">终端升级文件</value>
-			<value key="01">终端普通文件</value>
-			<value key="02">远程通信模块文件</value>
-			<value key="03">APP升级文件</value>
-			<value key="11">集中器本地通信模块文件</value>
-			<value key="12">从节点本地通信模块文件</value>
-			<value key="13">采集器文件</value>
-			<value key="15">电表升级文件</value>
-			<value key="20">RS-485模块</value>
-			<value key="21">遥信模块</value>
-			<value key="22">遥控模块</value>
-			<value key="23">分支监测模块</value>
-			<value key="24">M-Bus通信模块</value>
-			<value key="0F">清除正在传输的文件</value>
+			<value key="0000">终端升级文件</value>
+			<value key="0001">终端普通文件</value>
+			<value key="0002">远程通信模块文件</value>
+			<value key="0003">APP升级文件</value>
+			<value key="0011">集中器本地通信模块文件</value>
+			<value key="0012">从节点本地通信模块文件</value>
+			<value key="0013">采集器文件</value>
+			<value key="0015">电表升级文件</value>
+			<value key="0020">RS-485模块</value>
+			<value key="0021">遥信模块</value>
+			<value key="0022">遥控模块</value>
+			<value key="0023">分支监测模块</value>
+			<value key="0024">M-Bus通信模块</value>
+			<value key="000F">清除正在传输的文件</value>
         </splitByLength>
         <splitByLength>
             <name>文件总段数</name>
@@ -63702,7 +63703,7 @@
 		<splitByLength>
 			<name>总校验</name>
 			<length>2</length>
-			<type>BCD</type>
+			<type>NORMAL</type>
 		</splitByLength>
 		<splitByLength>
 			<name>查询起始段号</name>

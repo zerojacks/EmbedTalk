@@ -4736,6 +4736,7 @@ impl FrameCsg {
         let empty_data: &[u8] = &[];
         let (pw_data, pw_pos) = if tpv {
             tpv_data = &frame[frame.len() - 7..frame.len() - 2];
+            length -= 5;
             let pw_data =
                 &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
             (pw_data, [total_length - 23, total_length - 7])
@@ -4750,7 +4751,7 @@ impl FrameCsg {
 
         let data_segment = &valid_data_segment[..length];
         let mut pw = false;
-
+        println!("data_segment: {:?}, tpv: {:?}, pw_data: {:?}, length: {}", data_segment, tpv, pw_data, length);
         while pos < length {
             let DA = &data_segment[pos..pos + 2];
             let item = &data_segment[pos + 2..pos + 6];
@@ -4849,6 +4850,7 @@ impl FrameCsg {
                     None,
                 );
             }
+            println!("pos: {}, sub_length: {}", pos, sub_length);
             pos += (sub_length + 4);
             num += 1;
             if length - pos == 16 {
