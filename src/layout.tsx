@@ -1,5 +1,8 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { AiOutlineSetting, AiOutlineHome, AiOutlineCode } from "react-icons/ai";
+import { AiOutlineSetting, AiOutlineHome } from "react-icons/ai";
+import { MdOutlineMonitor, MdOutlineDevices } from "react-icons/md";
+import { BiNetworkChart } from "react-icons/bi";
+import { TbDeviceAnalytics } from "react-icons/tb";
 import clsx from "clsx";
 
 export default function Layout() {
@@ -18,27 +21,31 @@ export default function Layout() {
               className={clsx(defaultClass, {
                 [selectedClass]: location.pathname === "/",
               })}
+              title="首页"
             />
           </Link>
           <Link className={linkClass} to="/channelmonitor">
-            <AiOutlineCode
+            <MdOutlineMonitor
               className={clsx(defaultClass, {
                 [selectedClass]: location.pathname === "/channelmonitor",
               })}
+              title="通道监控"
             />
           </Link>
           <Link className={linkClass} to="/itemconfig">
-            <AiOutlineCode
+            <BiNetworkChart
               className={clsx(defaultClass, {
                 [selectedClass]: location.pathname === "/itemconfig",
               })}
+              title="项目配置"
             />
           </Link>
           <Link className={linkClass} to="/dlt645-test">
-            <AiOutlineCode
+            <TbDeviceAnalytics
               className={clsx(defaultClass, {
                 [selectedClass]: location.pathname === "/dlt645-test",
               })}
+              title="DLT645测试"
             />
           </Link>
           <div className="flex-grow" />
@@ -47,6 +54,7 @@ export default function Layout() {
               className={clsx(defaultClass, {
                 [selectedClass]: location.pathname === "/settings",
               })}
+              title="设置"
             />
           </Link>
         </div>

@@ -4,6 +4,20 @@ import { ChannelType, ConnectionState, ChannelMessage, ConnectionParams } from '
 import { ThunkDispatch, AnyAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { updateChannelState, updateMessageStats } from '../store/slices/channelSlice';
+import { SettingService } from './settingService';
+
+// 配置键常量
+const CHANNEL_SECTION = "Channel";
+const CHANNEL_CONFIG_KEY = "config";
+
+// 默认通道配置
+const DEFAULT_CHANNEL_CONFIGS: Record<ChannelType, ConnectionParams> = {
+  tcpclient: {},
+  tcpserver: {},
+  serial: {},
+  mqtt: {},
+  bluetooth: {}
+};
 
 /**
  * 服务层 - 处理与 Tauri 后端的通信
@@ -13,7 +27,22 @@ export class ChannelService {
   private static channelStateUnlistener: UnlistenFn | null = null;
   private static messageUnlistener: UnlistenFn | null = null;
   private static dispatch: ThunkDispatch<RootState, undefined, AnyAction> | null = null;
-  
+
+  /**
+   * 清理连接参数，移除所有状态相关的属性
+   * @param params 连接参数
+   * @returns 清理后的连接参数
+   */
+  private static cleanConnectionParams(params: ConnectionParams): ConnectionParams {
+    const cleanParams = { ...params };
+    // 移除所有可能的状态相关属性
+    delete (cleanParams as any).state;
+    delete (cleanParams as any).channelId;
+    delete (cleanParams as any).connected;
+    delete (cleanParams as any).connecting;
+    return cleanParams;
+  }
+
   /**
    * 初始化通道服务，设置全局监听器
    * @param dispatch Redux dispatch 函数
@@ -80,6 +109,55 @@ export class ChannelService {
   }
 
   /**
+   * 加载保存的通道配置
+   * @returns 保存的通道配置
+   */
+  static async loadChannelConfigs(): Promise<Record<ChannelType, ConnectionParams>> {
+    try {
+      // 从配置文件加载参数
+      const rawValue = await invoke<string>("get_config_value_async", {
+        section: CHANNEL_SECTION,
+        key: CHANNEL_CONFIG_KEY,
+      });
+
+      let configs: Record<ChannelType, ConnectionParams>;
+      
+      if (rawValue) {
+        try {
+          // 尝试解析配置
+          configs = typeof rawValue === 'string' ? 
+            JSON.parse(rawValue) : 
+            rawValue as Record<ChannelType, ConnectionParams>;
+        } catch (error) {
+          console.warn('解析通道配置失败，使用默认配置:', error);
+          configs = DEFAULT_CHANNEL_CONFIGS;
+        }
+      } else {
+        configs = DEFAULT_CHANNEL_CONFIGS;
+      }
+
+      // 确保返回的配置不包含任何状态信息
+      Object.keys(configs).forEach((key) => {
+        const channelType = key as ChannelType;
+        configs[channelType] = this.cleanConnectionParams(configs[channelType] || {});
+      });
+
+      // 确保所有通道类型都存在
+      Object.keys(DEFAULT_CHANNEL_CONFIGS).forEach((key) => {
+        const channelType = key as ChannelType;
+        if (!configs[channelType]) {
+          configs[channelType] = {};
+        }
+      });
+
+      return configs;
+    } catch (error) {
+      console.error('加载通道配置失败:', error);
+      return DEFAULT_CHANNEL_CONFIGS;
+    }
+  }
+
+  /**
    * 连接通道
    * @param channelType 通道类型
    * @param params 连接参数
@@ -87,11 +165,25 @@ export class ChannelService {
    */
   static async connectChannel(channelType: ChannelType, params: ConnectionParams): Promise<string> {
     try {
+      // 调用后端连接
       const channelId = await invoke<string>('connect_channel', { 
-        channel: channelType, 
-        values: JSON.stringify(params) 
+        channel: channelType,
+        params: JSON.stringify(params)
       });
+
+      // 保存配置到文件
+      const configs = await this.loadChannelConfigs();
       
+      // 只保存必要的连接参数
+      configs[channelType] = this.cleanConnectionParams(params);
+      
+      // 保存到配置文件
+      await invoke("set_config_value_async", {
+        section: CHANNEL_SECTION,
+        key: CHANNEL_CONFIG_KEY,
+        value: JSON.stringify(configs)
+      });
+
       return channelId;
     } catch (error) {
       console.error(`连接通道失败: ${channelType}`, error);
@@ -101,17 +193,13 @@ export class ChannelService {
 
   /**
    * 断开通道连接
-   * @param channelType 通道类型
-   * @param params 连接参数
+   * @param channelId 通道ID
    */
-  static async disconnectChannel(channelType: ChannelType, params: ConnectionParams): Promise<void> {
+  static async disconnectChannel(channelId: string): Promise<void> {
     try {
-      // 调用后端断开连接
-      await invoke('disconnect_channel', { 
-        channel: channelType
-      });
+      await invoke('disconnect_channel', { channelid:channelId });
     } catch (error) {
-      console.error(`断开通道失败: ${channelType}`, error);
+      console.error(`断开通道失败: ${channelId}`, error);
       throw error;
     }
   }
@@ -143,7 +231,7 @@ export class ChannelService {
 
   /**
    * 发送消息
-   * @param channelType 通道类型
+   * @param channelid 通道ID
    * @param message 消息内容
    * @param isHex 是否为十六进制字符串
    */

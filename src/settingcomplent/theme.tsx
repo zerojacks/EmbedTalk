@@ -1,46 +1,24 @@
-import { Outlet } from "react-router-dom";
-import themes from "../utils/themes";
-import { ThemeType, useSettingsContext } from "../context/SettingsProvider";
+import { useSettingsContext } from "../context/SettingsProvider";
 import { ThemeIcon } from '../components/Icons';
-import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useState } from "react";
+import { ThemeOption } from '../store/slices/themeSlice';
 
-const themesMap = {
-    light: "明亮",
-    dark: "黑暗",
-    auto: "系统",
-};
+const themes: Array<{ code: ThemeOption; name: string }> = [
+    { code: 'light', name: '明亮' },
+    { code: 'dark', name: '黑暗' },
+    { code: 'system', name: '系统' }
+];
+
 
 
 // 定义为 React 组件
 const ThemeChange = () => {
     const { setTheme, theme: currentTheme } = useSettingsContext();
-    const [selectTheme, setSelectTheme] = useState<string>(currentTheme);
-
-    useEffect(() => {
-        async function getconfigTheme() {
-            try {
-                let theme = await invoke<string>("get_config_value_async", {section: "MainWindow", key: "theme"});
-                // 检查 theme 是否为 null 或 undefined
-                if (!theme || typeof theme !== 'string' || theme.length === 0) {
-                    theme = "auto";
-                }
-                console.log("getconfigTheme", theme);
-                setSelectTheme(theme);
-            } catch (error) {
-                console.error("Error getting theme config:", error);
-                setSelectTheme("auto"); // 出错时使用默认主题
-            }
-        };
-        getconfigTheme();
-
-    }, [])
+    const [selectTheme, setSelectTheme] = useState<ThemeOption>(currentTheme);
 
     async function setcurrentTheme(theme: string) {
-        console.log("curenttheme", theme);
-        setTheme(theme as ThemeType);
-        await invoke("set_config_value_async", {section: "MainWindow", key: "theme", value: JSON.stringify(theme)});
-        setSelectTheme(theme);
+        setTheme(theme as ThemeOption);
+        setSelectTheme(theme as ThemeOption);
     };
     const handleThemeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const selectedTheme = event.target.value;
@@ -60,8 +38,8 @@ const ThemeChange = () => {
                     onChange={handleThemeChange}
                 >
                     {themes.map((theme, index) => (
-                        <option key={index} value={theme}>
-                            {themesMap[theme as keyof typeof themesMap]}
+                        <option key={index} value={theme.code}>
+                            {theme.name}
                         </option>
                     ))}
                 </select>

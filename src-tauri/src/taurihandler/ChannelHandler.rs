@@ -38,9 +38,9 @@ lazy_static! {
 #[tauri::command]
 pub async fn connect_channel(
     channel: &str,
-    values: &str,
+    params: &str,
 ) -> Result<String, String> {
-    let values: serde_json::Value = serde_json::from_str(values).map_err(|e| e.to_string())?;
+    let values: serde_json::Value = serde_json::from_str(params).map_err(|e| e.to_string())?;
 
     // 根据通道类型和参数创建 ChannelType
     let channel_type = match channel.to_uppercase().as_str() {

@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import SimpleIPInput from '../components/SimpleIPInput';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { 
   setConnectInfo, 
   connectChannel, 
-  disconnectChannel
+  disconnectChannel,
+  loadChannelConfigs
 } from '../store/slices/channelSlice';
 import { ChannelType, ConnectionState } from '../types/channel';
 
@@ -36,10 +37,17 @@ const getButtonText = (state: ConnectionState | undefined): string => {
 const ConnectBridgeRedux = () => {
   // 使用 Redux hooks
   const dispatch = useAppDispatch();
-  const { channels } = useAppSelector(state => state.channel);
+  const { channels, serviceInitialized } = useAppSelector(state => state.channel);
   
   // 本地状态 - 仅用于串口列表
   const [comList, setComList] = useState<string[]>([]);
+
+  // 初始化时加载配置
+  useEffect(() => {
+    if (serviceInitialized) {
+      dispatch(loadChannelConfigs());
+    }
+  }, [dispatch, serviceInitialized]);
 
   // 获取串口列表
   const refreshComList = async () => {
@@ -54,14 +62,21 @@ const ConnectBridgeRedux = () => {
 
   // 处理通道操作
   const handleChannelAction = async (channelType: ChannelType) => {
-    if (!channels[channelType]) {
+    const channelConfig = channels[channelType];
+    if (!channelConfig) {
       return;
     }
 
-    if (channels[channelType]?.state === 'connected') {
-      await dispatch(disconnectChannel({ channelType, params: channels[channelType] }));
+    if (channelConfig.state === 'connected' && channelConfig.channelId) {
+      // 断开连接时使用 channelId
+      await dispatch(disconnectChannel({ 
+        channelType, 
+        channelId: channelConfig.channelId,
+        params: channelConfig 
+      }));
     } else {
-      await dispatch(connectChannel({ channelType, params: channels[channelType] }));
+      // 连接时保持原有逻辑
+      await dispatch(connectChannel({ channelType, params: channelConfig }));
     }
   };
 

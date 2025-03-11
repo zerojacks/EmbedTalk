@@ -2,10 +2,12 @@ import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
 import channelReducer, { loadChannelConfig, initializeChannelService } from './slices/channelSlice';
+import themeReducer, { initTheme } from './slices/themeSlice';
 
 // 合并所有 reducer
 const rootReducer = combineReducers({
   channel: channelReducer,
+  theme: themeReducer,
   // 可以在这里添加其他 reducer
 });
 
@@ -29,6 +31,9 @@ export const store = configureStore({
       },
     }),
 });
+
+// 初始化主题
+initTheme(store);
 
 // 创建持久化的 store
 export const persistor = persistStore(store, null, () => {

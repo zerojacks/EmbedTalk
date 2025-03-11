@@ -106,23 +106,14 @@ const DLT645TestWindow: React.FC = () => {
     })
     .filter(channel => channel.channelId); // 过滤掉无效的通道
 
-  // 当连接的通道列表变化时，更新选中的通道
-  useEffect(() => {
-    if (connectedChannels.length > 0 && (!selectedChannel || !connectedChannels.some(c => c.channelId === selectedChannel.channelId))) {
-      setSelectedChannel(connectedChannels[0]);
-    } else if (connectedChannels.length === 0) {
-      setSelectedChannel(null);
-    }
-  }, [connectedChannels, selectedChannel]);
-
   // 解析 DLT645 报文
-  const handleParse = async (text: string) => {
-    if (!text.trim()) {
+  const handleParse = async (message: string) => {
+    if (!message.trim()) {
       setResult(null);
       return;
     }
-
-    const formattedValue = text
+    
+    const formattedValue = message
       .replace(/\s+/g, '')
       .replace(/(.{2})/g, '$1 ')
       .trim()
@@ -136,18 +127,18 @@ const DLT645TestWindow: React.FC = () => {
         channelid: selectedChannel?.channelId,
         message: formattedValue
       });
-
+      
       if (result.error) {
+        toast.error(`解析失败: ${result.error}`);
         setResult(null);
-        toast.error(result.error);
       } else {
         // 确保结果是数组
         setResult(Array.isArray(result.data) ? result.data : []);
       }
     } catch (error) {
       console.error('Parse error:', error);
+      toast.error(`解析失败: ${error}`);
       setResult(null);
-      toast.error("解析失败");
     }
   };
 
@@ -173,26 +164,21 @@ const DLT645TestWindow: React.FC = () => {
       console.log(result);
       setGeneratedFrame(result.hex);
     } catch (error) {
-      console.error('Generate frame error:', error);
-      toast.error("生成报文失败");
+      console.error('Generate error:', error);
+      toast.error(`生成失败: ${error}`);
     }
   };
 
   // 发送 DLT645 报文
   const handleSendFrame = async () => {
-    if (!selectedChannel) {
-      toast.error("请先选择通道");
+    if (!selectedChannel || !generatedFrame) {
+      toast.error("请选择通道并生成报文");
       return;
     }
-
-    if (!generatedFrame) {
-      toast.error("请先生成报文");
-      return;
-    }
-
+    
     setIsLoading(true);
     setResponse(null);
-
+    
     try {
       // 发送报文并等待响应
       console.log('Sending frame:', selectedChannel);
@@ -220,199 +206,205 @@ const DLT645TestWindow: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">DLT645 协议测试</h1>
-      
-      <div className="tabs tabs-boxed mb-4">
-        <a 
-          className={`tab ${activeTab === 'parser' ? 'tab-active' : ''}`}
-          onClick={() => setActiveTab('parser')}
-        >
-          报文解析
-        </a>
-        <a 
-          className={`tab ${activeTab === 'builder' ? 'tab-active' : ''}`}
-          onClick={() => setActiveTab('builder')}
-        >
-          报文构建
-        </a>
+    <div className="h-full flex flex-col">
+      {/* 固定高度的标题部分 */}
+      <div className="flex-none">
+        <h1 className="text-2xl font-bold mb-4">DLT645 协议测试</h1>
+        
+        <div className="tabs tabs-boxed mb-4">
+          <a 
+            className={`tab ${activeTab === 'parser' ? 'tab-active' : ''}`}
+            onClick={() => setActiveTab('parser')}
+          >
+            报文解析
+          </a>
+          <a 
+            className={`tab ${activeTab === 'builder' ? 'tab-active' : ''}`}
+            onClick={() => setActiveTab('builder')}
+          >
+            报文构建
+          </a>
+        </div>
       </div>
       
-      {/* 报文解析标签页 */}
-      {activeTab === 'parser' && (
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <h2 className="text-xl font-semibold">DLT645 报文解析</h2>
-              <p className="text-sm text-gray-500">输入 DLT645 报文进行解析</p>
-            </CardHeader>
-            <CardContent>
-              <textarea
-                value={input}
-                onChange={handleInputChange}
-                placeholder="粘贴要解析的 DLT645 报文..."
-                className="w-full h-32 font-mono textarea textarea-bordered"
-              />
-            </CardContent>
-          </Card>
-
-          {result && (
+      {/* 可滚动的内容区域 */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {/* 报文解析标签页 */}
+        {activeTab === 'parser' && (
+          <div className="space-y-4 pb-4">
             <Card>
               <CardHeader>
-                <h2 className="text-xl font-semibold">解析结果</h2>
+                <h2 className="text-xl font-semibold">DLT645 报文解析</h2>
+                <p className="text-sm text-gray-500">输入 DLT645 报文进行解析</p>
               </CardHeader>
               <CardContent>
-                <TreeTable 
-                  data={result} 
-                  tableheads={tableheads}
-                  onRowClick={() => {}}
+                <textarea
+                  value={input}
+                  onChange={handleInputChange}
+                  placeholder="粘贴要解析的 DLT645 报文..."
+                  className="w-full h-32 font-mono textarea textarea-bordered"
                 />
               </CardContent>
             </Card>
-          )}
-        </div>
-      )}
-      
-      {/* 报文构建标签页 */}
-      {activeTab === 'builder' && (
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <h2 className="text-xl font-semibold">DLT645 报文构建</h2>
-              <p className="text-sm text-gray-500">构建 DLT645 报文并发送</p>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text">表地址</span>
-                  </label>
-                  <input 
-                    type="text"
-                    value={address} 
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="12 字节表地址"
-                    className="input input-bordered font-mono"
+
+            {result && (
+              <Card>
+                <CardHeader>
+                  <h2 className="text-xl font-semibold">解析结果</h2>
+                </CardHeader>
+                <CardContent>
+                  <TreeTable 
+                    data={result} 
+                    tableheads={tableheads}
+                    onRowClick={() => {}}
                   />
-                </div>
-                
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text">功能码</span>
-                  </label>
-                  <select 
-                    className="select select-bordered w-full" 
-                    value={functionCode}
-                    onChange={(e) => setFunctionCode(e.target.value)}
-                  >
-                    {functionCodes.map((code) => (
-                      <option key={code.value} value={code.value}>
-                        {code.label} ({code.value})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text">数据标识</span>
-                  </label>
-                  <select 
-                    className="select select-bordered w-full" 
-                    value={dataIdentifier}
-                    onChange={(e) => setDataIdentifier(e.target.value)}
-                  >
-                    {dataIdentifiers.map((di) => (
-                      <option key={di.value} value={di.value}>
-                        {di.label} ({di.value})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text">数据</span>
-                  </label>
-                  <input 
-                    type="text"
-                    value={customData} 
-                    onChange={(e) => setCustomData(e.target.value)}
-                    placeholder="十六进制数据 (可选)"
-                    className="input input-bordered font-mono"
-                  />
-                </div>
-              </div>
-              
-              <button 
-                onClick={handleGenerateFrame} 
-                className="btn btn-primary w-full mb-4"
-              >
-                生成报文
-              </button>
-              
-              {generatedFrame && (
-                <div className="form-control mb-4">
-                  <label className="label">
-                    <span className="label-text">生成的报文</span>
-                  </label>
-                  <textarea
-                    value={generatedFrame}
-                    readOnly
-                    className="textarea textarea-bordered w-full h-20 font-mono"
-                  />
-                </div>
-              )}
-              
-              <div className="form-control mb-4">
-                <label className="label">
-                  <span className="label-text">选择通道</span>
-                </label>
-                <select 
-                  className="select select-bordered w-full" 
-                  value={selectedChannel?.channelId || ""}
-                  onChange={(e) => {
-                    const channel = connectedChannels.find(c => c.channelId === e.target.value);
-                    if (channel) {
-                      setSelectedChannel(channel);
-                    }
-                  }}
-                >
-                  <option value="" disabled>选择通道</option>
-                  {connectedChannels.map((channel) => (
-                    <option key={channel.channelId} value={channel.channelId}>
-                      {channel.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <button 
-                onClick={handleSendFrame} 
-                disabled={!selectedChannel || !generatedFrame || isLoading}
-                className={`btn w-full ${isLoading ? 'loading' : ''}`}
-              >
-                {isLoading ? "发送中..." : "发送报文"}
-              </button>
-            </CardContent>
-          </Card>
-          
-          {response && (
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+        
+        {/* 报文构建标签页 */}
+        {activeTab === 'builder' && (
+          <div className="space-y-4 pb-4">
             <Card>
               <CardHeader>
-                <h2 className="text-xl font-semibold">响应结果</h2>
+                <h2 className="text-xl font-semibold">DLT645 报文构建</h2>
+                <p className="text-sm text-gray-500">构建 DLT645 报文并发送</p>
               </CardHeader>
               <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text">表地址</span>
+                    </label>
+                    <input 
+                      type="text"
+                      value={address} 
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="12 字节表地址"
+                      className="input input-bordered font-mono"
+                    />
+                  </div>
+                  
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text">功能码</span>
+                    </label>
+                    <select 
+                      className="select select-bordered w-full" 
+                      value={functionCode}
+                      onChange={(e) => setFunctionCode(e.target.value)}
+                    >
+                      {functionCodes.map((code) => (
+                        <option key={code.value} value={code.value}>
+                          {code.label} ({code.value})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text">数据标识</span>
+                    </label>
+                    <select 
+                      className="select select-bordered w-full" 
+                      value={dataIdentifier}
+                      onChange={(e) => setDataIdentifier(e.target.value)}
+                    >
+                      {dataIdentifiers.map((di) => (
+                        <option key={di.value} value={di.value}>
+                          {di.label} ({di.value})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text">数据</span>
+                    </label>
+                    <input 
+                      type="text"
+                      value={customData} 
+                      onChange={(e) => setCustomData(e.target.value)}
+                      placeholder="十六进制数据 (可选)"
+                      className="input input-bordered font-mono"
+                    />
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={handleGenerateFrame} 
+                  className="btn btn-primary w-full mb-4"
+                >
+                  生成报文
+                </button>
+                
+                {generatedFrame && (
+                  <div className="form-control mb-4">
+                    <label className="label">
+                      <span className="label-text">生成的报文</span>
+                    </label>
+                    <textarea
+                      value={generatedFrame}
+                      readOnly
+                      className="textarea textarea-bordered w-full h-20 font-mono"
+                    />
+                  </div>
+                )}
+                
+                <div className="form-control mb-4">
+                  <label className="label">
+                    <span className="label-text">选择通道</span>
+                  </label>
+                  <select 
+                    className="select select-bordered w-full" 
+                    value={selectedChannel?.channelId || ""}
+                    onChange={(e) => {
+                      const channel = connectedChannels.find(c => c.channelId === e.target.value);
+                      if (channel) {
+                        setSelectedChannel(channel);
+                      }
+                    }}
+                  >
+                    <option value="" disabled>选择通道</option>
+                    {connectedChannels.map((channel) => (
+                      <option key={channel.channelId} value={channel.channelId}>
+                        {channel.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <button 
+                  onClick={handleSendFrame} 
+                  disabled={!selectedChannel || !generatedFrame || isLoading}
+                  className={`btn w-full ${isLoading ? 'loading' : ''}`}
+                >
+                  {isLoading ? "发送中..." : "发送报文"}
+                </button>
+              </CardContent>
+            </Card>
+            
+            {response && (
+              <Card>
+                <CardHeader>
+                  <h2 className="text-xl font-semibold">响应结果</h2>
+                </CardHeader>
+                <CardContent>
                 <TreeTable 
                   data={Array.isArray(response) ? response : [response]} 
                   tableheads={tableheads}
                   onRowClick={() => {}}
                 />
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

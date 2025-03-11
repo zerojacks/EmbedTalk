@@ -28,7 +28,7 @@ use crate::taurihandler::ChannelHandler::{
 };
 use crate::taurihandler::handler::{
     app_close, check_update, get_all_config_item_lists, get_app_info, get_com_list,
-    get_protocol_config_item, get_region_value, get_system_theme, on_text_change, save_file,
+    get_protocol_config_item, get_region_value, on_text_change, save_file,
     save_protocol_config_item, set_region_value, open_window, update_window_position, 
     get_window_position, WindowState
 };
@@ -125,7 +125,6 @@ fn main() {
             disconnect_channel,
             get_all_config_item_lists,
             get_protocol_config_item,
-            get_system_theme,
             save_protocol_config_item,
             list_serial_ports,
             send_message,

@@ -3,14 +3,20 @@ import { ChannelService } from '../../services/channelService';
 import { 
   ChannelType, 
   ConnectionState, 
-  ConnectBridgeInfo,
-  ChannelConfigMap,
+  ConnectionParams,
   ChannelMessage,
-  MessageStats
+  MessageStats,
+  ChannelConfigMap,
+  ConnectBridgeInfo,
+  TcpClientConfig,
+  TcpServerConfig,
+  SerialConfig,
+  MqttConfig,
+  BluetoothConfig
 } from '../../types/channel';
-import { invoke } from '@tauri-apps/api/core';
-import { toast } from '../../context/ToastProvider';
 import { RootState } from '../index';
+import { toast } from '../../context/ToastProvider';
+import { invoke } from '@tauri-apps/api/core';
 import { ThunkDispatch } from '@reduxjs/toolkit';
 import { AnyAction } from 'redux';
 
@@ -57,18 +63,18 @@ const getToastMessage = (channel: ChannelType, payload: any, action: ConnectionS
 };
 
 // 状态接口
-export interface ChannelState {
-  // 所有通道的配置和状态
-  channels: Partial<ChannelConfigMap>;
-  // 加载状态
+interface ChannelState {
+  channels: {
+    tcpclient?: TcpClientConfig & { state: ConnectionState; channelId?: string };
+    tcpserver?: TcpServerConfig & { state: ConnectionState; channelId?: string };
+    serial?: SerialConfig & { state: ConnectionState; channelId?: string };
+    mqtt?: MqttConfig & { state: ConnectionState; channelId?: string };
+    bluetooth?: BluetoothConfig & { state: ConnectionState; channelId?: string };
+  };
   loading: boolean;
-  // 错误信息
   error: string | null;
-  // 服务是否初始化
   serviceInitialized: boolean;
-  // 消息统计
   messageStats: Record<string, MessageStats>;
-  // 消息历史记录
   messageHistory: Record<string, ChannelMessage[]>;
 }
 
@@ -102,10 +108,33 @@ export const initializeChannelService = createAsyncThunk<
     try {
       // 初始化通道服务，传入 dispatch 以便服务可以更新状态
       await ChannelService.initializeChannelService(dispatch);
+      
+      // 初始化成功后立即加载配置
+      dispatch(loadChannelConfigs());
+      
       return true;
     } catch (error) {
       console.error("Error initializing channel service:", error);
       return false;
+    }
+  }
+);
+
+// 异步 Thunk - 加载通道配置
+export const loadChannelConfigs = createAsyncThunk<
+  Record<ChannelType, ConnectionParams>,
+  void,
+  { state: RootState }
+>(
+  'channel/loadConfigs',
+  async () => {
+    try {
+      // 从配置文件加载参数
+      const configs = await ChannelService.loadChannelConfigs();
+      return configs;
+    } catch (error) {
+      console.error('加载通道配置失败:', error);
+      throw error;
     }
   }
 );
@@ -215,6 +244,9 @@ export const connectChannel = createAsyncThunk<
       // 调用服务连接通道
       const channelId = await ChannelService.connectChannel(channelType, params);
       
+      // 更新状态，包含 channelId
+      dispatch(updateChannelState({ channelType, state: 'connected', channelId }));
+      
       // 显示连接成功通知
       const message = getToastMessage(channelType, params, 'connected');
       toast.success(message, 'end', 'bottom', 3000);
@@ -235,17 +267,17 @@ export const connectChannel = createAsyncThunk<
 // 异步 Thunk - 断开通道
 export const disconnectChannel = createAsyncThunk<
   { channelType: ChannelType; state: ConnectionState },
-  { channelType: ChannelType; params: any },
+  { channelType: ChannelType; channelId: string; params: any },
   { state: RootState; rejectValue: { channelType: ChannelType; error: string } }
 >(
   'channel/disconnect',
-  async ({ channelType, params }, { dispatch, rejectWithValue }) => {
+  async ({ channelType, channelId, params }, { dispatch, rejectWithValue }) => {
     try {
       // 更新状态为断开中
       dispatch(updateChannelState({ channelType, state: 'disconnecting' }));
       
       // 调用服务断开通道
-      await ChannelService.disconnectChannel(channelType, params);
+      await ChannelService.disconnectChannel(channelId);
       
       // 显示断开连接通知
       const message = getToastMessage(channelType, params, 'disconnected');
@@ -330,13 +362,13 @@ const channelSlice = createSlice({
     },
     
     // 更新通道状态
-    updateChannelState: (state, action: PayloadAction<{ channelType: ChannelType, state: ConnectionState }>) => {
-      const { channelType, state: connectionState } = action.payload;
-      
+    updateChannelState: (state, action: PayloadAction<{ channelType: ChannelType; state: ConnectionState; channelId?: string }>) => {
+      const { channelType, state: newState, channelId } = action.payload;
       if (state.channels[channelType]) {
         state.channels[channelType] = {
           ...state.channels[channelType],
-          state: connectionState
+          state: newState,
+          ...(channelId && { channelId })
         };
       }
     },
@@ -416,18 +448,82 @@ const channelSlice = createSlice({
     }
   },
   extraReducers: (builder) => {
-    // 初始化通道服务
+    // 初始化服务
     builder
       .addCase(initializeChannelService.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(initializeChannelService.fulfilled, (state, action) => {
+        state.loading = false;
+        state.error = null;
         state.serviceInitialized = action.payload;
-        state.loading = false;
       })
-      .addCase(initializeChannelService.rejected, (state) => {
-        state.serviceInitialized = false;
+      .addCase(initializeChannelService.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.error.message || null;
+        state.serviceInitialized = false;
+      });
+
+    // 加载通道配置
+    builder
+      .addCase(loadChannelConfigs.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(loadChannelConfigs.fulfilled, (state, action) => {
+        // 合并配置，保持现有的连接状态
+        Object.entries(action.payload).forEach(([type, config]) => {
+          const channelType = type as ChannelType;
+          const currentState = state.channels[channelType]?.state || 'disconnected';
+          const currentChannelId = state.channels[channelType]?.channelId;
+
+          // 根据通道类型设置配置
+          switch (channelType) {
+            case 'tcpclient':
+              state.channels.tcpclient = {
+                ...config as TcpClientConfig,
+                state: currentState,
+                channelId: currentChannelId
+              };
+              break;
+            case 'tcpserver':
+              state.channels.tcpserver = {
+                ...config as TcpServerConfig,
+                state: currentState,
+                channelId: currentChannelId
+              };
+              break;
+            case 'serial':
+              state.channels.serial = {
+                ...config as SerialConfig,
+                state: currentState,
+                channelId: currentChannelId
+              };
+              break;
+            case 'mqtt':
+              state.channels.mqtt = {
+                ...config as MqttConfig,
+                state: currentState,
+                channelId: currentChannelId
+              };
+              break;
+            case 'bluetooth':
+              state.channels.bluetooth = {
+                ...config as BluetoothConfig,
+                state: currentState,
+                channelId: currentChannelId
+              };
+              break;
+          }
+        });
+        
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(loadChannelConfigs.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || null;
       });
     
     // 加载配置
@@ -448,54 +544,76 @@ const channelSlice = createSlice({
     // 连接通道
     builder
       .addCase(connectChannel.pending, (state, action) => {
-        // 状态已经在 thunk 中更新为 connecting
-      })
-      .addCase(connectChannel.fulfilled, (state, action) => {
-        const { channelType, state: connectionState, channelId } = action.payload;
-        
+        const { channelType } = action.meta.arg;
         if (state.channels[channelType]) {
           state.channels[channelType] = {
             ...state.channels[channelType],
-            state: connectionState,
-            channelId: channelId ?? state.channels[channelType].channelId
+            state: 'connecting'
           };
         }
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(connectChannel.fulfilled, (state, action) => {
+        const { channelType, channelId } = action.payload;
+        if (state.channels[channelType]) {
+          state.channels[channelType] = {
+            ...state.channels[channelType],
+            state: 'connected',
+            channelId
+          };
+        }
+        state.loading = false;
+        state.error = null;
       })
       .addCase(connectChannel.rejected, (state, action) => {
-        const payload = action.payload as { channelType: ChannelType };
-        
-        if (state.channels[payload.channelType]) {
-          state.channels[payload.channelType] = {
-            ...state.channels[payload.channelType],
-            state: 'error'
+        const { channelType } = action.meta.arg;
+        if (state.channels[channelType]) {
+          state.channels[channelType] = {
+            ...state.channels[channelType],
+            state: 'disconnected',
+            channelId: undefined
           };
         }
+        state.loading = false;
+        state.error = action.error.message || null;
       });
-    
+
     // 断开通道
     builder
       .addCase(disconnectChannel.pending, (state, action) => {
-        // 状态已经在 thunk 中更新为 disconnecting
-      })
-      .addCase(disconnectChannel.fulfilled, (state, action) => {
-        const { channelType, state: connectionState } = action.payload;
-        
+        const { channelType } = action.meta.arg;
         if (state.channels[channelType]) {
           state.channels[channelType] = {
             ...state.channels[channelType],
-            state: connectionState
+            state: 'disconnecting'
           };
         }
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(disconnectChannel.fulfilled, (state, action) => {
+        const { channelType } = action.payload;
+        if (state.channels[channelType]) {
+          state.channels[channelType] = {
+            ...state.channels[channelType],
+            state: 'disconnected',
+            channelId: undefined
+          };
+        }
+        state.loading = false;
+        state.error = null;
       })
       .addCase(disconnectChannel.rejected, (state, action) => {
-        const payload = action.payload as { channelType: ChannelType };
-        
-        if (state.channels[payload.channelType]) {
-          state.channels[payload.channelType] = {
-            ...state.channels[payload.channelType],
+        const { channelType } = action.meta.arg;
+        if (state.channels[channelType]) {
+          state.channels[channelType] = {
+            ...state.channels[channelType],
             state: 'error'
           };
         }
+        state.loading = false;
+        state.error = action.error.message || null;
       });
     
     // 验证所有通道连接

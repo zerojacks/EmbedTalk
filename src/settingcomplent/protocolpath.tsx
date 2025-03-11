@@ -188,7 +188,7 @@ const ProtocolConfigPath = () => {
         <div className="join join-vertical collapse bg-base-200 shadow-md w-full">
             <div className="collapse collapse-arrow join-item border-base-300 border">
                 <input 
-                    type="radio" 
+                    type="checkbox" 
                     name="my-accordion-4" 
                     checked={is_check} 
                     onChange={() => setCheck(!is_check)} 
