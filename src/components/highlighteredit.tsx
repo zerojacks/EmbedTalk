@@ -3,7 +3,6 @@ import * as monaco from 'monaco-editor';
 import Editor, { EditorProps, Monaco, Theme } from '@monaco-editor/react';
 import { useSettingsContext } from "../context/SettingsProvider";
 import { toast } from "../context/ToastProvider";
-
 // 自定义弹出确认框组件
 const SaveChangesDialog: React.FC<{ onConfirm: (save: boolean) => void, onCancel: () => void }> = ({ onConfirm, onCancel }) => {
   console.log('save changes dialog');
@@ -29,8 +28,8 @@ interface MonacoEditorProps {
 }
 
 const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language, onEditorChange }) => {
-  const { efffectiveTheme } = useSettingsContext();
-  const [edtheme, setEdtheme] = useState<Theme>(efffectiveTheme === 'dark' ? 'vs-dark' : 'light');
+  const { effectiveTheme } = useSettingsContext();
+  const [edtheme, setEdtheme] = useState<Theme>(effectiveTheme === 'dark' ? 'vs-dark' : 'light');
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [isChange, setIsChange] = useState<boolean>(false);
   const [showDialog, setShowDialog] = useState<boolean>(false); // 控制是否显示对话框
@@ -133,8 +132,8 @@ const MonacoEditorArea: React.FC<MonacoEditorProps> = ({ initialValue, language,
   };
 
   useEffect(() => {
-    setEdtheme(efffectiveTheme === 'dark' ? 'vs-dark' : 'light');
-  }, [efffectiveTheme]);
+    setEdtheme(effectiveTheme === 'dark' ? 'vs-dark' : 'light');
+  }, [effectiveTheme]);
 
   const editorOptions: monaco.editor.IStandaloneEditorConstructionOptions = {
     minimap: { enabled: true },
