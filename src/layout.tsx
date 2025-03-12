@@ -3,6 +3,7 @@ import { AiOutlineSetting, AiOutlineHome } from "react-icons/ai";
 import { MdOutlineMonitor, MdOutlineDevices } from "react-icons/md";
 import { BiNetworkChart } from "react-icons/bi";
 import { TbDeviceAnalytics } from "react-icons/tb";
+import { BiSolidFileArchive } from "react-icons/bi";
 import clsx from "clsx";
 
 export default function Layout() {
@@ -46,6 +47,14 @@ export default function Layout() {
                 [selectedClass]: location.pathname === "/dlt645-test",
               })}
               title="DLT645测试"
+            />
+          </Link>
+          <Link className={linkClass} to="/file-prase">
+            <BiSolidFileArchive
+              className={clsx(defaultClass, {
+                [selectedClass]: location.pathname === "/file-prase",
+              })}
+              title="文件解析"
             />
           </Link>
           <div className="flex-grow" />

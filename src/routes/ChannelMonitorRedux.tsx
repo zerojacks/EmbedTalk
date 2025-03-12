@@ -437,7 +437,9 @@ const ResizeHandle = () => (
 
 // 垂直分隔面板的拖动把手组件
 const VerticalResizeHandle = () => (
-    <PanelResizeHandle className="h-0.5 bg-base-300 hover:bg-primary/50 transition-colors cursor-row-resize" />
+    <PanelResizeHandle className="h-0.5 bg-base-300 hover:bg-primary/50 transition-colors cursor-row-resize group relative">
+        <div className="absolute inset-x-0 -top-1 -bottom-1 group-hover:bg-transparent" />
+    </PanelResizeHandle>
 );
 
 // Main Component

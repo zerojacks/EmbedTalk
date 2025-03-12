@@ -3,11 +3,14 @@ import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, 
 import storage from 'redux-persist/lib/storage';
 import channelReducer, { loadChannelConfig, initializeChannelService } from './slices/channelSlice';
 import themeReducer, { initTheme } from './slices/themeSlice';
-
+import splitSizeReducer from './slices/splitSizeSlice';
+import fileParseReducer from './slices/fileParseSlice';
 // 合并所有 reducer
 const rootReducer = combineReducers({
   channel: channelReducer,
   theme: themeReducer,
+  splitSize: splitSizeReducer,
+  fileParse: fileParseReducer,
   // 可以在这里添加其他 reducer
 });
 
