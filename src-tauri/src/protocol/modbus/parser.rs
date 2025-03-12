@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::error::Error;
 use crate::protocol::traits::{ProtocolMessage, ProtocolParser};
-use super::{ModbusFunctionCode, MODBUS_PROTOCOL_NAME};
+use super::MODBUS_PROTOCOL_NAME;
 
 /// Modbus 协议解析器
 pub struct ModbusParser {
@@ -336,7 +336,7 @@ impl ProtocolParser for ModbusParser {
                 let transaction_id = message.get("transaction_id").and_then(|v| v.as_u64()).unwrap_or(1) as u16;
                 let length = (data.len() as u16) + 1; // +1 for unit_id which is already in data
                 
-                let mut tcp_header = vec![
+                let tcp_header = vec![
                     (transaction_id >> 8) as u8,
                     transaction_id as u8,
                     0x00, 0x00, // Protocol ID (always 0)

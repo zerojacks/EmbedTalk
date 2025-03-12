@@ -3,7 +3,7 @@ use crate::basefunc::frame_err::CustomError;
 use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::protocol::{AnalysicErr, FrameAnalisyic, ProtocolInfo};
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement}; // 引入 FrameFun 模块
-use chrono::{Duration as ChronoDuration, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{DateTime, Duration as ChronoDuration, NaiveDate, NaiveDateTime, NaiveTime};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde_json::Value;
@@ -231,7 +231,7 @@ impl FrameCsg {
 
     pub fn add_point_array_to_frame(frame: &mut Vec<u8>, point_array: Vec<u16>) -> (usize, usize) {
         let mut pos = 0;
-        let mut count = 0;
+        let count: usize;
         if point_array[0] == 0xFFFF {
             frame.extend_from_slice(&[0xFF, 0xFF]);
             count = 1;
@@ -972,7 +972,7 @@ impl FrameCsg {
         let mut low = (ival - 1) % 8;
         let high = (ival - 1) / 8; // Use integer division
 
-        let mut ret = 0;
+        let mut ret: u16;
         let mut mask = 1;
 
         if ival == 0 {
@@ -1257,10 +1257,10 @@ impl FrameCsg {
 
             // Split the rule using regex
             // 使用正则表达式解析规则，以处理不同格式的规则
-            let mut number_part = "0";
-            let mut operator_part = "+";
-            let mut text_part = "";
-            let mut operator = '+';
+            let number_part: &str;
+            let operator_part: &str;
+            let text_part: &str;
+            let operator : char;
             let rule_regex = Regex::new(r"(\d+)\s*([+\-*/])\s*(.+)").unwrap();
             if let Some(captures) = rule_regex.captures(&rules) {
                 number_part = captures.get(1).unwrap().as_str();
@@ -1563,7 +1563,7 @@ impl FrameCsg {
     pub fn prase_tpv_data(tpv: &[u8]) -> String {
         let time = &tpv[..4];
         let delay = tpv[4];
-        let time_str = FrameFun::parse_time_data(time, "ssmmhhDD", false);
+        let time_str = FrameFun::parse_time_data(time, "DDhhmmss", false);
         format!(
             "启动帧发送时标：{}。允许发送传输延迟时间：{}分",
             time_str, delay
@@ -1656,7 +1656,9 @@ impl FrameCsg {
         let begin_time = &frame[76..80];
 
         let timestamp = FrameFun::hex_array_to_int(receive_time, false) as i64;
-        let dt_object = NaiveDateTime::from_timestamp(timestamp, 0);
+        let dt_object = DateTime::from_timestamp(timestamp, 0)
+            .unwrap_or_default()
+            .naive_local();
         let receive_time_str = format!("接收时间[{}]", dt_object.format("%Y-%m-%d %H:%M:%S"));
         let head_point_str = format!(
             "前置节点[{}:{}]",
@@ -1676,7 +1678,9 @@ impl FrameCsg {
         let logic_addr_str = format!("逻辑地址[{}]", FrameFun::ascii_to_str(logic_addr));
 
         let timestamp = FrameFun::hex_array_to_int(regsit_time, false) as i64;
-        let dt_object = NaiveDateTime::from_timestamp(timestamp, 0);
+        let dt_object = DateTime::from_timestamp(timestamp, 0)
+                .unwrap_or_default()
+                .naive_local();
         let regsit_time_str = format!("注册时间[{}]", dt_object.format("%Y-%m-%d %H:%M:%S"));
         let process_label_str = format!(
             "处理标志[{}]",
@@ -1685,7 +1689,9 @@ impl FrameCsg {
 
         let timestamp = FrameFun::hex_array_to_int(begin_time, false) as i64;
         let begin_time_str = if timestamp > 0 {
-            let dt_object = NaiveDateTime::from_timestamp(timestamp, 0);
+            let dt_object = DateTime::from_timestamp(timestamp, 0)
+                .unwrap_or_default()
+                .naive_local();
             format!("开始时间[{}]", dt_object.format("%Y-%m-%d %H:%M:%S"))
         } else {
             "开始时间[无]".to_string()
@@ -1745,9 +1751,14 @@ impl FrameCsg {
         let empty_data: &[u8] = &[];
 
         let (pw_data, pw_pos) = if tpv {
+            length -= 5;
             tpv_data = &frame[frame.len() - 7..frame.len() - 2];
-            let pw_data = &data_segment[data_segment.len() - 21..data_segment.len() - 5];
-            (pw_data, [total_length - 23, total_length - 7])
+            if data_segment.len() < 21 {
+                (empty_data, [0, 0])
+            }else{
+                let pw_data = &data_segment[data_segment.len() - 21..data_segment.len() - 5];
+                (pw_data, [total_length - 23, total_length - 7])
+            }
         } else {
             if data_segment.len() < 16 {
                 (empty_data, [0, 0])
@@ -1782,10 +1793,10 @@ impl FrameCsg {
                 ProtocolConfigManager::get_config_xml(&data_item, protocol, region, Some(dir));
             let mut item_data: Vec<Value> = Vec::new();
 
-            let mut dis_data_identifier = String::new();
+            let dis_data_identifier: String;
             let mut sub_datamen: &[u8];
-            let mut sub_length: usize;
-            let mut sub_datament: &[u8];
+            let sub_length: usize;
+            let sub_datament: &[u8];
 
             if let Some(mut data_item_elem) = data_item_elem {
                 sub_length = if let Some(sublength) = data_item_elem.get_child_text("length") {
@@ -1837,7 +1848,7 @@ impl FrameCsg {
                 None,
             );
 
-            pos += (sub_length + 4);
+            pos += sub_length + 4;
             num += 1;
             if length - pos == 16 {
                 pw = Self::guest_is_exit_pw(
@@ -1912,10 +1923,14 @@ impl FrameCsg {
         let mut tpv_data: &[u8] = &[];
         let empty_data: &[u8] = &[];
         let (pw_data, pw_pos) = if tpv {
+            length -= 5;
             tpv_data = &frame[frame.len() - 7..frame.len() - 2];
-            let pw_data =
-                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
-            (pw_data, [total_length - 23, total_length - 7])
+            if valid_data_segment.len() < 21 {
+                (empty_data, [0, 0])
+            } else {
+                let pw_data = &valid_data_segment[valid_data_segment.len() - 21..];
+                (pw_data, [total_length - 23, total_length - 7])
+            }
         } else {
             if valid_data_segment.len() < 16 {
                 (empty_data, [0, 0])
@@ -1949,8 +1964,8 @@ impl FrameCsg {
             let data_item_elem =
                 ProtocolConfigManager::get_config_xml(&data_item, protocol, region, Some(dir));
             let mut item_data = Vec::new();
-            let mut sub_length: usize;
-            let mut dis_data_identifier: String = String::new();
+            let sub_length: usize;
+            let dis_data_identifier: String;
 
             if let Some(mut data_item_elem) = data_item_elem {
                 (sub_length, sub_datament) = if dir == 1 && prm == 0 {
@@ -2046,7 +2061,7 @@ impl FrameCsg {
                 }
             }
 
-            pos += (sub_length + 4);
+            pos += sub_length + 4;
             num += 1;
             if length - pos == 16 {
                 pw = Self::guest_is_exit_pw(
@@ -2123,10 +2138,14 @@ impl FrameCsg {
         let pw_data: &[u8] = &[];
         let empty_data: &[u8] = &[];
         let (pw_data, pw_pos) = if tpv {
+            length -= 5;
             tpv_data = &frame[frame.len() - 7..frame.len() - 2];
-            let pw_data =
-                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
-            (pw_data, [total_length - 23, total_length - 7])
+            if valid_data_segment.len() < 21 {
+                (empty_data, [0, 0])
+            } else {
+                let pw_data = &valid_data_segment[valid_data_segment.len() - 21..];
+                (pw_data, [total_length - 23, total_length - 7])
+            }
         } else {
             if valid_data_segment.len() < 16 {
                 (empty_data, [0, 0])
@@ -2160,9 +2179,9 @@ impl FrameCsg {
             let data_item_elem =
                 ProtocolConfigManager::get_config_xml(&data_item, protocol, region, Some(dir));
             let mut item_data = Vec::new();
-            let mut sub_length = 0;
-            let mut sub_datament: &[u8] = &[];
-            let mut dis_data_identifier: String = String::new();
+            let sub_length:usize;
+            let sub_datament: &[u8];
+            let dis_data_identifier: String;
             if let Some(mut data_item_elem) = data_item_elem {
                 (sub_length, sub_datament) = if dir == 1 && prm == 0 {
                     (1, &data_segment[pos + 4..pos + 4 + 1])
@@ -2240,7 +2259,7 @@ impl FrameCsg {
                     FrameFun::get_data_str_with_space(sub_datament),
                     result_str,
                     vec![index + pos + 4, index + pos + 4 + sub_length],
-                    Some(item_data),
+                    None,
                     None,
                 );
             } else {
@@ -2257,7 +2276,7 @@ impl FrameCsg {
                 }
             }
 
-            pos += (sub_length + 4);
+            pos += sub_length + 4;
             num += 1;
             if length - pos == 16 {
                 pw = Self::guest_is_exit_pw(
@@ -2336,7 +2355,11 @@ impl FrameCsg {
         let (tpv_data, pw_data, pw_pos, length_ref) = if tpv {
             (
                 &frame[frame.len() - 7..frame.len() - 2],
-                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5],
+                if valid_data_segment.len() > 21 {
+                    &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5]
+                } else {
+                    empty_data
+                },
                 [total_length - 23, total_length - 7],
                 &mut (length - 5),
             )
@@ -2430,7 +2453,7 @@ impl FrameCsg {
                     };
 
                     let name = data_item_elem.get_child_text("name").unwrap();
-                    let mut dis_data_identifier =
+                    let dis_data_identifier =
                         format!("数据标识编码：[{}]-{}", data_item, name).to_string();
 
                     FrameFun::add_data(
@@ -2445,7 +2468,7 @@ impl FrameCsg {
 
                     if dir == 1 && prm == 0 {
                         let new_point_str = point_str.replace("Pn=", ""); // 使用新的变量保存结果
-                        let mut dis_data_identifier =
+                        let dis_data_identifier =
                             format!("[{}]-{}", data_item, name).to_string();
 
                         FrameFun::add_data(
@@ -2581,7 +2604,11 @@ impl FrameCsg {
         let (tpv_data, pw_data, pw_pos, cur_length) = if tpv {
             (
                 &frame[frame.len() - 7..frame.len() - 2],
-                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5],
+                if valid_data_segment.len() > 21 {
+                    &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5]
+                } else {
+                    empty_data
+                },
                 [total_length - 23, total_length - 7],
                 length - 5,
             )
@@ -2816,7 +2843,11 @@ impl FrameCsg {
         let (tpv_data, pw_data, pw_pos, cur_length) = if tpv {
             (
                 &frame[frame.len() - 7..frame.len() - 2],
-                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5],
+                if valid_data_segment.len() > 21 {
+                    &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5]
+                } else {
+                    empty_data
+                },
                 [total_length - 23, total_length - 7],
                 length - 5,
             )
@@ -2837,9 +2868,9 @@ impl FrameCsg {
         let mut pw = false;
         let data_segment = &valid_data_segment[..length];
         let mut data_item_elem: Option<XmlElement> = None;
-        let mut sub_length = 0;
-        let mut data_time: Option<&[u8]> = None;
-        let mut sub_pos = 0;
+        let sub_length: usize;
+        let data_time: Option<&[u8]> = None;
+        let sub_pos: usize;
         let mut point_str: String = String::new();
         let mut dis_data_identifier: String = String::new();
         while pos < length {
@@ -2903,7 +2934,7 @@ impl FrameCsg {
                     }
                 }
 
-                let mut item_data: Vec<Value> = Vec::new();
+                let item_data: Vec<Value> = Vec::new();
                 let mut sub_length = 0;
                 let mut sub_datament: &[u8] = &[];
 
@@ -3110,7 +3141,11 @@ impl FrameCsg {
         let (tpv_data, pw_data, pw_pos, cur_length) = if tpv {
             (
                 &frame[frame.len() - 7..frame.len() - 2],
-                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5],
+                if valid_data_segment.len() > 21 {
+                    &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5]
+                } else {
+                    empty_data
+                },
                 [total_length - 23, total_length - 7],
                 length - 5,
             )
@@ -3150,7 +3185,7 @@ impl FrameCsg {
                 let data_item_elem =
                     ProtocolConfigManager::get_config_xml(&data_item, protocol, region, Some(dir));
                 let mut item_data: Vec<Value> = Vec::new();
-                let mut sub_length = 0;
+                let sub_length: usize;
                 let mut sub_datament: &[u8] = &[];
 
                 if let Some(mut data_item_elem) = data_item_elem {
@@ -3337,13 +3372,17 @@ impl FrameCsg {
         let mut num = 0;
         let mut sub_result = vec![];
         let mut task_result = vec![];
-        let mut pw = false;
         let total_length = frame.len();
+        let empty_data: &[u8] = &[];
 
         let (tpv_data, pw_data, pw_pos, cur_length) = if tpv {
             (
                 &frame[frame.len() - 7..frame.len() - 2],
-                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5],
+                if valid_data_segment.len() > 21 {
+                    &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5]
+                } else {
+                    &empty_data
+                },
                 [total_length - 23, total_length - 7],
                 length - 5,
             )
@@ -3774,8 +3813,12 @@ impl FrameCsg {
         let (tpv_data, pw_data, pw_pos, mut length) = if tpv {
             (
                 frame[frame.len() - 7..frame.len() - 2].to_vec(),
-                valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5]
-                    .to_vec(),
+                if valid_data_segment.len() > 21 {
+                    valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5]
+                        .to_vec()
+                } else {
+                    [].to_vec()
+                },
                 [total_length - 23, total_length - 7],
                 length - 5,
             )
@@ -3820,7 +3863,7 @@ impl FrameCsg {
                 let mut item_data: Vec<Value> = Vec::new();
                 let mut sub_length = 0;
                 let mut sub_datament: &[u8] = &[];
-                let mut dis_data_identifier: String = "".to_string();
+                let dis_data_identifier: String;
                 if let Some(mut data_item_elem) = data_item_elem {
                     if dir == 1 {
                         let sub_length_cont = data_item_elem.get_child_text("length").unwrap();
@@ -4028,11 +4071,14 @@ impl FrameCsg {
         let mut pw_data: &[u8] = &[];
 
         let (pw_data, pw_pos) = if tpv {
-            tpv_data = &frame[frame.len() - 7..frame.len() - 2];
-            let pw_data =
-                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
             length -= 5;
-            (pw_data, vec![total_length - 23, total_length - 7])
+            tpv_data = &frame[frame.len() - 7..frame.len() - 2];
+            if valid_data_segment.len() < 21 {
+                (pw_data, vec![0, 0])
+            } else {
+                let pw_data = &valid_data_segment[valid_data_segment.len() - 21..];
+                (pw_data, vec![total_length - 23, total_length - 7])
+            }
         } else {
             if valid_data_segment.len() < 16 {
                 (pw_data, vec![0, 0])
@@ -4070,7 +4116,7 @@ impl FrameCsg {
             let mut item_data: Vec<Value> = Vec::new();
             let mut sub_length = 0;
             let mut sub_datament: &[u8] = &[];
-            let mut dis_data_identifier: String = "".to_string();
+            let dis_data_identifier: String;
 
             if let Some(mut data_item_elem) = data_item_elem {
                 if dir == 1 && prm == 0 {
@@ -4250,12 +4296,16 @@ impl FrameCsg {
 
         let (tpv_data, pw_data, pw_pos) = if tpv {
             let tpv_data = &frame[frame.len() - 7..frame.len() - 2];
-            let pw_data =
-                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
             length -= 5;
-            (tpv_data, pw_data, vec![total_length - 23, total_length - 7])
+            if valid_data_segment.len() < 21 {
+                (tpv_data, tmp_pw_data, vec![0, 0])
+            } else {
+                let pw_data =
+                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
+                (tpv_data, pw_data, vec![total_length - 23, total_length - 7])
+            }
         } else {
-            let pw_data = if (valid_data_segment.len() > 16) {
+            let pw_data = if valid_data_segment.len() > 16 {
                 &valid_data_segment[valid_data_segment.len() - 16..]
             } else {
                 tmp_pw_data
@@ -4295,11 +4345,11 @@ impl FrameCsg {
             let mut item_data: Vec<Value> = Vec::new();
             let mut sub_length = 0;
             let mut sub_datament: &[u8] = &[];
-            let mut dis_data_identifier: String = "".to_string();
+            let mut dis_data_identifier: String;
 
             if let Some(mut data_item_elem) = data_item_elem {
                 if dir == 1 && prm == 0 {
-                    let mut frame_result: Vec<String> = Vec::new();
+                    let frame_result: Vec<String> = Vec::new();
                     let sub_length_cont = data_item_elem.get_child_text("length").unwrap();
                     (sub_length, sub_datament) = if sub_length_cont.to_uppercase() == "UNKNOWN" {
                         let sub_length = Self::calculate_item_length(
@@ -4430,7 +4480,7 @@ impl FrameCsg {
                     Some(item_data),
                     None,
                 );
-                pos += (sub_length + 4);
+                pos += sub_length + 4;
                 num += 1;
 
                 if length - pos == 16 {
@@ -4518,17 +4568,21 @@ impl FrameCsg {
         let total_length = frame.len();
         let tmp_pw_data: &[u8] = &[];
         let (tpv_data, pw_data, pw_pos) = if tpv {
-            let tpv_data = &frame[frame.len() - 7..frame.len() - 2];
-            let pw_data =
-                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
             length -= 5;
-            (
-                tpv_data,
-                pw_data,
-                vec![start_pos + frame.len() - 23, start_pos + frame.len() - 7],
-            )
+            let tpv_data = &frame[frame.len() - 7..frame.len() - 2];
+            if valid_data_segment.len() < 21 {
+                (tpv_data, tmp_pw_data, vec![0, 0])
+            } else {
+                let pw_data =
+                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
+                (
+                    tpv_data,
+                    pw_data,
+                    vec![start_pos + frame.len() - 23, start_pos + frame.len() - 7],
+                )
+            }
         } else {
-            let pw_data = if (valid_data_segment.len() > 16) {
+            let pw_data = if valid_data_segment.len() > 16 {
                 &valid_data_segment[valid_data_segment.len() - 16..]
             } else {
                 tmp_pw_data
@@ -4566,8 +4620,8 @@ impl FrameCsg {
             let data_item_elem =
                 ProtocolConfigManager::get_config_xml(&data_item, protocol, region, Some(dir));
 
-            let mut item_data: Vec<Value> = Vec::new();
-            let mut dis_data_identifier: String = "".to_string();
+            let item_data: Vec<Value>;
+            let dis_data_identifier: String;
 
             if let Some(mut data_item_elem) = data_item_elem {
                 let sub_length_cont = data_item_elem.get_child_text("length").unwrap();
@@ -4625,7 +4679,7 @@ impl FrameCsg {
                     Some(item_data),
                     None,
                 );
-                pos += (sub_length + 4);
+                pos += sub_length + 4;
                 num += 1;
 
                 if length - pos == 16 {
@@ -4671,7 +4725,7 @@ impl FrameCsg {
                         None,
                         None,
                     );
-                    pos += (sub_length + 4);
+                    pos += sub_length + 4;
                     num += 1;
                 }
             }
@@ -4730,14 +4784,17 @@ impl FrameCsg {
         let mut num = 0;
         let mut sub_result = Vec::new();
         let mut tpv_data: &[u8] = &[];
-        let mut pw_data: &[u8] = &[];
+        let pw_data: &[u8] = &[];
         let empty_data: &[u8] = &[];
         let (pw_data, pw_pos) = if tpv {
-            tpv_data = &frame[frame.len() - 7..frame.len() - 2];
             length -= 5;
-            let pw_data =
-                &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
-            (pw_data, [total_length - 23, total_length - 7])
+            tpv_data = &frame[frame.len() - 7..frame.len() - 2];
+            if valid_data_segment.len() < 21 {
+                (empty_data, [0, 0])
+            } else {
+                let pw_data = &valid_data_segment[valid_data_segment.len() - 21..];
+                (pw_data, [total_length - 23, total_length - 7])
+            }
         } else {
             if valid_data_segment.len() < 16 {
                 (empty_data, [0, 0])
@@ -4771,9 +4828,9 @@ impl FrameCsg {
             let data_item_elem =
                 ProtocolConfigManager::get_config_xml(&data_item, protocol, region, Some(dir));
             let mut item_data = Vec::new();
-            let mut sub_length = 0;
-            let mut sub_datament: &[u8] = &[];
-            let mut dis_data_identifier: String = String::new();
+            let sub_length: usize;
+            let sub_datament: &[u8];
+            let dis_data_identifier: String;
             if let Some(mut data_item_elem) = data_item_elem {
                 (sub_length, sub_datament) = if dir == 1 && prm == 0 {
                     (1, &data_segment[pos + 4..pos + 4 + 1])
@@ -4831,7 +4888,7 @@ impl FrameCsg {
                 None,
                 None,
             );
-            let mut result_str = String::new();
+            let result_str: String;
             if sub_length > 0 {
                 result_str = format!(
                     "数据标识[{}]数据内容：{}",
@@ -4849,7 +4906,7 @@ impl FrameCsg {
                 );
             }
             println!("pos: {}, sub_length: {}", pos, sub_length);
-            pos += (sub_length + 4);
+            pos += sub_length + 4;
             num += 1;
             if length - pos == 16 {
                 pw = Self::guest_is_exit_pw(

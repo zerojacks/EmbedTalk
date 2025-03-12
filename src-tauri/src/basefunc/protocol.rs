@@ -72,7 +72,7 @@ impl FrameAnalisyic {
         dir: Option<u8>,
     ) -> Vec<Value> {
         // 根据xml配置解析数据
-        let mut parsed_data = Vec::new();
+        let parsed_data: Vec<Value>;
 
         // 假设 ConfigManager 是你自己的结构体，并且 get_config_xml 是其方法
         println!(
@@ -111,11 +111,11 @@ impl FrameAnalisyic {
         let data_item_name = data_item_elem.get_child_text("name");
 
         let sub_data_item = data_item_elem.get_items("dataItem");
-        let mut sub_data_segment = data_segment;
-        let mut pos = 0;
-        let mut sub_item_result: Option<Vec<Value>> = Some(Vec::new());
+        let sub_data_segment = data_segment;
+        let mut pos: usize;
+        let sub_item_result: Option<Vec<Value>>;
         let mut cur_length = data_segment.len();
-
+        let mut color: Option<String> = None;
         let item_name = Self::get_item_name_str(data_item_id, data_item_name.clone());
 
         let data_str = FrameFun::get_data_str(&data_segment, need_delete, true, false);
@@ -126,8 +126,8 @@ impl FrameAnalisyic {
         };
 
         println!(
-            "prase_data_item data_segment{:?} pos: {:?}",
-            data_segment, pos
+            "prase_data_item data_segment{:?}",
+            data_segment
         );
 
         if !sub_data_item.is_empty() {
@@ -149,7 +149,7 @@ impl FrameAnalisyic {
         } else if data_item_elem.get_child("unit").is_some()
             && data_item_elem.get_child("value").is_some()
         {
-            let (cur_result, sub_result, length) = Self::prase_value_item(
+            let (cur_result, sub_result, length, cur_color) = Self::prase_value_item(
                 data_item_elem,
                 sub_data_segment,
                 index,
@@ -161,6 +161,7 @@ impl FrameAnalisyic {
             result_str = format!("{}", cur_result);
             sub_item_result = sub_result;
             cur_length = length;
+            color = cur_color;
         } else if data_item_elem.get_child("unit").is_some() {
             let (cur_result, sub_result, length) = Self::prase_singal_item(
                 data_item_elem,
@@ -175,7 +176,7 @@ impl FrameAnalisyic {
             sub_item_result = sub_result;
             cur_length = length;
         } else if data_item_elem.get_child("value").is_some() {
-            let (cur_result, sub_result, length) = Self::prase_value_item(
+            let (cur_result, sub_result, length, cur_color) = Self::prase_value_item(
                 data_item_elem,
                 sub_data_segment,
                 index,
@@ -187,6 +188,7 @@ impl FrameAnalisyic {
             result_str = format!("{}", cur_result);
             sub_item_result = sub_result;
             cur_length = length;
+            color = cur_color;
         } else if data_item_elem.get_child("time").is_some() {
             let (cur_result, sub_result, length) = Self::prase_time_item(
                 data_item_elem,
@@ -213,7 +215,7 @@ impl FrameAnalisyic {
             sub_item_result = Some(sub_result);
             cur_length = length;
         } else if data_item_elem.get_child("splitByLength").is_some() {
-            let (sub_result, length) = Self::prase_splitByLength_item(
+            let (sub_result, length) = Self::prase_split_by_length_item(
                 &data_item_elem,
                 sub_data_segment,
                 index,
@@ -317,7 +319,7 @@ impl FrameAnalisyic {
             result_str,
             vec![index, index + cur_length],
             sub_item_result,
-            None,
+            color,
         );
 
         result
@@ -341,9 +343,9 @@ impl FrameAnalisyic {
         let data_item_id = data_item_elem.get_attribute("id");
         let data_item_name = data_item_elem.get_child_text("name");
 
-        let mut color: Option<String> = None;
+        let color: Option<String> = None;
 
-        let mut sub_data_item = data_item_elem.get_items("dataItem");
+        let sub_data_item = data_item_elem.get_items("dataItem");
         let mut sub_data_segment = data_segment;
         let mut pos = 0;
         for data_item in sub_data_item {
@@ -415,9 +417,9 @@ impl FrameAnalisyic {
         protocol: &str,
         region: &str,
         dir: Option<u8>,
-    ) -> (String, Option<Vec<serde_json::Value>>, usize) {
+    ) -> (String, Option<Vec<serde_json::Value>>, usize, Option<String>) {
         // 使用 prase_singal_item 函数获取值
-        let mut item_length = 0;
+        let item_length: usize;
         let item_length_content = data_item_elem.get_child_text("length");
         if let Some(item_length_content) = item_length_content {
             if item_length_content.to_uppercase() == "UNKNOWN" {
@@ -453,7 +455,7 @@ impl FrameAnalisyic {
         };
 
         // 查找对应的 value 元素
-        let mut value_name = String::new();
+        let mut value_name: String;
         let item_name = data_item_elem.get_child("name");
         if let Some(item_name) = item_name {
             let item_name = item_name.get_value().unwrap();
@@ -462,11 +464,11 @@ impl FrameAnalisyic {
             value_name = value.clone();
         }
 
-        let mut color: Option<String> = None;
+        let color: Option<String>;
 
         // 获取所有 `value` 子元素
         let value_elements = data_item_elem.get_items("value");
-        let (mut value_str, element) =
+        let (value_str, element) =
             Self::find_value_from_elements(&value_elements, &value);
 
         value_name = if value_str.is_empty() {
@@ -478,7 +480,7 @@ impl FrameAnalisyic {
         color = data_item_elem.get_attribute("color").cloned();
 
         // Return a tuple matching the expected return type
-        (value_name, sub_item_result, item_length)
+        (value_name, sub_item_result, item_length, color)
     }
 
     pub fn find_value_from_elements(
@@ -525,7 +527,7 @@ impl FrameAnalisyic {
         region: &str,
         dir: Option<u8>,
     ) -> (String, Option<Vec<Value>>, usize) {
-        let mut sub_item_result: Option<Vec<Value>> = None;
+        let sub_item_result: Option<Vec<Value>>;
 
         let subitem_name = data_item_elem.get_child_text("name").unwrap_or_default();
         let splitbit_elem = data_item_elem.get_child("splitbit");
@@ -796,7 +798,7 @@ impl FrameAnalisyic {
         }
         name_str
     }
-    pub fn prase_splitByLength_item(
+    pub fn prase_split_by_length_item(
         data_item_elem: &XmlElement,
         data_segment: &[u8],
         index: usize,
@@ -817,14 +819,14 @@ impl FrameAnalisyic {
         let item_name = Self::get_item_name_str(data_item_id, data_item_name);
         let mut color: Option<String> = None;
 
-        let mut all_splitlength_items = data_item_elem.get_items("splitByLength");
+        let all_splitlength_items = data_item_elem.get_items("splitByLength");
         let mut sub_data_segment = data_segment;
         let mut pos = 0;
-        let mut sub_item_result: Option<Vec<Value>> = Some(Vec::new());
-        let mut cur_length = 0;
-        let mut result_str = String::new();
+        let mut sub_item_result: Option<Vec<Value>>;
+        let mut cur_length: usize;
+        let mut result_str: String;
 
-        let mut subitem_length = 0;
+        let mut subitem_length: usize;
         if data_item_elem.get_child("splitbit").is_some() {
             let (sub_result, length) = Self::parse_bitwise_data(
                 data_item_elem,
@@ -836,7 +838,6 @@ impl FrameAnalisyic {
                 dir,
             );
             sub_item_result = Some(sub_result);
-            cur_length = length;
 
             FrameFun::add_data(
                 &mut result, // Pass mutable reference here
@@ -902,7 +903,7 @@ impl FrameAnalisyic {
             if splitlength_item.get_child("unit").is_some()
                 && splitlength_item.get_child("value").is_some()
             {
-                let (cur_result, sub_result, length) = Self::prase_value_item(
+                let (cur_result, sub_result, length, cur_color) = Self::prase_value_item(
                     &mut splitlength_item.clone(),
                     subitem_content,
                     index + pos,
@@ -915,6 +916,7 @@ impl FrameAnalisyic {
                 result_str = cur_result;
                 sub_item_result = sub_result;
                 cur_length = length;
+                color = cur_color;
             } else if splitlength_item.get_child("unit").is_some() {
                 let (mut cur_result, sub_result, length) = Self::prase_singal_item(
                     &splitlength_item,
@@ -936,7 +938,7 @@ impl FrameAnalisyic {
                     result_str, sub_item_result, length
                 );
             } else if splitlength_item.get_child("value").is_some() {
-                let (cur_result, sub_result, length) = Self::prase_value_item(
+                let (cur_result, sub_result, length, cur_color) = Self::prase_value_item(
                     &mut splitlength_item.clone(),
                     subitem_content,
                     index + pos,
@@ -948,6 +950,7 @@ impl FrameAnalisyic {
                 result_str = cur_result;
                 sub_item_result = sub_result;
                 cur_length = length;
+                color = cur_color;
             } else if splitlength_item.get_child("time").is_some() {
                 let (mut cur_result, sub_result, length) = Self::prase_time_item(
                     &splitlength_item,
@@ -979,7 +982,7 @@ impl FrameAnalisyic {
                 cur_length = length;
                 result_str = "".to_string();
             } else if splitlength_item.get_child("splitByLength").is_some() {
-                let (sub_result, length) = Self::prase_splitByLength_item(
+                let (sub_result, length) = Self::prase_split_by_length_item(
                     &splitlength_item,
                     subitem_content,
                     index + pos,
@@ -1069,7 +1072,8 @@ impl FrameAnalisyic {
                 );
             }
             pos += subitem_length;
-            sub_data_segment = &sub_data_segment[subitem_length..]
+            sub_data_segment = &sub_data_segment[subitem_length..];
+            println!("cur_length:{:?}", cur_length);
         }
         (result, pos)
     }
@@ -1085,19 +1089,19 @@ impl FrameAnalisyic {
     ) -> (Vec<Value>, usize) {
         let mut item_result: Vec<Value> = Vec::new();
         let mut pos = 0;
-        let mut sub_data_segment = data_segment;
-        let mut cur_length = 0;
-        let mut result_str = String::new();
+        let sub_data_segment = data_segment;
+        let mut cur_length: usize;
+        let mut result_str: String;
 
-        let mut subitem_length = 0;
+        let mut subitem_length: usize;
         let mut subitem_content = sub_data_segment;
 
         let all_items = data_item_elem.get_items("item");
         for item in all_items {
             let item_id = item.get_value();
-            let mut item_result_name = String::new();
+            let mut item_result_name: String;
             let mut result: Vec<Value> = Vec::new();
-            if let Some(mut item_id) = item_id {
+            if let Some(item_id) = item_id {
                 item_result_name = item_id.clone();
                 println!("prase_item_box item_id: {:?}", item_id);
                 let item_element =
@@ -1194,8 +1198,8 @@ impl FrameAnalisyic {
         let mut item_length = data_segment.len();
         let mut result_str = String::new();
         let mut sub_item_result: Option<Vec<Value>> = Some(Vec::new());
-        let mut is_singal = false;
-        let mut item_element_clone = item_element.clone();
+        let is_singal: bool;
+        let item_element_clone = item_element.clone();
         let singal_content = item_element_clone.get_child_text("single");
         if let Some(singal_content) = singal_content {
             if singal_content.to_lowercase() == "yes" {
@@ -1207,7 +1211,7 @@ impl FrameAnalisyic {
             is_singal = false;
         }
 
-        let mut sub_type = item_element_clone.get_child_text("type").unwrap();
+        let sub_type = item_element_clone.get_child_text("type").unwrap();
 
         let mut data_content = data_segment.to_vec();
         if need_delete {
@@ -1361,7 +1365,7 @@ impl FrameAnalisyic {
     }
 
     pub fn prase_da_data(da: &[u8]) -> String {
-        let mut point_str = String::new();
+        let point_str: String;
 
         // 尝试计算测量点
         let (total_measurement_points, measurement_points_array) =
@@ -1493,7 +1497,7 @@ impl FrameAnalisyic {
         let mut result_vec: Vec<Value> = Vec::new();
         let mut i = 0;
         let mut pos = 0;
-        let mut item_singal = false;
+        let mut item_singal: bool;
         let mut item_element_clone = item_element.clone();
         let singal_content = item_element_clone.get_child_text("single");
         if let Some(singal_content) = singal_content {
@@ -1562,7 +1566,7 @@ impl FrameAnalisyic {
                     })
                     .unwrap_or_else(|| format!("第{}组数据内容", i + 1));
 
-                let (mut item_value, length) = Self::prase_splitByLength_item(
+                let (item_value, length) = Self::prase_split_by_length_item(
                     &mut item_element_clone,
                     sub_data,
                     index + pos,
@@ -1572,7 +1576,7 @@ impl FrameAnalisyic {
                     dir,
                 );
                 let item_id = FrameFun::get_data_str(sub_data, false, true, false);
-                let mut item_description: String = item_id.clone();
+                let item_description: String = item_id.clone();
                 // println!("prase_template_type item_id: {:?}", item_id);
                 // if let Some(item_element) = ProtocolConfigManager::get_config_xml(&item_id, protocol, region, dir) {
                 //     if let Some(element_name) = item_element.get_child_text("name") {
