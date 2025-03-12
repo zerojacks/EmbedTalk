@@ -3,17 +3,15 @@ use crate::combridage::{ChannelState, Message};
 use async_trait::async_trait;
 use serde_json;
 use socket2::{Socket, TcpKeepalive};
-use std::borrow::Borrow;
 use std::error::Error;
 use std::io;
 use std::io::Error as IoError;
 use std::sync::Arc;
 use tauri::Emitter;
-use tauri::{Manager, Wry};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
-use tokio::sync::{broadcast, Mutex, TryLockError};
+use tokio::sync::{broadcast, Mutex};
 use tokio::time::{sleep, timeout, Duration};
 //global.rs
 use crate::combridage::messagemanager::{MessageDirection, MessageManager};
@@ -59,8 +57,8 @@ impl TcpClientChannel {
         };
         let app_handle = get_app_handle();
         let message_manager = MessageManager::new(app_handle)?;
-        message_manager.register_channel(&address).await;
-        let mut subscriber = message_manager.subscribe_to_messages();
+        let _ = message_manager.register_channel(&address).await;
+        let subscriber = message_manager.subscribe_to_messages();
 
         let channelclone = channel.clone();
         let _ = channelclone

@@ -10,8 +10,7 @@ mod tcp_server;
 pub use bluetooth::BluetoothChannel;
 pub use commanger::CommunicationManager;
 pub use mqtt::MqttChannel;
-use serde::{de::value, Deserialize, Serialize};
-use serde_json::Number;
+use serde::{Deserialize, Serialize};
 pub use serial_port::SerialPortChannel;
 pub use tcp_client::TcpClientChannel;
 pub use tcp_server::TcpServerChannel;
@@ -19,9 +18,6 @@ pub use tcp_server::TcpServerChannel;
 use async_trait::async_trait;
 use serde_json::Value;
 use std::error::Error;
-use std::sync::Arc;
-use tauri::{Manager, Wry};
-use tokio_serial::{DataBits, FlowControl, Parity, StopBits};
 use uuid::Uuid;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

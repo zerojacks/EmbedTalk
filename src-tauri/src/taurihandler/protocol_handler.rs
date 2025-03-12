@@ -1,11 +1,9 @@
-use crate::combridage::{CommunicationChannel, Message};
 use crate::protocol::{get_channel_protocol_handler, get_protocol_manager, ChannelProtocolConfig};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::error::Error;
-use std::sync::Arc;
-use tauri::{command, State};
-use crate::taurihandler::ChannelHandler;
+use tauri::command;
+use crate::taurihandler::channel_handler;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProtocolInfo {
     /// 协议名称
@@ -217,7 +215,7 @@ pub async fn handle_protocol_message(
                 }
             }
             
-            ChannelHandler::send_message(channel_id, bytes).await
+            channel_handler::send_message(channel_id, bytes).await
                 .map_err(|e| format!("发送失败: {}", e))?;
             
             Ok(json!({ "success": true }))

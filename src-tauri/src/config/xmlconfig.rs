@@ -1,14 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Cursor};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use lazy_static::lazy_static;
-use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
-use quick_xml::{Reader, Writer};
-use rayon::prelude::*;
+use quick_xml::events::Event;
+use quick_xml::Reader;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 

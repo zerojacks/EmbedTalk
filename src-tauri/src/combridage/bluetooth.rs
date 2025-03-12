@@ -2,7 +2,7 @@ use crate::combridage::{ChannelState, CommunicationChannel, Message};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
 use btleplug::api::{
-    BDAddr, Central, Characteristic, Manager as _, Peripheral as _, ScanFilter, WriteType,
+    Central, Characteristic, Manager as _, Peripheral as _, ScanFilter, WriteType,
 };
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use serde_json;
@@ -11,7 +11,6 @@ use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
-use tauri::{Manager as TauriManager, Wry};
 use tokio::sync::Mutex;
 use tokio::time::timeout;
 use uuid::Uuid;

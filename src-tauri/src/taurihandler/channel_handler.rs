@@ -1,13 +1,8 @@
 use crate::combridage::{ChannelType, CommunicationManager, Message};
-use hex;
 use once_cell::sync::Lazy;
-use serde_json::{json, Value};
-use tokio_serial::available_ports;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tauri::Window;
 use tokio::sync::Mutex;
-use chrono;
 use tokio::time::{interval, Duration};
 use tokio::task::JoinHandle;
 use lazy_static::lazy_static;

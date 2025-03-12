@@ -270,8 +270,6 @@ impl FrameMoudle {
         region: &str,
     ) {
         let di = &data_content[0..4];
-        let mut di_result = Vec::new();
-
         let di_data = &data_content[4..];
         let data_item = FrameFun::get_data_str_reverser(di);
         println!("data_item: {} protocol: {} region: {} dir: {}", data_item, protocol, region, dir);
@@ -322,7 +320,7 @@ impl FrameMoudle {
                 FrameFun::get_data_str_with_space(di),
                 dis_data_identifier,
                 vec![index, index + 4],
-                Some(di_result),
+                None,
                 None,
             );
 

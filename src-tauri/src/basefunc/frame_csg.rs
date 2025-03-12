@@ -60,7 +60,7 @@ impl FrameCsg {
     }
 
     pub fn get_meter_task_len(frame: &[u8]) -> usize {
-        let mut pos = 26;
+        let pos = 26;
         let mut len = 27;
 
         len += frame[pos] as usize * 2;
@@ -70,7 +70,7 @@ impl FrameCsg {
     }
 
     pub fn get_normal_task_len(frame: &[u8]) -> usize {
-        let mut pos = 19;
+        let pos = 19;
         let mut len = 20;
 
         len += frame[pos] as usize * 2;
@@ -632,7 +632,7 @@ impl FrameCsg {
     }
 
     pub fn get_dir_prm(control: u8) -> (u8, u8, u8, u8) {
-        let mut array: Vec<u8> = FrameFun::get_bit_array(control); // Pass a mutable reference to the vector
+        let array: Vec<u8> = FrameFun::get_bit_array(control); // Pass a mutable reference to the vector
         let dir = array[0];
         let prm = array[1];
         let acd = array[2];
@@ -643,7 +643,7 @@ impl FrameCsg {
 
     pub fn get_control_code_str(control: u8, start_pos: usize) -> (Vec<Value>, String, u8, u8) {
         let mut contro_result: Vec<Value> = Vec::new();
-        let mut binary_array: Vec<u8> = FrameFun::get_bit_array(control);
+        let binary_array: Vec<u8> = FrameFun::get_bit_array(control);
         println!("binary_array: {:?}", binary_array);
         let dir = binary_array[0];
         let prm = binary_array[1];
@@ -763,22 +763,22 @@ impl FrameCsg {
 
     pub fn get_adress_result(adress: &[u8], index: usize) -> (Vec<Value>, String) {
         let mut adress_result: Vec<Value> = Vec::new();
-        let A1 = &adress[..3];
-        let A2 = &adress[3..6];
-        let A3 = adress[6];
-        let A2_str = FrameFun::get_data_str_with_space(A2);
-        let A1_str = FrameFun::get_data_str_with_space(A1);
+        let a1 = &adress[..3];
+        let a2 = &adress[3..6];
+        let a3 = adress[6];
+        let a2_str = FrameFun::get_data_str_with_space(a2);
+        let a1_str = FrameFun::get_data_str_with_space(a1);
 
         FrameFun::add_data(
             &mut adress_result,
             "省地市区县码 A1".to_string(),
-            A1_str,
+            a1_str,
             format!(
                 "省地市区县码={}省{:02X},地市{:02X},区县{:02X}",
-                FrameFun::get_data_str_reverser(A1),
-                A1[2],
-                A1[1],
-                A1[0]
+                FrameFun::get_data_str_reverser(a1),
+                a1[2],
+                a1[1],
+                a1[0]
             ),
             vec![index, index + 3],
             None,
@@ -787,17 +787,17 @@ impl FrameCsg {
         FrameFun::add_data(
             &mut adress_result,
             "终端地址 A2".to_string(),
-            A2_str,
-            format!("终端地址={}", FrameFun::get_data_str_reverser(A2)),
+            a2_str,
+            format!("终端地址={}", FrameFun::get_data_str_reverser(a2)),
             vec![index + 3, index + 6],
             None,
             None,
         );
-        let seq = A3 & 0xf0;
-        let master = A3 & 0x0f;
-        let mut A3_result: Vec<Value> = Vec::new();
+        let seq = a3 & 0xf0;
+        let master = a3 & 0x0f;
+        let mut a3_result: Vec<Value> = Vec::new();
         FrameFun::add_data(
-            &mut A3_result,
+            &mut a3_result,
             "D7~D4帧序号".to_string(),
             format!("{}", seq),
             format!("帧序号={}", seq),
@@ -806,7 +806,7 @@ impl FrameCsg {
             None,
         );
         FrameFun::add_data(
-            &mut A3_result,
+            &mut a3_result,
             "D3~D0主站地址".to_string(),
             format!("{}", master),
             format!("主站地址={}", master),
@@ -817,18 +817,18 @@ impl FrameCsg {
         FrameFun::add_data(
             &mut adress_result,
             "主站地址 A3".to_string(),
-            format!("{:02X}", A3),
+            format!("{:02X}", a3),
             "".to_string(),
             vec![index + 6, index + 7],
-            Some(A3_result),
+            Some(a3_result),
             None,
         );
         (
             adress_result,
             format!(
                 "{}{}",
-                FrameFun::get_data_str_reverser(A1),
-                FrameFun::get_data_str_reverser(A2)
+                FrameFun::get_data_str_reverser(a1),
+                FrameFun::get_data_str_reverser(a2)
             ),
         )
     }
@@ -864,7 +864,7 @@ impl FrameCsg {
         let con = binary_array[3];
         let pseq = seq & 0x0f;
         let mut seq_result: Vec<Value> = Vec::new();
-        let Tpv_str = if tpv == 0 {
+        let tpv_str = if tpv == 0 {
             "帧末尾无时间标签Tp".to_string()
         } else {
             "帧末尾带有时间标签Tp".to_string()
@@ -904,7 +904,7 @@ impl FrameCsg {
             &mut seq_result,
             "D7帧时间标签有效位TpV".to_string(),
             format!("{}", tpv),
-            Tpv_str,
+            tpv_str,
             vec![index + 1, index + 2],
             None,
             None,
@@ -970,11 +970,10 @@ impl FrameCsg {
 
     pub fn to_da(ival: u16) -> (u8, u8) {
         let mut low = (ival - 1) % 8;
-        let mut high = (ival - 1) / 8; // Use integer division
+        let high = (ival - 1) / 8; // Use integer division
 
-        let mut mask = 0;
         let mut ret = 0;
-        mask = 1;
+        let mut mask = 1;
 
         if ival == 0 {
             ret = 0;
@@ -1812,9 +1811,9 @@ impl FrameCsg {
                 dis_data_identifier = format!("数据标识编码：[{}]", data_item);
             };
 
-            let mut result_str: String = format!("数据标识[{}]数据内容：", data_item).to_string();
+            let result_str: String = format!("数据标识[{}]数据内容：", data_item).to_string();
 
-            let mut description: String = format!(
+            let description: String = format!(
                 "{}{}",
                 result_str,
                 FrameFun::get_data_str(data_segment, false, true, false)
@@ -1930,16 +1929,16 @@ impl FrameCsg {
         let mut pw = false;
         let mut sub_datament: &[u8];
         while pos < length {
-            let DA = &data_segment[pos..pos + 2];
+            let da = &data_segment[pos..pos + 2];
             let item = &data_segment[pos + 2..pos + 6];
 
-            let point_str = Self::prase_da_data([DA[0], DA[1]]);
+            let point_str = Self::prase_da_data([da[0], da[1]]);
             let data_item = FrameFun::get_data_str_reverser(item);
 
             FrameFun::add_data(
                 &mut sub_result,
                 format!("<第{}组>信息点标识DA", num + 1),
-                FrameFun::get_data_str_with_space(DA),
+                FrameFun::get_data_str_with_space(da),
                 point_str,
                 vec![index + pos, index + pos + 2],
                 None,
@@ -2121,7 +2120,7 @@ impl FrameCsg {
         let mut num = 0;
         let mut sub_result = Vec::new();
         let mut tpv_data: &[u8] = &[];
-        let mut pw_data: &[u8] = &[];
+        let pw_data: &[u8] = &[];
         let empty_data: &[u8] = &[];
         let (pw_data, pw_pos) = if tpv {
             tpv_data = &frame[frame.len() - 7..frame.len() - 2];
@@ -2141,16 +2140,16 @@ impl FrameCsg {
         let mut pw = false;
         println!("write_csg_frame:---------------");
         while pos < length {
-            let DA = &data_segment[pos..pos + 2];
+            let da = &data_segment[pos..pos + 2];
             let item = &data_segment[pos + 2..pos + 6];
 
-            let point_str = Self::prase_da_data([DA[0], DA[1]]);
+            let point_str = Self::prase_da_data([da[0], da[1]]);
             let data_item = FrameFun::get_data_str_reverser(item);
 
             FrameFun::add_data(
                 &mut sub_result,
                 format!("<第{}组>信息点标识DA", num + 1),
-                FrameFun::get_data_str_with_space(DA),
+                FrameFun::get_data_str_with_space(da),
                 point_str,
                 vec![index + pos, index + pos + 2],
                 None,
@@ -2344,7 +2343,7 @@ impl FrameCsg {
         } else {
             (
                 empty_data,
-                if (valid_data_segment.len() > 16) {
+                if valid_data_segment.len() > 16 {
                     &valid_data_segment[valid_data_segment.len() - 16..]
                 } else {
                     empty_data
@@ -2362,14 +2361,14 @@ impl FrameCsg {
         let mut new_datament: &[u8] = &[];
         while pos < length {
             let result = (|| -> Result<(), Box<dyn Error>> {
-                let DA = &data_segment[pos..pos + 2];
+                let da = &data_segment[pos..pos + 2];
                 let item = &data_segment[pos + 2..pos + 6];
-                let point_str = Self::prase_da_data([DA[0], DA[1]]).clone();
+                let point_str = Self::prase_da_data([da[0], da[1]]).clone();
                 let data_item = FrameFun::get_data_str_reverser(item);
                 FrameFun::add_data(
                     &mut sub_result,
                     format!("<第{}组>信息点标识DA", num + 1),
-                    FrameFun::get_data_str_with_space(DA),
+                    FrameFun::get_data_str_with_space(da),
                     point_str.clone(),
                     vec![index + pos, index + pos + 2],
                     None,
@@ -2589,7 +2588,7 @@ impl FrameCsg {
         } else {
             (
                 empty_data,
-                if (valid_data_segment.len() > 16) {
+                if valid_data_segment.len() > 16 {
                     &valid_data_segment[valid_data_segment.len() - 16..]
                 } else {
                     empty_data
@@ -2811,7 +2810,6 @@ impl FrameCsg {
         let index = 16 + start_pos;
         let mut num = 0;
         let mut sub_result = vec![];
-        let mut fiirst = true;
         let total_length = frame.len();
         let empty_data: &[u8] = &[];
 
@@ -2825,7 +2823,7 @@ impl FrameCsg {
         } else {
             (
                 empty_data,
-                if (valid_data_segment.len() > 16) {
+                if valid_data_segment.len() > 16 {
                     &valid_data_segment[valid_data_segment.len() - 16..]
                 } else {
                     empty_data
@@ -3119,7 +3117,7 @@ impl FrameCsg {
         } else {
             (
                 empty_data,
-                if (valid_data_segment.len() > 16) {
+                if valid_data_segment.len() > 16 {
                     &valid_data_segment[valid_data_segment.len() - 16..]
                 } else {
                     empty_data
@@ -3352,7 +3350,7 @@ impl FrameCsg {
         } else {
             (
                 &Vec::<u8>::new()[..],
-                if (valid_data_segment.len() > 16) {
+                if valid_data_segment.len() > 16 {
                     &valid_data_segment[valid_data_segment.len() - 16..]
                 } else {
                     &Vec::<u8>::new()[..]
@@ -3784,7 +3782,7 @@ impl FrameCsg {
         } else {
             (
                 vec![],
-                if (valid_data_segment.len() > 16) {
+                if valid_data_segment.len() > 16 {
                     valid_data_segment[valid_data_segment.len() - 16..].to_vec()
                 } else {
                     [].to_vec()
@@ -4753,16 +4751,16 @@ impl FrameCsg {
         let mut pw = false;
         println!("data_segment: {:?}, tpv: {:?}, pw_data: {:?}, length: {}", data_segment, tpv, pw_data, length);
         while pos < length {
-            let DA = &data_segment[pos..pos + 2];
+            let da = &data_segment[pos..pos + 2];
             let item = &data_segment[pos + 2..pos + 6];
 
-            let point_str = Self::prase_da_data([DA[0], DA[1]]);
+            let point_str = Self::prase_da_data([da[0], da[1]]);
             let data_item = FrameFun::get_data_str_reverser(item);
 
             FrameFun::add_data(
                 &mut sub_result,
                 format!("<第{}组>信息点标识DA", num + 1),
-                FrameFun::get_data_str_with_space(DA),
+                FrameFun::get_data_str_with_space(da),
                 point_str,
                 vec![index + pos, index + pos + 2],
                 None,

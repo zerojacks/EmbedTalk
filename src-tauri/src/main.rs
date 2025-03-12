@@ -7,7 +7,7 @@ use std::panic;
 use tauri::Manager;
 // use tauri::{CustomMenuItem, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem};
 use tauri::Emitter;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::FmtSubscriber;
@@ -20,9 +20,8 @@ pub mod global;
 pub mod taurihandler;
 pub mod protocol;
 // use once_cell::sync::OnceCell;
-use crate::combridage::ChannelType;
 use crate::config::appconfig::{get_config_value_async, set_config_value_async};
-use crate::taurihandler::ChannelHandler::{
+use crate::taurihandler::channel_handler::{
     connect_channel, disconnect_channel, list_serial_ports, send_message,
     start_timer_send, stop_timer_send, get_timer_status
 };
@@ -72,7 +71,6 @@ fn main() {
     //     .add_item(quit)
     //     .add_native_item(SystemTrayMenuItem::Separator)
     //     .add_item(hide);
-    let mut ctx = tauri::generate_context!();
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -84,7 +82,6 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_sql::Builder::default().build())
-        .plugin(tauri_plugin_theme::init(ctx.config_mut()))
         .manage(WindowState::default()) // 添加窗口位置状态管理
         .setup(|app| {
             let handle = app.app_handle();
@@ -147,12 +144,6 @@ fn main() {
             taurihandler::protocol_handler::send_protocol_message,
             taurihandler::protocol_handler::handle_protocol_message
         ])
-        .build(ctx)
-        .expect("error while running tauri application")
-        .run(|_app_handle, event| match event {
-            tauri::RunEvent::ExitRequested { api, .. } => {
-                api.prevent_exit();
-            }
-            _ => {}
-        });
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }

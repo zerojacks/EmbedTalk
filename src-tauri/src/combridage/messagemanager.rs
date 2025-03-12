@@ -1,5 +1,5 @@
 use crate::combridage::Message;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::Emitter;
 use tauri::Manager;
-use tokio::fs::{self, File, OpenOptions};
+use tokio::fs::{self, OpenOptions};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{broadcast, Mutex, RwLock};
 
@@ -170,7 +170,7 @@ impl MessageManager {
         active_channels.remove(channel_id);
 
         // 等待队列处理完成后再移除
-        let mut write_queues = self.write_queues.write().await;
+        let write_queues = self.write_queues.write().await;
         if let Some(queue) = write_queues.get(channel_id) {
             let queue = queue.clone(); // 克隆队列的Arc指针
             drop(write_queues); // 释放对write_queues的不可变借用

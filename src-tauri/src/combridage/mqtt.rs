@@ -1,16 +1,13 @@
-use crate::combridage::ChannelType;
 use crate::combridage::CommunicationChannel;
 use crate::combridage::{ChannelState, Message};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use serde_json;
-use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
-use tauri::{Manager, Wry};
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 pub struct MqttChannel {

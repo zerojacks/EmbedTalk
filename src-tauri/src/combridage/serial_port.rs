@@ -4,8 +4,6 @@ use crate::global::get_app_handle;
 use async_trait::async_trait;
 use serde_json;
 use std::error::Error;
-use std::io;
-use std::io::Error as IoError;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
@@ -87,8 +85,8 @@ impl SerialPortChannel {
         // Start send and receive tasks
         let app_handle = get_app_handle();
         let message_manager = MessageManager::new(app_handle)?;
-        message_manager.register_channel(&port_name).await;
-        let mut subscriber = message_manager.subscribe_to_messages();
+        let _ = message_manager.register_channel(&port_name).await;
+        let subscriber = message_manager.subscribe_to_messages();
 
         let message_send = message_manager.clone();
         let message_rec = message_manager.clone();
@@ -108,7 +106,7 @@ impl SerialPortChannel {
 
         let handle = tokio::spawn(async move {
             while let Ok(data) = rx.recv().await {
-                if let Some(mut port) = port.lock().await.as_mut() {
+                if let Some(port) = port.lock().await.as_mut() {
                     // Handle port write errors
                     if let Err(e) = port.write_all(&data).await {
                         eprintln!("Error sending data: {:?}", e);
@@ -152,7 +150,7 @@ impl SerialPortChannel {
 
         let handle = tokio::spawn(async move {
             let mut buffer = vec![0; 1024];
-            while let Some(mut port) = port.lock().await.as_mut() {
+            while let Some(port) = port.lock().await.as_mut() {
                 match port.read(&mut buffer).await {
                     Ok(n) if n > 0 => {
                         let received_data = buffer[..n].to_vec();

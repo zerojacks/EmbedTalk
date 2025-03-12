@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 use std::thread;
 use std::time::Instant;
 use tracing::{error, info};
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Window, Monitor, LogicalPosition, PhysicalPosition, State};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, LogicalPosition, State};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
@@ -187,7 +187,7 @@ struct ProtoConfigParams {
     protocol: Option<String>,
     region: Option<String>,
     dir: Option<String>,
-    xmlElement: Option<XmlElement>,
+    xmlelement: Option<XmlElement>,
 }
 
 #[tauri::command]
@@ -241,9 +241,9 @@ pub async fn save_protocol_config_item(value: &str) -> Result<(), String> {
     let value_json: ProtoConfigParams =
         serde_json::from_str(value).map_err(|e| format!("Failed to parse value: {}", e))?;
     println!("save_protocol_config_item: {:?}", value_json.protocol);
-    if value_json.protocol.is_some() && value_json.xmlElement.is_some() {
+    if value_json.protocol.is_some() && value_json.xmlelement.is_some() {
         let protocol = value_json.protocol.clone().unwrap();
-        let element = value_json.xmlElement.clone().unwrap();
+        let element = value_json.xmlelement.clone().unwrap();
         println!("save_protocol_config_item: {:?}", protocol);
         ProtocolConfigManager::update_element(&value_json.item, &protocol, &element)
             .map_err(|e| e.to_string())?;

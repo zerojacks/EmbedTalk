@@ -9,9 +9,6 @@ use crate::combridage::TcpServerChannel;
 use rumqttc::QoS;
 use std::collections::HashMap;
 use std::error::Error;
-use std::sync::Arc;
-use async_trait::async_trait;
-use serde_json::Value;
 use uuid::Uuid;
 
 pub struct CommunicationManager {

@@ -1,10 +1,8 @@
 use crate::config::constants;
-use dirs_next;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::fs;
-use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -107,12 +105,11 @@ pub async fn get_config_value_async(section: &str, key: &str) -> Result<Option<V
     // Load the config
     let config = Config::new(path.to_str().unwrap()).map_err(|e| format!("{}", e))?;
     // 读取 MainWindow.theme 字段
-    let mut sectionvalue: Option<Value> = None;
-    if key.is_empty() {
-        sectionvalue = config.get_value(&[section]).cloned();
+    let sectionvalue = if key.is_empty() {
+        config.get_value(&[section]).cloned()
     } else {
-        sectionvalue = config.get_value(&[section, key]).cloned();
-    }
+        config.get_value(&[section, key]).cloned()
+    };
     // Retrieve the value from the config
     Ok(sectionvalue)
 }
@@ -191,7 +188,7 @@ pub fn set_config_value(section: &str, key: &str, value: &str) -> Result<(), Str
     let value_json: serde_json::Value =
         serde_json::from_str(value).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let mut config = Config::new(path.to_str().unwrap()).map_err(|e| format!("{}", e));
+    let config = Config::new(path.to_str().unwrap()).map_err(|e| format!("{}", e));
     if let Ok(mut config) = config {
         if key.is_empty() {
             config

@@ -1,11 +1,9 @@
 use crate::basefunc::frame_645::Frame645;
 use crate::basefunc::protocol::FrameAnalisyic;
-use crate::protocol::dlt645::parser::DLT645Parser;
 use crate::protocol::dlt645::builder::DLT645Builder;
-use crate::protocol::traits::ProtocolParser;
-use crate::taurihandler::ChannelHandler;
-use serde_json::{json, Value};
-use tracing::{debug, error, info};
+use crate::taurihandler::channel_handler;
+use serde_json::Value;
+use tracing::{debug, error};
 
 #[derive(serde::Serialize)]
 pub struct Response {
@@ -113,7 +111,7 @@ pub async fn send_dlt645_frame(
     };
     
     // 发送消息
-    match ChannelHandler::send_message(channel_id, bytes).await {
+    match channel_handler::send_message(channel_id, bytes).await {
         Ok(_) => {
             // 发送成功，返回空响应
             // 注意：在实际应用中，这里应该等待并解析响应

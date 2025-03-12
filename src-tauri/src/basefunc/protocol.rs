@@ -110,9 +110,7 @@ impl FrameAnalisyic {
         let data_item_id = data_item_elem.get_attribute("id");
         let data_item_name = data_item_elem.get_child_text("name");
 
-        let mut color: Option<String> = None;
-
-        let mut sub_data_item = data_item_elem.get_items("dataItem");
+        let sub_data_item = data_item_elem.get_items("dataItem");
         let mut sub_data_segment = data_segment;
         let mut pos = 0;
         let mut sub_item_result: Option<Vec<Value>> = Some(Vec::new());
@@ -319,7 +317,7 @@ impl FrameAnalisyic {
             result_str,
             vec![index, index + cur_length],
             sub_item_result,
-            color,
+            None,
         );
 
         result

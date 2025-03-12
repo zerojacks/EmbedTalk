@@ -10,6 +10,7 @@ pub const FRAME_START: u8 = 0x68;
 pub const FRAME_END: u8 = 0x16;
 
 // DLT645 功能码
+#[derive(Debug)]
 pub enum FunctionCode {
     ReadData = 0x11,
     ReadDataResponse = 0x91,

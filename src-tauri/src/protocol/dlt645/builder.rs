@@ -1,6 +1,8 @@
 use crate::protocol::dlt645::{FRAME_START, FRAME_END, FunctionCode};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::error::Error;
+
+use super::u8_to_function_code;
 
 /// DLT645 协议构建器
 pub struct DLT645Builder;
@@ -194,12 +196,12 @@ impl DLT645Builder {
         let data_obj = json_data.as_object().unwrap();
         
         // 获取操作类型
-        let operation = data_obj.get("operation")
-            .and_then(|v| v.as_str())
-            .ok_or("Missing or invalid 'operation' field")?;
-        
-        match operation {
-            "read_data" => {
+        let afn = data_obj.get("afn")
+            .and_then(|v| v.as_u64())
+            .ok_or("Missing or invalid 'afn' field")?;
+        let funcode = u8_to_function_code(afn as u8).ok_or("Invalid function code")?;
+        match funcode {
+            FunctionCode::ReadData => {
                 // 获取地址
                 let address = data_obj.get("address")
                     .and_then(|v| v.as_str())
@@ -212,7 +214,7 @@ impl DLT645Builder {
                 
                 self.build_read_data_frame(address, data_id)
             },
-            "write_data" => {
+            FunctionCode::WriteData => {
                 // 获取地址
                 let address = data_obj.get("address")
                     .and_then(|v| v.as_str())
@@ -238,10 +240,10 @@ impl DLT645Builder {
                 
                 self.build_write_data_frame(address, data_id, &data_bytes)
             },
-            "read_address" => {
+            FunctionCode::ReadAddress => {
                 self.build_read_address_frame()
             },
-            _ => Err(format!("Unsupported operation: {}", operation).into()),
+            _ => Err(format!("Unsupported operation: {:?}", funcode).into()),
         }
     }
 }
