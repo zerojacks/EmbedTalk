@@ -39,7 +39,7 @@ export default function Home() {
 
   const dispatch = useDispatch();
   const splitSize = useSelector(selectSplitSize);
-
+  const { historyVisible, setHistoryVisible } = useShortcuts();
   const { region, setRegion } = useProtocolInfoStore();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -49,47 +49,42 @@ export default function Home() {
   
   const handleInputChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
-    const formattedValue = newValue
-      .replace(/\s+/g, '')
-      .replace(/(.{2})/g, '$1 ')
-      .trim()
-      .toUpperCase();
-
-    clearTableData();
-    setFrame(formattedValue);
-
-    if (formattedValue === "") {
-      return;
-    }
-
-    createPraseFrame(formattedValue);
-
-    let currentRegion = region;
-    if (region === "") {
-      try {
-        currentRegion = await invoke<string>("get_region_value");
-      } catch (error) {
-        currentRegion = "南网";
-      }
-      setRegion(currentRegion);
-    }
-    
-    try {
-      const result = await invoke<Response>('on_text_change', { 
-        message: newValue, 
-        region: currentRegion
-      });
-      if (result.error) {
-        toast.error("解析失败！");
-        console.log("错误信息：", result.error);
-      } else {
-        setTableData(result.data);
-      }
-    } catch (error) {
-      console.error("调用后端函数出错：", error);
-      toast.error("解析失败！");
-    }
+    handleParse(newValue);
   };
+
+  
+  useEffect(() => {
+    const start = selectedframe[0];
+    const end = selectedframe[1];
+    const textarea = textareaRef.current;
+    if(textarea) {
+      textarea.setSelectionRange(start, end);
+      textarea.focus();
+  
+      const computedStyle = getComputedStyle(textarea);
+      const charWidth = parseInt(computedStyle.fontSize, 10);
+      const lineHeight = parseInt(computedStyle.lineHeight, 10);
+      const lineSpacing = lineHeight - parseInt(computedStyle.fontSize, 10);
+      const lineCount = Math.floor(textarea.clientWidth / charWidth) * 2;
+      const startLine = Math.floor(start / lineCount);
+      const scrollTop = (startLine - 1) * (lineHeight + lineSpacing);
+      const startCharIndex = start % lineCount;
+      const scrollLeft = startCharIndex * charWidth;
+      setFrameScroll([scrollTop, scrollLeft]);
+    }
+
+  }, [selectedframe]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if(textarea) {
+      const scrollTop = frameScroll[0];
+      const scrollLeft = frameScroll[1];
+      textarea.scrollTop = scrollTop;
+      textarea.scrollLeft = scrollLeft;
+    }
+
+  },[frameScroll])
 
   const clearTableData = () => {
     setTableData([]);
@@ -105,6 +100,55 @@ export default function Home() {
       start = start * 2 + start;
       end = start + length;
       setSelectedFrame([start, end]);
+    }
+  };
+
+  const handleFrameSelect = (selectedFrame: string) => {
+    handleParse(selectedFrame);
+  };
+
+  const handleParse = async (text: string) => {
+    try {
+      const formattedValue = text
+        .replace(/\s+/g, '')
+        .replace(/(.{2})/g, '$1 ')
+        .trim()
+        .toUpperCase();
+
+      clearTableData();
+      setFrame(formattedValue);
+
+      if (formattedValue === "") {
+        return;
+      }
+
+      let currentRegion = region;
+      if (region === "") {
+        try {
+          currentRegion = await invoke<string>("get_region_value");
+        } catch (error) {
+          currentRegion = "南网";
+        }
+        setRegion(currentRegion);
+      }
+      
+      try {
+        const result = await invoke<Response>('on_text_change', { 
+          message: formattedValue, 
+          region: currentRegion
+        });
+        if (result.error) {
+          toast.error("解析失败！");
+          console.log("错误信息：", result.error);
+        } else {
+          setTableData(result.data);
+        }
+      } catch (error) {
+        console.error("调用后端函数出错：", error);
+        toast.error("解析失败！");
+      }
+    } catch (error) {
+      console.error('解析失败:', error);
     }
   };
 
@@ -133,6 +177,11 @@ export default function Home() {
           </div>
         </Panel>
       </PanelGroup>
+      <HistoryDrawer 
+        onSelectFrame={handleFrameSelect} 
+        visible={historyVisible}
+        onClose={() => setHistoryVisible(false)}
+      />
     </div>
   );
 }
