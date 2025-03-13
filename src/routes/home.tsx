@@ -155,7 +155,7 @@ export default function Home() {
   return (
     <div className="flex flex-col h-full">
       <PanelGroup direction="vertical" className="flex-grow" onLayout={handlePanelResize}>
-        <Panel defaultSize={splitSize[0]} minSize={30}>
+        <Panel defaultSize={splitSize[0]} minSize={0}>
           <div className="h-full p-2">
             <textarea
               ref={textareaRef}

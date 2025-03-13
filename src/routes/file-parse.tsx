@@ -8,10 +8,10 @@ import { toast } from '../context/ToastProvider';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { selectSplitSize, setSplitSize } from '../store/slices/splitSizeSlice';
-import { 
-    addFile, 
-    removeFile, 
-    updateFileContent, 
+import {
+    addFile,
+    removeFile,
+    updateFileContent,
     setActiveTab,
     setLoading,
     setError,
@@ -51,6 +51,9 @@ export default function FileParse() {
     const [tableData, setTableData] = React.useState<TreeItemType[]>([]);
     const [isDragging, setIsDragging] = React.useState(false);
     const [unlistenFns, setUnlistenFns] = React.useState<UnlistenFn[]>([]);
+    const [selectedContent, setSelectedContent] = React.useState<string>('');
+    const [selectedframe, setSelectedFrame] = React.useState<number[]>([0, 0]);
+    const [frameScroll, setFrameScroll] = React.useState<number[]>([0, 0]);
 
     const dispatch = useDispatch();
     const splitSize = useSelector(selectSplitSize);
@@ -61,6 +64,7 @@ export default function FileParse() {
     const isLoading = useSelector(selectIsLoading);
     const error = useSelector(selectError);
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const [value, setValue] = React.useState('');
     const handlePanelResize = (sizes: number[]) => {
         dispatch(setSplitSize(sizes));
@@ -68,12 +72,12 @@ export default function FileParse() {
 
     const getFileContent = (file: FileTab): string => {
         if (!activeFileContents) return '';
-        
+
         // 合并所有已加载的块
         const sortedChunks = Object.entries(activeFileContents.chunks)
             .sort(([a], [b]) => parseInt(a) - parseInt(b))
             .map(([_, chunk]) => chunk.content);
-        
+
         return sortedChunks.join('');
     };
 
@@ -86,23 +90,12 @@ export default function FileParse() {
         const start = chunk * CHUNK_SIZE;
         const buffer = await readFile(filePath);
         const slice = buffer.slice(start, start + CHUNK_SIZE);
-        
-        // let content: string;
-        // try {
-        //     const decoder = new TextDecoder('utf-8');
-        //     content = decoder.decode(slice);
-        // } catch (e) {
-        //     // 如果解码失败，转换为十六进制
-        //     content = Array.from(new Uint8Array(slice))
-        //         .map(b => b.toString(16).padStart(2, '0'))
-        //         .join(' ');
-        // }
         let content = uint8ArrayToString(slice);
         setValue(content);
         dispatch(addFileChunk({
             path: filePath,
-            chunk:chunk,
-            content:content,
+            chunk: chunk,
+            content: content,
             chunkSize: CHUNK_SIZE,
             startByte: start,
             endByte: start + slice.length
@@ -120,7 +113,7 @@ export default function FileParse() {
             // 获取文件信息
             const stats = await lstat(filePath);
             const fileName = filePath.split(/[/\\]/).pop() || 'Untitled';
-            
+
             // 添加文件到 Redux
             const fileTab: FileTab = {
                 path: filePath,
@@ -137,7 +130,7 @@ export default function FileParse() {
             // 加载第一个块
             await loadFileChunk(filePath, 0);
             dispatch(setActiveTab(filePath));
-            
+
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             console.error('文件读取错误：', error);
@@ -171,7 +164,7 @@ export default function FileParse() {
                 startByte: 0,
                 endByte: value.length
             }));
-            
+
             // 标记文件为已修改
             const file = openFiles.find(f => f.path === path);
             if (file && !file.isModified) {
@@ -183,14 +176,6 @@ export default function FileParse() {
     const handleEditorMount: OnMount = (editor) => {
         editorRef.current = editor;
         editor.onMouseUp(() => handleEditorMouseUp());
-        
-        // // 添加更多编辑器配置
-        // editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-        //     // 保存文件
-        //     if (activeFile) {
-        //         saveFile(activeFile);
-        //     }
-        // });
     };
 
     const handleEditorMouseUp = async () => {
@@ -201,9 +186,16 @@ export default function FileParse() {
         if (!selection || !model) return;
 
         const selectedText = model.getValueInRange(selection).trim();
+        const formattedValue = selectedText
+        .replace(/\s+/g, '')
+        .replace(/(.{2})/g, '$1 ')
+        .trim()
+        .toUpperCase();
+        
+        setSelectedContent(formattedValue);
         const hexRegex = /^[0-9A-Fa-f\s]+$/;
-        if (hexRegex.test(selectedText)) {
-            const hexData = selectedText.replace(/\s+/g, '');
+        if (hexRegex.test(formattedValue)) {
+            const hexData = formattedValue.replace(/\s+/g, '');
             await parseHexData(hexData);
         }
     };
@@ -236,25 +228,66 @@ export default function FileParse() {
         }
     };
 
-    const handleRowClick = (item: TreeItemType) => {
-        if (!editorRef.current || !item.position || item.position.length !== 2) return;
-        
-        // const editor = editorRef.current;
-        // const [start, end] = item.position;
-        // const startPos = start * 3; // 考虑空格
-        // const endPos = startPos + ((end - start) * 3) - 1;
-        
-        // editor.setSelection({
-        //     startLineNumber: 1,
-        //     startColumn: startPos + 1,
-        //     endLineNumber: 1,
-        //     endColumn: endPos + 1
-        // });
-        // editor.revealPosition({
-        //     lineNumber: 1,
-        //     column: startPos + 1
-        // });
+    const handleSelectedContentChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const selectedText = e.target.value;
+        const formattedValue = selectedText
+        .replace(/\s+/g, '')
+        .replace(/(.{2})/g, '$1 ')
+        .trim()
+        .toUpperCase();
+
+        setSelectedContent(formattedValue);
+        const hexRegex = /^[0-9A-Fa-f\s]+$/;
+        if (hexRegex.test(formattedValue)) {
+            const hexData = formattedValue.replace(/\s+/g, '');
+            await parseHexData(hexData);
+        }
     };
+
+    const handleRowClick = (item: TreeItemType) => {
+        if (item.position && item.position.length === 2) {
+            let start = item.position[0];
+            let end = item.position[1];
+            let length = end - start;
+            length = length * 2 + (length - 1);
+            start = start * 2 + start;
+            end = start + length;
+            setSelectedFrame([start, end]);
+        }
+    };
+
+    useEffect(() => {
+        const start = selectedframe[0];
+        const end = selectedframe[1];
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.setSelectionRange(start, end);
+            textarea.focus();
+
+            const computedStyle = getComputedStyle(textarea);
+            const charWidth = parseInt(computedStyle.fontSize, 10);
+            const lineHeight = parseInt(computedStyle.lineHeight, 10);
+            const lineSpacing = lineHeight - parseInt(computedStyle.fontSize, 10);
+            const lineCount = Math.floor(textarea.clientWidth / charWidth) * 2;
+            const startLine = Math.floor(start / lineCount);
+            const scrollTop = (startLine - 1) * (lineHeight + lineSpacing);
+            const startCharIndex = start % lineCount;
+            const scrollLeft = startCharIndex * charWidth;
+            setFrameScroll([scrollTop, scrollLeft]);
+        }
+
+    }, [selectedframe]);
+
+    useEffect(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            const scrollTop = frameScroll[0];
+            const scrollLeft = frameScroll[1];
+            textarea.scrollTop = scrollTop;
+            textarea.scrollLeft = scrollLeft;
+        }
+
+    }, [frameScroll])
 
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
@@ -277,14 +310,13 @@ export default function FileParse() {
                 try {
                     // 使用 FileReader 读取文件内容为文本
                     const content = await readFileAsText(file);
-                    
+
                     const filePath = file.webkitRelativePath || file.name;
-                    
+
                     // 添加文件到 Redux
                     dispatch(addFile({
                         path: filePath,
                         name: file.name,
-                        // content,
                         encoding: 'text',
                         viewMode: 'auto',
                         size: file.size,
@@ -296,7 +328,7 @@ export default function FileParse() {
                     toast.error(`无法读取文件 ${file.name}`);
                 }
             }));
-            
+
             if (files.length > 0) {
                 toast.success('文件加载成功');
             }
@@ -375,23 +407,57 @@ export default function FileParse() {
                 return;
             }
         }
-        
+
         dispatch(removeFile(path));
     };
 
     return (
         <div className="flex flex-col h-full">
-            <div className="tabs tabs-boxed bg-base-200 p-1">
-                {openFiles.map(file => (
-                    <div key={file.path} className="flex items-center">
-                        <a
-                            className={`tab ${activeTabPath === file.path ? 'tab-active' : ''} ${file.isModified ? 'font-bold' : ''}`}
-                            onClick={() => dispatch(setActiveTab(file.path))}
+            {/* 顶部操作栏 */}
+            <div className="flex items-center justify-between bg-base-200 p-2 border-b border-base-300">
+                <div className="flex items-center space-x-2">
+                    <button
+                        className="btn btn-sm btn-primary"
+                        onClick={handleFileSelect}
+                        disabled={isLoading}
+                    >
+                        选择文件
+                    </button>
+
+                    {activeFile && (
+                        <select
+                            className="select select-sm select-bordered"
+                            value={activeFile.viewMode}
+                            onChange={(e) => handleViewModeChange(activeFile.path, e.target.value as 'text' | 'hex' | 'auto')}
                         >
-                            {file.name}{file.isModified ? ' *' : ''}
-                        </a>
+                            <option value="auto">自动</option>
+                            <option value="text">文本</option>
+                            <option value="hex">十六进制</option>
+                        </select>
+                    )}
+                </div>
+            </div>
+
+            {/* VS Code 样式的文件标签 */}
+            <div className="flex bg-base-300 overflow-x-auto">
+                {openFiles.map(file => (
+                    <div
+                        key={file.path}
+                        className={`
+                            flex items-center h-9 px-3 py-1 border-r border-base-300
+                            ${activeTabPath === file.path
+                                ? 'bg-base-100 text-primary font-medium'
+                                : 'bg-base-200 hover:bg-base-100'
+                            }
+                            transition-colors cursor-pointer
+                        `}
+                        onClick={() => dispatch(setActiveTab(file.path))}
+                    >
+                        <span className={`${file.isModified ? 'font-bold' : ''}`}>
+                            {file.name}{file.isModified ? ' •' : ''}
+                        </span>
                         <button
-                            className="btn btn-ghost btn-xs ml-1"
+                            className="ml-2 opacity-60 hover:opacity-100"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 closeTab(file.path);
@@ -406,7 +472,7 @@ export default function FileParse() {
             {error && (
                 <div className="bg-error text-error-content p-2 text-sm">
                     错误: {error}
-                    <button 
+                    <button
                         className="btn btn-xs btn-ghost ml-2"
                         onClick={() => dispatch(setError(null))}
                     >
@@ -417,32 +483,12 @@ export default function FileParse() {
 
             <PanelGroup direction="horizontal" className="flex-grow" onLayout={handlePanelResize}>
                 <Panel defaultSize={splitSize[0]} minSize={30}>
-                    <div 
-                        className={`h-full relative ${isDragging ? 'border-2 border-dashed border-primary' : ''}`}
+                    <div
+                        className={`h-full relative border border-base-300 ${isDragging ? 'border-2 border-dashed border-primary' : ''}`}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
                     >
-                        <div className="absolute top-2 right-2 z-10 flex gap-2">
-                            {activeFile && (
-                                <select
-                                    className="select select-sm select-bordered"
-                                    value={activeFile.viewMode}
-                                    onChange={(e) => handleViewModeChange(activeFile.path, e.target.value as 'text' | 'hex' | 'auto')}
-                                >
-                                    <option value="auto">自动</option>
-                                    <option value="text">文本</option>
-                                    <option value="hex">十六进制</option>
-                                </select>
-                            )}
-                            <button 
-                                className="btn btn-sm btn-primary"
-                                onClick={handleFileSelect}
-                                disabled={isLoading}
-                            >
-                                选择文件
-                            </button>
-                        </div>
                         {isLoading && (
                             <div className="absolute inset-0 bg-base-100/50 flex items-center justify-center z-20">
                                 <span className="loading loading-spinner loading-lg"></span>
@@ -460,19 +506,37 @@ export default function FileParse() {
                                     minimap: { enabled: true },
                                     lineNumbers: 'on',
                                     scrollBeyondLastLine: false,
+                                    fontSize: 14,
                                 }}
                                 onMount={handleEditorMount}
                             />
                         )}
                     </div>
                 </Panel>
-                <PanelResizeHandle className="w-1 hover:bg-primary" />
+                <PanelResizeHandle className="w-0.5 bg-base-200 hover:bg-primary hover:w-0.5 mx-1" />
                 <Panel defaultSize={splitSize[1]} minSize={30}>
-                    <TreeTable
-                        data={tableData}
-                        tableheads={initialColumns}
-                        onRowClick={handleRowClick}
-                    />
+                    <div className="flex flex-col h-full border border-base-300">
+                        {/* 解析输入区域 */}
+                        <div className="border-b border-base-300 p-2">
+                            <textarea
+                                ref={textareaRef}
+                                className="textarea textarea-bordered w-full text-sm font-mono"
+                                rows={3}
+                                value={selectedContent}
+                                onChange={handleSelectedContentChange}
+                                placeholder="左侧选中内容后显示在此处，也可以直接编辑后点击重新解析"
+                            />
+                        </div>
+
+                        {/* 解析结果展示 */}
+                        <div className="flex-grow overflow-auto m-2">
+                            <TreeTable
+                                data={tableData}
+                                tableheads={initialColumns}
+                                onRowClick={handleRowClick}
+                            />
+                        </div>
+                    </div>
                 </Panel>
             </PanelGroup>
         </div>

@@ -126,8 +126,8 @@ impl FrameAnalisyic {
         };
 
         println!(
-            "prase_data_item data_segment{:?}",
-            data_segment
+            "prase_data_item data_segment{:?} {:?}",
+            data_segment,data_item_elem
         );
 
         if !sub_data_item.is_empty() {
@@ -1123,9 +1123,10 @@ impl FrameAnalisyic {
                             cur_length = item_length.parse::<usize>().unwrap();
                         }
                     }
+                    let item_data = &subitem_content[..cur_length];
                     result = Self::prase_data_item(
                         &mut item_element,
-                        subitem_content,
+                        item_data,
                         index + pos,
                         need_delete,
                         protocol,

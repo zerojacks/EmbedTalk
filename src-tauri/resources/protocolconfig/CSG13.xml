@@ -54463,6 +54463,12 @@
 		<type>ARD39</type>
 		<single>YES</single>
 	</dataItem>
+	<dataItem id="E20000EC" protocol="csg13" region="南网">
+		<name>全失流告警</name>
+		<length>91</length>
+		<type>ARD2</type>
+		<single>YES</single>
+	</dataItem>
 	<dataItem id="E20010FF" protocol="csg13" region="南网">
 		<name>所有未上报告警</name>
 	</dataItem>
@@ -63731,5 +63737,37 @@
 		<name>第%d组未成功接收的段号</name>
 		<length>2</length>
 		<type>BIN</type>
+	</template>
+	<dataItem id="E2000060" protocol="csg13" region="南网">
+		<name>安全监测告警</name>
+		<length>8</length>
+		<type>ARD29</type>
+		<single>YES</single>
+	</dataItem>
+	<template id="ARD29" protocol="csg13" region="南网">
+		<splitByLength>
+			<name>告警状态</name>
+			<length>1</length>
+			<value key="00">恢复</value>
+			<value key="01">发生</value>
+		</splitByLength>
+		<splitByLength>
+			<name>告警发生时间</name>
+			<length>6</length>
+			<time>ssmmhhDDMMYY</time>
+		</splitByLength>
+		<splitByLength>
+			<name>安全监测告警发生项目</name>
+			<length>1</length>
+			<type>BCD</type>
+			<value key="00">以太网远程端口开放</value>
+			<value key="01">以太网外联信息</value>
+			<value key="02">SSH 服务异常</value>
+			<value key="03">以太网登录控制台信息</value>
+			<value key="04">口令信息变更</value>
+			<value key="05">USB 设备接入</value>
+			<value key="06">蓝牙接口设备接入</value>
+			<value key="FF">未定义异常</value>
+		</splitByLength>
 	</template>
 </config>

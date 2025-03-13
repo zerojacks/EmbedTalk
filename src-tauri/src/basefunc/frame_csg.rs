@@ -1024,6 +1024,9 @@ impl FrameCsg {
         let total_len = data_segment.len();
         let mut pos = 0;
         while total_len > pos {
+            if pos + 4 > total_len {
+                break;
+            }
             let item = &data_segment[2 + pos..6 + pos];
             let data_item = &FrameFun::get_data_str_reverser(item);
             let data_item_elem =
@@ -1073,11 +1076,11 @@ impl FrameCsg {
         if data_segment.len() < 16 {
             return false;
         }
-        if FrameFun::is_array_all_zeros(&data_segment[data_segment.len() - 16..]) {
+        if FrameFun::is_array_all_zeros(&data_segment) {
             return true;
         } else {
             return Self::judge_is_exit_pw(
-                &data_segment[length - 16..],
+                &data_segment,
                 data_item_elem,
                 data_time,
                 with_time,
@@ -2504,7 +2507,7 @@ impl FrameCsg {
                     if dir == 1 && prm == 0 {
                         pw = Self::guest_is_exit_pw(
                             length,
-                            data_segment,
+                            &pw_data,
                             None,
                             None,
                             false,
@@ -2743,7 +2746,7 @@ impl FrameCsg {
                     if dir == 1 && prm == 0 {
                         pw = Self::guest_is_exit_pw(
                             length,
-                            data_segment,
+                            &pw_data,
                             None,
                             None,
                             false,
@@ -2973,7 +2976,7 @@ impl FrameCsg {
                         let sub_length = length;
                         pw = Self::guest_is_exit_pw(
                             length,
-                            data_segment,
+                            &pw_data,
                             data_item_elem.clone(),
                             data_time,
                             true,
@@ -3279,7 +3282,7 @@ impl FrameCsg {
                     if dir == 1 && prm == 0 {
                         pw = Self::guest_is_exit_pw(
                             length,
-                            data_segment,
+                            &pw_data,
                             None,
                             None,
                             false,
@@ -3911,7 +3914,7 @@ impl FrameCsg {
                     if dir == 1 {
                         pw = Self::guest_is_exit_pw(
                             length,
-                            data_segment,
+                            &pw_data,
                             None,
                             None,
                             false,
@@ -4156,7 +4159,7 @@ impl FrameCsg {
                 if dir == 1 && prm == 0 {
                     pw = Self::guest_is_exit_pw(
                         length,
-                        data_segment,
+                        pw_data,
                         None,
                         None,
                         false,
@@ -4486,7 +4489,7 @@ impl FrameCsg {
                 if length - pos == 16 {
                     pw = Self::guest_is_exit_pw(
                         length,
-                        data_segment,
+                        &pw_data,
                         None,
                         None,
                         false,
@@ -4501,7 +4504,7 @@ impl FrameCsg {
             } else {
                 pw = Self::guest_is_exit_pw(
                     length,
-                    data_segment,
+                    pw_data,
                     None,
                     None,
                     false,
@@ -4701,7 +4704,7 @@ impl FrameCsg {
                 if dir == 1 && prm == 0 {
                     pw = Self::guest_is_exit_pw(
                         length,
-                        data_segment,
+                        pw_data,
                         None,
                         None,
                         false,
