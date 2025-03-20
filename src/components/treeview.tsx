@@ -301,7 +301,7 @@ export const TreeTable: React.FC<TreeTableViewProps> = ({ data, tableheads, onRo
         <thead className="sticky top-0 z-10 bg-base-200 text-base-content">
           <tr>
             {tableheads.map((column, index) => (
-              <th key={index} style={{ position: 'relative', width: `${column.width}px` }} className="p-2 text-left font-medium">
+              <th key={index} style={{ position: 'relative', width: `${column.width}px` }} className="p-0 font-medium">
                 {column.name}
               </th>
             ))}
