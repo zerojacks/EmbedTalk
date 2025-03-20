@@ -898,7 +898,26 @@
         <value key="00">关闭</value>
         <value key="01">开启</value>
     </dataItem>
-
+    <dataItem id="E8050501" protocol="CSG16" region="南网">
+        <name>上报任务数据</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>任务ID</name>
+            <length>2</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>报文长度</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>报文内容</name>
+            <length>unknown</length>
+            <lengthrule>1 * 报文长度</lengthrule>
+            <type>FRAME645</type>
+        </splitByLength>
+    </dataItem>
     <!-- <dataItem id="E80505F1" protocol="CSG16" region="南网">
         <name>主动上报分钟采集数据</name>
         <length>unknown</length>

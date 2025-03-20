@@ -47,7 +47,7 @@ const router = createBrowserRouter([
         element: <DLT645Test />,
       },
       {
-        path: "/file-prase",
+        path: "/file-parse",
         element: <FileParse />,
       }
     ],

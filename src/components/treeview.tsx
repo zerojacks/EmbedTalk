@@ -290,7 +290,7 @@ export const TreeTable: React.FC<TreeTableViewProps> = ({ data, tableheads, onRo
   };
 
   return (
-    <div className="w-full h-full overflow-auto textarea-bordered treetableview rounded" ref={containerRef} onContextMenu={handleContextMenu}>
+    <div className="w-full h-full overflow-auto treetableview border border-base-300 rounded-md shadow-sm bg-base-100" ref={containerRef} onContextMenu={handleContextMenu}>
       {progress.visible && <Progress type={progress.type} xlevel={progress.position} />}
       <table className="w-full table-fixed border-collapse" ref={tableRef}>
         <colgroup>
@@ -298,10 +298,10 @@ export const TreeTable: React.FC<TreeTableViewProps> = ({ data, tableheads, onRo
             <col key={index} style={{ width: `${column.width}px` }} />
           ))}
         </colgroup>
-        <thead className="sticky top-0 dark:bg-gray-100 z-10">
+        <thead className="sticky top-0 z-10 bg-base-200 text-base-content">
           <tr>
             {tableheads.map((column, index) => (
-              <th key={index} style={{ position: 'relative', width: `${column.width}px` }}>
+              <th key={index} style={{ position: 'relative', width: `${column.width}px` }} className="p-2 text-left font-medium">
                 {column.name}
               </th>
             ))}

@@ -545,7 +545,7 @@ impl Frame645 {
             let mut all_length = data_content.len();
             if all_length % sublength != 0 && all_length > sublength {
                 let time = &data_content[..5];
-                let time_str = FrameFun::parse_time_data(time, "YYMMDDhhmm", true);
+                let time_str = FrameFun::parse_time_data(time, "mmhhDDMMYY", true);
                 FrameFun::add_data(
                     &mut sub_result,
                     "数据起始时间".to_string(),

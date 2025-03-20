@@ -1805,7 +1805,7 @@ impl FrameCsg {
                 sub_length = if let Some(sublength) = data_item_elem.get_child_text("length") {
                     sublength.parse::<usize>().unwrap()
                 } else {
-                    data_segment[4..].len()
+                    data_segment[pos + 4..].len()
                 };
                 sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                 data_item_elem.update_value("length", sub_length.to_string());
@@ -1989,8 +1989,9 @@ impl FrameCsg {
                             sub_length_cont.parse::<usize>().unwrap()
                         }
                     } else {
-                        data_segment[4..].len()
+                        data_segment[pos + 4..].len()
                     };
+                    println!("sub_length: {:?} data_segment: {:?}", sub_length, data_segment);
                     let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                     (sub_length, sub_datament)
                 };
@@ -2204,7 +2205,7 @@ impl FrameCsg {
                             sub_length_cont.parse::<usize>().unwrap()
                         }
                     } else {
-                        data_segment[4..].len()
+                        data_segment[pos + 4..].len()
                     };
                     let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                     (sub_length, sub_datament)
@@ -3647,8 +3648,8 @@ impl FrameCsg {
                     let end_time_str = FrameFun::parse_time_data(end_time, "CCYYMMDDhhmm", false);
                     let data_dinsty_str = Self::get_data_dinsty(data_dinsty);
                     FrameFun::add_data(
-                        &mut sub_result,
-                        format!("<第{}组>数据起始时间", num + 1),
+                        &mut task_result,
+                        format!("数据起始时间"),
                         FrameFun::get_data_str_with_space(start_time),
                         start_time_str,
                         vec![index + pos, index + pos + 6],
@@ -3656,8 +3657,8 @@ impl FrameCsg {
                         None,
                     );
                     FrameFun::add_data(
-                        &mut sub_result,
-                        format!("<第{}组>数据结束时间", num + 1),
+                        &mut task_result,
+                        format!("数据结束时间"),
                         FrameFun::get_data_str_with_space(end_time),
                         end_time_str,
                         vec![index + pos + 6, index + pos + 12],
@@ -3665,8 +3666,8 @@ impl FrameCsg {
                         None,
                     );
                     FrameFun::add_data(
-                        &mut sub_result,
-                        format!("<第{}组>数据密度", num + 1),
+                        &mut task_result,
+                        format!("数据密度"),
                         format!("{:02X}", data_dinsty),
                         format!("数据间隔时间：{}", data_dinsty_str),
                         vec![index + pos + 12, index + pos + 13],
@@ -3757,10 +3758,20 @@ impl FrameCsg {
             }
         }
 
+        FrameFun::add_data(
+            result_list,
+            "信息体".to_string(),
+            FrameFun::get_data_str_with_space(&frame[16..frame.len() - 2]),
+            "".to_string(),
+            vec![16, total_length - 2],
+            Some(task_result),
+            None,
+        );
+
         if pw {
             let pw_str = "PW由16个字节组成，是由主站按系统约定的认证算法产生，并在主站发送的报文中下发给终端，由终端进行校验认证。".to_string();
             FrameFun::add_data(
-                &mut task_result,
+                result_list,
                 "消息验证码Pw".to_string(),
                 FrameFun::get_data_str_with_space(pw_data),
                 pw_str,
@@ -3773,7 +3784,7 @@ impl FrameCsg {
         if tpv {
             let tpv_str = Self::prase_tpv_data(tpv_data);
             FrameFun::add_data(
-                &mut task_result,
+                result_list,
                 "时间标签Tp".to_string(),
                 FrameFun::get_data_str_with_space(tpv_data),
                 tpv_str,
@@ -3782,16 +3793,6 @@ impl FrameCsg {
                 None,
             );
         }
-
-        FrameFun::add_data(
-            result_list,
-            "信息体".to_string(),
-            FrameFun::get_data_str_with_space(&frame[16..frame.len() - 2]),
-            "".to_string(),
-            vec![16, total_length - 2],
-            Some(task_result),
-            None,
-        );
 
         Ok(())
     }
@@ -4853,7 +4854,7 @@ impl FrameCsg {
                             sub_length_cont.parse::<usize>().unwrap()
                         }
                     } else {
-                        data_segment[4..].len()
+                        data_segment[pos + 4..].len()
                     };
                     let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                     (sub_length, sub_datament)

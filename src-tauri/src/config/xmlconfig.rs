@@ -277,6 +277,15 @@ impl XmlElement {
 
         false
     }
+
+    pub fn find_child_by_attribute(&self, attribute: &str, value: &str) -> Option<&XmlElement> {
+        for child in &self.children {
+            if child.attributes.get(attribute).map_or(false, |v| v == value) {
+                return Some(child);
+            }
+        }
+        None
+    }
 }
 
 #[derive(Debug)]

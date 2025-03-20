@@ -49,10 +49,10 @@ export default function Layout() {
               title="DLT645测试"
             />
           </Link>
-          <Link className={linkClass} to="/file-prase">
+          <Link className={linkClass} to="/file-parse">
             <BiSolidFileArchive
               className={clsx(defaultClass, {
-                [selectedClass]: location.pathname === "/file-prase",
+                [selectedClass]: location.pathname === "/file-parse",
               })}
               title="文件解析"
             />

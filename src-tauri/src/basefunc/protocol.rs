@@ -239,16 +239,24 @@ impl FrameAnalisyic {
             sub_item_result = Some(sub_result);
             cur_length = length;
         } else if data_item_elem.get_child("indelength").is_some() {
-            let sub_result = Self::prase_data_item(
-                data_item_elem,
-                sub_data_segment,
-                index,
-                need_delete,
-                protocol,
-                region,
-                dir,
-            );
-            sub_item_result = Some(sub_result);
+            let length = data_segment.len();
+            let length_vaue = format!("{}", length);
+            let length_elem = data_item_elem.find_child_by_attribute("len", &length_vaue);
+            if let Some(length_elem) = length_elem {
+                let sub_result = Self::prase_data_item(
+                    &mut length_elem.clone(),
+                    data_segment,
+                    index,
+                    need_delete,
+                    protocol,
+                    region,
+                    dir,
+                );
+                sub_item_result = Some(sub_result);
+            }
+            else {
+                sub_item_result = None;
+            }
         } else if data_item_elem.get_child("type").is_some() {
             let mut subitem_length = 0;
             if data_item_elem.get_child("length").is_some() {
