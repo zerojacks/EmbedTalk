@@ -41,14 +41,14 @@ export default function Layout() {
               title="项目配置"
             />
           </Link>
-          <Link className={linkClass} to="/dlt645-test">
+          {/* <Link className={linkClass} to="/dlt645-test">
             <TbDeviceAnalytics
               className={clsx(defaultClass, {
                 [selectedClass]: location.pathname === "/dlt645-test",
               })}
               title="DLT645测试"
             />
-          </Link>
+          </Link> */}
           <Link className={linkClass} to="/file-parse">
             <BiSolidFileArchive
               className={clsx(defaultClass, {

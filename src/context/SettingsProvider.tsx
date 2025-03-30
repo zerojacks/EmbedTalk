@@ -6,8 +6,8 @@ import React, {
   ReactNode,
 } from "react";
 import { useSelector, useDispatch } from 'react-redux';
-import { selectTheme, setTheme, getEffectiveTheme, ThemeOption } from '../store/slices/themeSlice';
-
+import { selectTheme, setTheme, getEffectiveTheme, selectEffectiveTheme, ThemeOption } from '../store/slices/themeSlice';
+import { curry } from "lodash";
 interface SettingsContextInterface {
   theme: ThemeOption;
   effectiveTheme: 'light' | 'dark';
@@ -25,13 +25,19 @@ export const useSettingsContext = () => useContext(SettingsContext);
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const dispatch = useDispatch();
   const theme = useSelector(selectTheme);
-  const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>(
-    getEffectiveTheme()
-  );
+  const curtheme = useSelector(selectEffectiveTheme);
+
+  const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>(curtheme);
+
+  useEffect(() => {
+    console.log("curent theme ", curtheme);
+    setEffectiveTheme(curtheme)
+  }, [curtheme])
 
   const changeTheme = (newTheme: ThemeOption) => {
     dispatch(setTheme(newTheme));
   };
+
 
   return (
     <SettingsContext.Provider value={{ 

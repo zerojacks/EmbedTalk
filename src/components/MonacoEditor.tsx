@@ -31,6 +31,13 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
   );
 
   useEffect(() => {
+    if(editorRef.current) {
+      editorRef.current.updateOptions({
+        theme:theme
+      })
+    }
+  }, [theme])
+  useEffect(() => {
     if (!containerRef.current) return;
 
     // 创建编辑器实例

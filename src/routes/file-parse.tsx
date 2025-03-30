@@ -34,6 +34,7 @@ import { listen } from '@tauri-apps/api/event';
 import { UnlistenFn } from '@tauri-apps/api/event';
 import * as os from '@tauri-apps/plugin-os';
 import { useSettingsContext } from "../context/SettingsProvider";
+import { selectEffectiveTheme } from '../store/slices/themeSlice';
 
 interface Response {
     data: TreeItemType[];
@@ -107,7 +108,7 @@ export default function FileParse() {
     const [selectedContent, setSelectedContent] = React.useState<string>('');
     const [selectedframe, setSelectedFrame] = React.useState<number[]>([0, 0]);
     const [frameScroll, setFrameScroll] = React.useState<number[]>([0, 0]);
-    const { effectiveTheme } = useSettingsContext();
+    const effectiveTheme = useSelector(selectEffectiveTheme);
     const [edtheme, setEdtheme] = useState<Theme>(effectiveTheme === 'dark' ? 'vs-dark' : 'light');
     // 移除dragCounter状态，避免计数错误
     const dragTargetRef = useRef<HTMLDivElement>(null);
@@ -527,7 +528,7 @@ export default function FileParse() {
                 multiple: true,
                 filters: [{
                     name: 'Text Files',
-                    extensions: ['txt', 'log']
+                    extensions: ['*']
                 }]
             });
 
@@ -593,61 +594,108 @@ export default function FileParse() {
         };
     }, []);
 
+    // 创建空白文件
+    const createEmptyFile = () => {
+        const newFileName = `新建文件_${openFiles.length + 1}.txt`;
+        
+        // 创建FileTab对象
+        const fileTab: FileTab = {
+            path: `memory://${Date.now()}_${newFileName}`,
+            name: newFileName,
+            encoding: 'text',
+            viewMode: 'auto',
+            size: 0,
+            lastModified: Date.now(),
+            isModified: true,
+            totalLines: 1
+        };
+        
+        // 添加文件选项卡
+        dispatch(addFile(fileTab));
+        dispatch(setActiveTab(fileTab.path));
+        
+        // 添加空白内容
+        dispatch(addFileChunk({
+            path: fileTab.path,
+            chunk: 0,
+            content: '',
+            chunkSize: 0,
+            startByte: 0,
+            endByte: 0
+        }));
+        
+        toast.success('已创建新文件');
+    };
+
     return (
         <>
             <div className="flex flex-col h-full bg-base-100 text-base-content relative">
-                {/* 简化版顶部操作栏 */}
-                <div className="flex items-center justify-between bg-base-200 text-base-content px-4 py-2">
-                    <div className="flex items-center">
-                        <button
-                            className="px-3 py-1 bg-primary hover:bg-primary-focus text-primary-content rounded text-sm flex items-center gap-2 transition-colors"
-                            onClick={handleFileSelect}
-                            disabled={isLoading}
+                {/* VSCode 风格的文件标签 - 支持双击打开文件 */}
+                <div 
+                    className="flex bg-base-300 border-b border-base-content/10 overflow-x-auto scrollbar-thin scrollbar-thumb-base-content/20 scrollbar-track-transparent relative"
+                    onDoubleClick={createEmptyFile}
+                >
+                    {openFiles.map(file => (
+                        <div
+                            key={file.path}
+                            className={`
+                                group flex items-center h-9 px-3 border-r border-base-content/10 cursor-pointer
+                                ${activeTabPath === file.path
+                                    ? 'bg-base-100 text-base-content'
+                                    : 'bg-base-300 text-base-content/70 hover:bg-base-200'
+                                }
+                                transition-colors
+                            `}
+                            onClick={() => dispatch(setActiveTab(file.path))}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 opacity-60" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                            </svg>
+                            <span className={`text-sm ${file.isModified ? 'italic' : ''} select-none`}>
+                                {file.name}
+                                {file.isModified && <span className="ml-1">*</span>}
+                            </span>
+                            <button
+                                className="ml-2 w-5 h-5 rounded opacity-0 group-hover:opacity-100 hover:bg-base-content/10 hover:text-error flex items-center justify-center transition-opacity select-none"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    closeTab(file.path);
+                                }}
+                            >
+                                <span className="text-xs select-none">×</span>
+                            </button>
+                        </div>
+                    ))}
+                    
+                    {/* 空标签栏提示 */}
+                    {openFiles.length === 0 && (
+                        <div className="h-9 px-4 flex items-center justify-center text-sm text-base-content/40 italic flex-grow">
+                            双击此处创建新文件
+                        </div>
+                    )}
+                    
+                    {/* 新增"+" 按钮用于添加新文件，放在最右侧 */}
+                    <div className="flex ml-auto border-l border-base-content/10">
+                        <div 
+                            className="h-9 px-3 flex items-center text-base-content/60 hover:text-base-content hover:bg-base-200 cursor-pointer transition-colors"
+                            onClick={createEmptyFile}
+                            title="新建文件"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
-                            选择文件
-                        </button>
+                        </div>
+                        <div 
+                            className="h-9 px-3 flex items-center text-base-content/60 hover:text-base-content hover:bg-base-200 cursor-pointer transition-colors"
+                            onClick={handleFileSelect}
+                            title="打开文件"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
                     </div>
                 </div>
-
-                {/* VSCode 风格的文件标签 - 使用DaisyUI类 */}
-                {openFiles.length > 0 && (
-                    <div className="flex bg-base-300 border-b border-base-content/10 overflow-x-auto scrollbar-thin scrollbar-thumb-base-content/20 scrollbar-track-transparent">
-                        {openFiles.map(file => (
-                            <div
-                                key={file.path}
-                                className={`
-                                    group flex items-center h-9 px-3 border-r border-base-content/10 cursor-pointer
-                                    ${activeTabPath === file.path
-                                        ? 'bg-base-100 text-base-content'
-                                        : 'bg-base-300 text-base-content/70 hover:bg-base-200'
-                                    }
-                                    transition-colors
-                                `}
-                                onClick={() => dispatch(setActiveTab(file.path))}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 opacity-60" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                                </svg>
-                                <span className={`text-sm ${file.isModified ? 'italic' : ''}`}>
-                                    {file.name}
-                                    {file.isModified && <span className="ml-1">*</span>}
-                                </span>
-                                <button
-                                    className="ml-2 w-5 h-5 rounded opacity-0 group-hover:opacity-100 hover:bg-base-content/10 flex items-center justify-center transition-opacity"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        closeTab(file.path);
-                                    }}
-                                >
-                                    <span className="text-xs">×</span>
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
 
                 {/* 错误显示 - 使用DaisyUI类 */}
                 {error && (

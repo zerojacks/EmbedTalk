@@ -3,6 +3,10 @@ import MonacoEditor from './MonacoEditor';
 import { XmlElement } from '../stores/useItemConfigStore';
 import Split from 'react-split';
 import { useDebounce } from '../hooks/useDebounce';
+import { useSelector } from 'react-redux';
+import { selectEffectiveTheme } from '../store/slices/themeSlice';
+import { Theme } from '@monaco-editor/react';
+import { useSettingsContext } from '../context/SettingsProvider';
 
 interface EnhancedXmlEditorProps {
   initialXml: XmlElement;
@@ -83,6 +87,8 @@ const XmlConverter: React.FC<EnhancedXmlEditorProps> = ({ initialXml, onXmlEleme
   const [errorLogs, setErrorLogs] = useState<string>('');
   const lastValidXmlRef = useRef<string>(xmlText);
   const isParsingRef = useRef(false);
+  const { effectiveTheme } = useSettingsContext();
+  const [edtheme, setEdtheme] = useState<Theme>(effectiveTheme === 'dark' ? 'vs-dark' : 'light');
 
   useEffect(() => {
     const newXmlText = convertToXml(initialXml);
@@ -91,6 +97,11 @@ const XmlConverter: React.FC<EnhancedXmlEditorProps> = ({ initialXml, onXmlEleme
       lastValidXmlRef.current = newXmlText;
     }
   }, [initialXml]);
+
+  useEffect(() => {
+    console.log("xml theme", effectiveTheme)
+    setEdtheme(effectiveTheme === 'dark' ? 'vs-dark' : 'light')
+  }, [effectiveTheme])
 
   const handleEditorChange = useCallback((newValue: string) => {
     if (isParsingRef.current) return;
@@ -132,6 +143,7 @@ const XmlConverter: React.FC<EnhancedXmlEditorProps> = ({ initialXml, onXmlEleme
       >
         <div className="w-full h-full overflow-hidden">
           <MonacoEditor
+            theme={edtheme}
             value={xmlText}
             language="xml"
             onChange={handleEditorChange}
