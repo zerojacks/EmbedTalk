@@ -19,6 +19,7 @@ import ChannelMonitorRedux from "./routes/ChannelMonitorRedux";
 import QuickParse from "./routes/quick-parse";
 import DLT645Test from "./routes/dlt645-test";
 import FileParse from "./routes/file-parse";
+import Tools from "./routes/tools";
 
 const router = createBrowserRouter([
   {
@@ -49,6 +50,10 @@ const router = createBrowserRouter([
       {
         path: "/file-parse",
         element: <FileParse />,
+      },
+      {
+        path: "/tools",
+        element: <Tools />,
       }
     ],
   },

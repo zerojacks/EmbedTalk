@@ -4,6 +4,7 @@ import { MdOutlineMonitor, MdOutlineDevices } from "react-icons/md";
 import { BiNetworkChart } from "react-icons/bi";
 import { TbDeviceAnalytics } from "react-icons/tb";
 import { BiSolidFileArchive } from "react-icons/bi";
+import { FiTool } from "react-icons/fi";
 import clsx from "clsx";
 
 export default function Layout() {
@@ -55,6 +56,14 @@ export default function Layout() {
                 [selectedClass]: location.pathname === "/file-parse",
               })}
               title="文件解析"
+            />
+          </Link>
+          <Link className={linkClass} to="/tools">
+            <FiTool
+              className={clsx(defaultClass, {
+                [selectedClass]: location.pathname === "/tools",
+              })}
+              title="工具集合"
             />
           </Link>
           <div className="flex-grow" />

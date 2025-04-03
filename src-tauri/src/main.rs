@@ -142,7 +142,8 @@ fn main() {
             taurihandler::protocol_handler::parse_protocol_data,
             taurihandler::protocol_handler::build_protocol_message,
             taurihandler::protocol_handler::send_protocol_message,
-            taurihandler::protocol_handler::handle_protocol_message
+            taurihandler::protocol_handler::handle_protocol_message,
+            taurihandler::handler::caculate_pppfcs16
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -380,3 +380,22 @@ pub async fn open_window(app_handle: tauri::AppHandle, state: State<'_, WindowSt
 
     Ok(())
 }
+
+#[tauri::command]
+pub fn caculate_pppfcs16(frame: String) -> Result<u16, String> {
+    // 清理输入字符串，移除空格和换行符
+    let cleaned_frame = frame.replace(' ', "").replace('\n', "");
+    
+    // 验证输入是否为有效的16进制字符串
+    if !cleaned_frame.chars().all(|c| c.is_digit(16)) || cleaned_frame.len() % 2 != 0 {
+        return Err("Invalid hex string".to_string());
+    }
+    
+    // 将16进制字符串转换为字节数组
+    let frame_bytes = FrameFun::get_frame_list_from_str(&cleaned_frame);
+    
+    // 使用0xFFFF作为初始FCS值计算校验和
+    let fcs = FrameFun::ppp_fcs16(0xFFFF, &frame_bytes);
+    
+    Ok(fcs)
+}
