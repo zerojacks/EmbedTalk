@@ -95,6 +95,111 @@ export const HelpContent: React.FC<HelpContentProps> = ({ helpId }) => {
                 </div>
             );
 
+        case 'measurement-points':
+            return (
+                <div className="prose prose-sm max-w-none">
+                    <h4>基本功能</h4>
+                    <ul>
+                        <li>测量点转DA：将测量点格式转换为DA值</li>
+                        <li>DA转测量点：将DA值转换为测量点格式</li>
+                    </ul>
+
+                    <h4>输入格式说明</h4>
+                    <p>测量点转DA：</p>
+                    <ul>
+                        <li>单个测量点：<code>1,2,3,4</code></li>
+                        <li>连续测量点：<code>1-20</code></li>
+                        <li>多个测量点：<code>1-10,13,15,17-20</code></li>
+                    </ul>
+
+                    <p>DA转测量点：</p>
+                    <ul>
+                        <li>单个DA：<code>0xFF01</code> 或 <code>FF01</code></li>
+                        <li>连续DA：<code>0x1234-0x1240</code> 或 <code>1234-1240</code></li>
+                        <li>多个DA：<code>0x1234,0x1235</code> 或 <code>1234,1235</code></li>
+                    </ul>
+
+                    <h4>显示模式（测量点转DA）</h4>
+                    <ul>
+                        <li><strong>整合显示</strong>：将连续的DA值合并显示为范围格式</li>
+                        <li><strong>单点显示</strong>：每个DA值单独显示</li>
+                    </ul>
+
+                    <h4>使用示例</h4>
+                    <p>测量点转DA（整合显示）：</p>
+                    <div className="space-y-1">
+                        <div>输入：<code>1-10,13,15,17-20</code></div>
+                        <div>输出：<code>FF01,5302,0F03</code></div>
+                    </div>
+
+                    <p>测量点转DA（单点显示）：</p>
+                    <div className="space-y-1">
+                        <div>输入：<code>1-10,13,15,17-20</code></div>
+                        <div>输出：<code>0101,0201,0401,0801,1001,2001,4001,8001,0102,0202,1002,4002,0103,0203,0403,0803</code></div>
+                    </div>
+
+                    <p>DA转测量点：</p>
+                    <div className="space-y-1">
+                        <div>输入：<code>FF01,5302,0F03</code></div>
+                        <div>输出：<code>1,2,3,4,5,6,7,8,9,10,13,15,17,18,19,20</code></div>
+                    </div>
+
+                    <h4>注意事项</h4>
+                    <ul>
+                        <li>DA值支持十六进制（0x前缀）和十进制格式</li>
+                        <li>连续范围使用减号（-）分隔</li>
+                        <li>多个值使用逗号（,）分隔</li>
+                        <li>输入格式不区分大小写</li>
+                    </ul>
+                </div>
+            );
+
+        case 'data-item-parser':
+            return (
+                <div className="prose prose-sm max-w-none">
+                    <h4>基本功能</h4>
+                    <ul>
+                        <li>解析数据项内容</li>
+                        <li>支持多种协议格式</li>
+                        <li>树形表格展示结果</li>
+                    </ul>
+
+                    <h4>输入格式</h4>
+                    <ul>
+                        <li>数据标识：可选，用于标识当前数据的来源或类型</li>
+                        <li>数据内容：需要解析的原始数据</li>
+                    </ul>
+
+                    <h4>解析结果</h4>
+                    <ul>
+                        <li>名称：数据项的名称或标识</li>
+                        <li>值：解析后的数据值</li>
+                        <li>说明：数据项的详细描述</li>
+                        <li>支持多级数据项的展示</li>
+                    </ul>
+
+                    <h4>使用示例</h4>
+                    <p>输入数据：</p>
+                    <pre><code>68 11 11 11 11 11 11 68 91 09 06 00 00 00 00 00 16</code></pre>
+                    <p>解析结果：</p>
+                    <ul>
+                        <li>帧起始符：68H</li>
+                        <li>地址域：11 11 11 11 11 11</li>
+                        <li>控制码：91H</li>
+                        <li>数据长度：09H</li>
+                        <li>数据域：06 00 00 00 00 00</li>
+                        <li>校验码：16H</li>
+                    </ul>
+
+                    <h4>注意事项</h4>
+                    <ul>
+                        <li>输入数据需要符合协议格式要求</li>
+                        <li>支持复制解析结果</li>
+                        <li>树形结构可以展开/折叠</li>
+                    </ul>
+                </div>
+            );
+
         default:
             return null;
     }

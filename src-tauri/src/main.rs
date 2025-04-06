@@ -29,7 +29,7 @@ use crate::taurihandler::handler::{
     app_close, check_update, get_all_config_item_lists, get_app_info, get_com_list,
     get_protocol_config_item, get_region_value, on_text_change, save_file,
     save_protocol_config_item, set_region_value, open_window, update_window_position, 
-    get_window_position, WindowState
+    get_window_position, WindowState, parse_item_data
 };
 use crate::taurihandler::dlt645_handler::{
     parse_dlt645_frame, build_dlt645_frame, list_channels
@@ -143,7 +143,9 @@ fn main() {
             taurihandler::protocol_handler::build_protocol_message,
             taurihandler::protocol_handler::send_protocol_message,
             taurihandler::protocol_handler::handle_protocol_message,
-            taurihandler::handler::caculate_pppfcs16
+            taurihandler::handler::caculate_pppfcs16,
+            taurihandler::handler::da_and_measure_point_exchange,
+            parse_item_data
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

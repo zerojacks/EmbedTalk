@@ -1,5 +1,6 @@
 use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::protocol::{FrameAnalisyic, ProtocolInfo};
+use crate::basefunc::frame_csg::FrameCsg;
 use crate::config::appconfig::GLOBAL_CONFIG_MANAGER;
 use crate::config::xmlconfig::{
     ItemConfigList, ProtocolConfigManager, XmlElement, GLOBAL_645, GLOBAL_CSG13, GLOBAL_CSG16,
@@ -398,4 +399,238 @@ pub fn caculate_pppfcs16(frame: String) -> Result<u16, String> {
     let fcs = FrameFun::ppp_fcs16(0xFFFF, &frame_bytes);
     
     Ok(fcs)
+}
+
+#[tauri::command]
+pub fn da_and_measure_point_exchange(input: String, convert_type: String, continuous: bool) -> Result<String, String> {
+    // 清理输入字符串，移除空格和换行符
+    let cleaned_input = input.trim().to_string();
+    
+    match convert_type.as_str() {
+        "point_to_da" => {
+            let result = try_convert_point_to_da(&cleaned_input, continuous)?;
+            Ok(result)
+        },
+        "da_to_point" => {
+            let result = try_convert_da_to_point(&cleaned_input)?;
+            Ok(result)
+        },
+        _ => Err("Invalid convert type. Expected: point_to_da or da_to_point".to_string()),
+    }
+}
+
+fn try_convert_point_to_da(input: &str, continuous: bool) -> Result<String, String> {
+    // 处理逗号分隔的多个范围
+    let ranges: Vec<&str> = input.split(',').collect();
+    let mut all_points = Vec::new();
+    
+    for range in ranges {
+        if range.is_empty() {
+            continue;
+        }
+
+        if range.contains('-') {
+            // 处理范围格式 (如: 1-20)
+            let parts: Vec<&str> = range.split('-').collect();
+            if parts.len() != 2 {
+                return Err(format!("无效的范围格式: {}", range));
+            }
+            
+            let start = parts[0].parse::<u16>()
+                .map_err(|_| format!("无效的起始数字: {}", parts[0]))?;
+            let end = parts[1].parse::<u16>()
+                .map_err(|_| format!("无效的结束数字: {}", parts[1]))?;
+            
+            if start > end {
+                return Err(format!("起始数字必须小于或等于结束数字: {}", range));
+            }
+            
+            all_points.extend(start..=end);
+        } else {
+            // 处理单个数字
+            let point = range.parse::<u16>()
+                .map_err(|_| format!("无效的数字: {}", range))?;
+            all_points.push(point);
+        }
+    }
+    
+    if all_points.is_empty() {
+        return Err("请输入有效的测量点".to_string());
+    }
+    
+    // 对点进行排序和去重
+    all_points.sort();
+    all_points.dedup();
+    
+    // 根据continuous参数选择转换方式
+    let da_pairs = if continuous {
+        FrameCsg::to_da_with_continuous(&all_points)
+    } else {
+        FrameCsg::to_da_with_single(&all_points)
+    };
+    
+    // 格式化输出
+    let result = da_pairs.iter()
+        .map(|&(da1, da2)| format!("{:02X}{:02X}", da1, da2))
+        .collect::<Vec<String>>()
+        .join(",");
+    
+    Ok(result)
+}
+
+fn try_convert_da_to_point(input: &str) -> Result<String, String> {
+    // 处理逗号分隔的多个DA值
+    let da_values: Vec<&str> = input.split(',').collect();
+    let mut all_results = Vec::new();
+    
+    if da_values.is_empty() || (da_values.len() == 1 && da_values[0].trim().is_empty()) {
+        return Err("请输入有效的DA值".to_string());
+    }
+    
+    for da_value in da_values {
+        let da_value = da_value.trim();
+        if da_value.is_empty() {
+            continue;
+        }
+
+        // 移除可能的0x前缀
+        let da_value = da_value.trim_start_matches("0x");
+        
+        // 验证16进制格式
+        if !da_value.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(format!("无效的16进制DA值: {}", da_value));
+        }
+        
+        // 将16进制字符串转换为字节数组
+        let da = FrameFun::get_frame_list_from_str(da_value);
+        let (size, points) = FrameFun::calculate_measurement_points(&da);
+        
+        if size == 1 && points[0] == 0xFFFF {
+            all_results.push("0xFFFF".to_string());
+        } else {
+            let points_str = points.iter()
+                .map(|&x| x.to_string())
+                .collect::<Vec<String>>()
+                .join(",");
+            all_results.push(points_str);
+        }
+    }
+    
+    if all_results.is_empty() {
+        return Err("转换结果为空".to_string());
+    }
+    
+    Ok(all_results.join(","))
+}
+
+#[tauri::command]
+pub fn parse_item_data(item: String, input: String, protocol: String, region: String) -> Result<Vec<Value>, String> {
+    // 检查输入参数
+    if item.is_empty() {
+        return Err("数据标识不能为空".to_string());
+    }
+    if input.is_empty() {
+        return Err("数据内容不能为空".to_string());
+    }
+    if protocol.is_empty() {
+        return Err("协议类型不能为空".to_string());
+    }
+    if region.is_empty() {
+        return Err("区域不能为空".to_string());
+    }
+
+    // 清理输入数据
+    let item = item.trim().to_uppercase();
+    let input = input.trim();
+    let protocol = protocol.trim();
+    let region = region.trim();
+
+    // 验证数据标识格式
+    if !item.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("数据标识必须是有效的16进制字符串".to_string());
+    }
+
+    // 验证数据内容格式
+    if !input.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("数据内容必须是有效的16进制字符串".to_string());
+    }
+
+    let dir = Some(1);
+    let mut sub_result = Vec::new();
+    let mut item_data: Vec<Value> = Vec::new();
+
+    // 将数据标识和数据内容转换为字节数组
+    let itemdata = FrameFun::get_frame_list_from_str(&item);
+    let data_segment = FrameFun::get_frame_list_from_str(&input);
+
+    // 获取数据项配置
+    let mut data_item_elem = match ProtocolConfigManager::get_config_xml(&item, &protocol, &region, dir) {
+        Some(elem) => elem,
+        None => return Err(format!("未找到数据标识[{}]的配置信息", item)),
+    };
+
+    // 处理数据项配置
+    let sub_length = match data_item_elem.get_child_text("length") {
+        Some(length_str) => match length_str.parse::<usize>() {
+            Ok(length) => length,
+            Err(_) => data_segment.len(),
+        },
+        None => data_segment.len(),
+    };
+
+    // 检查数据长度
+    if sub_length > data_segment.len() {
+        return Err(format!("数据长度({})超过实际数据长度({})", sub_length, data_segment.len()));
+    }
+
+    let sub_datament = &data_segment[..sub_length];
+
+    // 更新数据项配置
+    data_item_elem.update_value("length", sub_length.to_string());
+
+    // 解析数据
+    item_data = FrameAnalisyic::prase_data(
+        &mut data_item_elem,
+        &protocol,
+        &region,
+        &data_segment,
+        0,
+        dir,
+    );
+
+    // 获取数据项名称
+    let name = data_item_elem.get_child_text("name").unwrap_or_default();
+    let dis_data_identifier = format!("数据标识编码：[{}]-{}", item, name);
+
+    // 构建结果字符串
+    let result_str = format!("数据标识[{}]数据内容：", item);
+    let description = format!(
+        "{}{}",
+        result_str,
+        FrameFun::get_data_str(&data_segment, false, true, false)
+    );
+
+    // 添加数据标识信息
+    FrameFun::add_data(
+        &mut sub_result,
+        "数据标识编码DI".to_string(),
+        FrameFun::get_data_str_reverser_with_space(&itemdata),
+        dis_data_identifier,
+        vec![0, 0],
+        None,
+        None,
+    );
+
+    // 添加数据内容信息
+    FrameFun::add_data(
+        &mut sub_result,
+        "数据标识内容".to_string(),
+        FrameFun::get_data_str_with_space(sub_datament),
+        description,
+        vec![0, 0],
+        Some(item_data),
+        None,
+    );
+
+    Ok(sub_result)
 }

@@ -4,6 +4,8 @@ import { ToolCard, tools, Tool } from '../components/tools';
 import { PPPFCS16Tool } from '../components/tools/PPPFCS16Tool';
 import { TimeConverterTool } from '../components/tools/TimeConverterTool';
 import { ByteConverterTool } from '../components/tools/ByteConverterTool';
+import { MeasurementPointsTool } from '../components/tools/MeasurementPointsTool';
+import { DataItemParserTool } from '../components/tools/DataItemParserTool';
 
 export default function Tools() {
     const [activeDialog, setActiveDialog] = useState<string | null>(null);
@@ -14,14 +16,18 @@ export default function Tools() {
         }
     };
 
-    const renderToolContent = (tool: Tool) => {
-        switch (tool.id) {
+    const renderToolContent = (toolId: string) => {
+        switch (toolId) {
             case 'ppp-fcs16':
                 return <PPPFCS16Tool />;
             case 'time-converter':
                 return <TimeConverterTool />;
             case 'byte-converter':
                 return <ByteConverterTool />;
+            case 'measurement-points':
+                return <MeasurementPointsTool />;
+            case 'data-item-parser':
+                return <DataItemParserTool />;
             default:
                 return null;
         }
@@ -53,10 +59,10 @@ export default function Tools() {
                     title={selectedToolConfig.name}
                     onClose={() => setActiveDialog(null)}
                     helpId={selectedToolConfig.helpId}
-                    initialWidth={600}
-                    initialHeight={480}
+                    initialWidth={800}
+                    initialHeight={600}
                 >
-                    {renderToolContent(selectedToolConfig)}
+                    {renderToolContent(activeDialog)}
                 </ToolDialog>
             )}
         </div>

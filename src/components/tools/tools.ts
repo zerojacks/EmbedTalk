@@ -24,5 +24,21 @@ export const tools: Tool[] = [
         icon: '🔄',
         type: 'dialog',
         helpId: 'byte-converter'
+    },
+    {
+        id: 'measurement-points',
+        name: '测量点转换工具',
+        description: '测量点与DA之间互相转换',
+        icon: '📊',
+        type: 'dialog',
+        helpId: 'measurement-points'
+    },
+    {
+        id: 'data-item-parser',
+        name: '数据项解析工具',
+        description: '解析数据项内容',
+        icon: '📝',
+        type: 'dialog',
+        helpId: 'data-item-parser'
     }
 ]; 

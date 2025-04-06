@@ -990,6 +990,49 @@ impl FrameCsg {
         (da1, da2)
     }
 
+    pub fn to_da_with_continuous(points: &[u16]) -> Vec<(u8, u8)> {
+        if points.is_empty() {
+            return Vec::new();
+        }
+
+        let mut result = Vec::new();
+        let mut current_da = (0u8, 0u8);
+        let mut mask = 0u8;
+        let mut last_high = 0u8;
+
+        for &point in points {
+            let low = ((point - 1) % 8) as u8;
+            let high = ((point - 1) / 8) as u8;
+
+            if high != last_high {
+                // 如果高位不同，保存当前的DA并开始新的
+                if mask != 0 {
+                    current_da.0 = mask;
+                    current_da.1 = last_high + 1;
+                    result.push(current_da);
+                }
+                mask = 0;
+                last_high = high;
+            }
+
+            // 设置对应的位
+            mask |= 1 << low;
+        }
+
+        // 处理最后一个DA
+        if mask != 0 {
+            current_da.0 = mask;
+            current_da.1 = last_high + 1;
+            result.push(current_da);
+        }
+
+        result
+    }
+
+    pub fn to_da_with_single(points: &[u16]) -> Vec<(u8, u8)> {
+        points.iter().map(|&point| Self::to_da(point)).collect()
+    }
+
     pub fn judge_is_exit_pw(
         data_segment: &[u8],
         item_element: Option<XmlElement>,
@@ -1070,6 +1113,7 @@ impl FrameCsg {
         region: &str,
         dir: Option<u8>,
     ) -> bool {
+        println!("guest_is_exit_pw length{:?} pw_data{:?}", length, data_segment);
         if length <= 16 {
             return false;
         }
@@ -1931,7 +1975,7 @@ impl FrameCsg {
             if valid_data_segment.len() < 21 {
                 (empty_data, [0, 0])
             } else {
-                let pw_data = &valid_data_segment[valid_data_segment.len() - 21..];
+                let pw_data = &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
                 (pw_data, [total_length - 23, total_length - 7])
             }
         } else {
@@ -2147,7 +2191,7 @@ impl FrameCsg {
             if valid_data_segment.len() < 21 {
                 (empty_data, [0, 0])
             } else {
-                let pw_data = &valid_data_segment[valid_data_segment.len() - 21..];
+                let pw_data = &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
                 (pw_data, [total_length - 23, total_length - 7])
             }
         } else {
@@ -4796,7 +4840,7 @@ impl FrameCsg {
             if valid_data_segment.len() < 21 {
                 (empty_data, [0, 0])
             } else {
-                let pw_data = &valid_data_segment[valid_data_segment.len() - 21..];
+                let pw_data = &valid_data_segment[valid_data_segment.len() - 21..valid_data_segment.len() - 5];
                 (pw_data, [total_length - 23, total_length - 7])
             }
         } else {
