@@ -66,6 +66,14 @@ export default function Layout() {
               title="工具集合"
             />
           </Link>
+          <Link className={linkClass} to="/frame-extractor">
+            <FiTool
+              className={clsx(defaultClass, {
+                [selectedClass]: location.pathname === "/frame-extractor",
+              })}
+              title="数据提取"
+            />
+          </Link>
           <div className="flex-grow" />
           <Link className={linkClass} to="/settings">
             <AiOutlineSetting

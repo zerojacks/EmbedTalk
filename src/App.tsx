@@ -1,5 +1,6 @@
 import { FiLayers } from 'react-icons/fi';
 import { DataItemParserTool } from './components/tools/DataItemParserTool';
+import FrameExtractorPage from './routes/frame-extractor';
 
 const tools = [
     // ... 其他工具 ...

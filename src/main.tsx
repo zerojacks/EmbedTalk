@@ -20,6 +20,7 @@ import QuickParse from "./routes/quick-parse";
 import DLT645Test from "./routes/dlt645-test";
 import FileParse from "./routes/file-parse";
 import Tools from "./routes/tools";
+import FrameExtractorPage from './routes/frame-extractor';
 
 const router = createBrowserRouter([
   {
@@ -54,6 +55,10 @@ const router = createBrowserRouter([
       {
         path: "/tools",
         element: <Tools />,
+      },
+      {
+        path:"/frame-extractor",
+        element: <FrameExtractorPage />
       }
     ],
   },

@@ -141,6 +141,7 @@ export default function Home() {
           toast.error("解析失败！");
           console.log("错误信息：", result.error);
         } else {
+          console.log("******", result.data)
           setTableData(result.data);
         }
       } catch (error) {
