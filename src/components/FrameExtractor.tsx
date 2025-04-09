@@ -14,6 +14,7 @@ interface ExtractedData {
         description: string;
     }[];
     isExpanded?: boolean;
+    uniqueId: string;
 }
 
 const FrameExtractor: React.FC = () => {
@@ -21,9 +22,13 @@ const FrameExtractor: React.FC = () => {
     const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [sortConfig, setSortConfig] = useState<{
-        key: 'da' | 'time';
-        direction: 'asc' | 'desc';
-    } | null>(null);
+        sortColumns: Array<{
+            key: 'da' | 'di' | 'time';
+            direction: 'asc' | 'desc';
+        }>;
+    }>({
+        sortColumns: []
+    });
 
     const extractData = (items: TreeItemType[]): ExtractedData[] => {
         const result: ExtractedData[] = [];
@@ -95,7 +100,19 @@ const FrameExtractor: React.FC = () => {
                                             });
                                         }
                                     });
+                                } else {
+                                    children.push({
+                                        frameDomain: child?.frameDomain || "",
+                                        data: child?.data || "",
+                                        description: child?.description || ""
+                                    });
                                 }
+                            });
+                        } else {
+                            children.push({
+                                frameDomain: contentItem?.frameDomain || "",
+                                data: contentItem?.data || "",
+                                description: contentItem?.description || ""
                             });
                         }
 
@@ -107,7 +124,8 @@ const FrameExtractor: React.FC = () => {
                                 content,
                                 time,
                                 children,
-                                isExpanded: false
+                                isExpanded: false,
+                                uniqueId: `${da}-${di}-${content}-${time}-${Math.random().toString(36).substr(2, 9)}`
                             };
                             result.push(extractedItem);
                             console.log(`添加数据组:`, extractedItem);
@@ -129,13 +147,16 @@ const FrameExtractor: React.FC = () => {
         return result;
     };
 
-    const toggleExpand = (index: number) => {
+    const toggleExpand = (uniqueId: string) => {
         setExtractedData(prev => {
             const newData = [...prev];
-            newData[index] = {
-                ...newData[index],
-                isExpanded: !newData[index].isExpanded
-            };
+            const index = newData.findIndex(item => item.uniqueId === uniqueId);
+            if (index !== -1) {
+                newData[index] = {
+                    ...newData[index],
+                    isExpanded: !newData[index].isExpanded
+                };
+            }
             return newData;
         });
     };
@@ -148,23 +169,36 @@ const FrameExtractor: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const formattedValue = input
-                .replace(/\s+/g, '')
-                .replace(/(.{2})/g, '$1 ')
-                .trim()
-                .toUpperCase();
+            // 分割多条报文
+            const messages = input.split('\n').filter(msg => msg.trim());
+            const allExtractedData: ExtractedData[] = [];
 
-            const result = await invoke<{ data: TreeItemType[]; error?: string }>('on_text_change', {
-                message: formattedValue,
-                region: "南网" // 默认使用南网
-            });
+            for (const message of messages) {
+                const formattedValue = message
+                    .replace(/\s+/g, '')
+                    .replace(/(.{2})/g, '$1 ')
+                    .trim()
+                    .toUpperCase();
 
-            if (result.error) {
-                toast.error("解析失败！");
-                console.error("错误信息：", result.error);
-            } else {
+                const result = await invoke<{ data: TreeItemType[]; error?: string }>('on_text_change', {
+                    message: formattedValue,
+                    region: "南网"
+                });
+
+                if (result.error) {
+                    toast.error(`解析失败：${result.error}`);
+                    continue;
+                }
+
                 const extracted = extractData(result.data);
-                setExtractedData(extracted);
+                allExtractedData.push(...extracted);
+            }
+
+            setExtractedData(allExtractedData);
+            if (allExtractedData.length === 0) {
+                toast.warning("没有成功解析出任何数据");
+            } else {
+                toast.success(`成功解析 ${allExtractedData.length} 条数据`);
             }
         } catch (error) {
             console.error("解析失败:", error);
@@ -175,12 +209,41 @@ const FrameExtractor: React.FC = () => {
     };
 
     // 排序处理函数
-    const handleSort = (key: 'da' | 'time') => {
-        let direction: 'asc' | 'desc' = 'asc';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
+    const handleSort = (key: 'da' | 'di' | 'time') => {
+        setSortConfig(prev => {
+            // 如果之前没有排序配置，创建新的排序
+            if (prev.sortColumns.length === 0) {
+                return {
+                    sortColumns: [{ key, direction: 'asc' }]
+                };
+            }
+
+            // 查找当前列的排序配置
+            const existingColumnIndex = prev.sortColumns.findIndex(col => col.key === key);
+
+            // 如果列已存在
+            if (existingColumnIndex !== -1) {
+                const newSortColumns = [...prev.sortColumns];
+                const currentColumn = newSortColumns[existingColumnIndex];
+
+                // 切换排序方向：asc -> desc -> 移除
+                if (currentColumn.direction === 'asc') {
+                    currentColumn.direction = 'desc';
+                } else {
+                    // 移除该列的排序
+                    newSortColumns.splice(existingColumnIndex, 1);
+                }
+
+                return {
+                    sortColumns: newSortColumns
+                };
+            }
+
+            // 添加新的排序列（Shift + 点击实现多列排序）
+            return {
+                sortColumns: [...prev.sortColumns, { key, direction: 'asc' }]
+            };
+        });
     };
 
     // 获取排序后的数据
@@ -188,20 +251,92 @@ const FrameExtractor: React.FC = () => {
         if (!sortConfig) return extractedData;
 
         return [...extractedData].sort((a, b) => {
-            if (sortConfig.key === 'da') {
-                // 将DA转换为数字进行比较
-                const daA = parseInt(a.da) || 0;
-                const daB = parseInt(b.da) || 0;
-                return sortConfig.direction === 'asc' ? daA - daB : daB - daA;
-            } else {
-                // 时间排序
-                const timeA = a.time || '';
-                const timeB = b.time || '';
-                return sortConfig.direction === 'asc' 
-                    ? timeA.localeCompare(timeB)
-                    : timeB.localeCompare(timeA);
+            for (const sortColumn of sortConfig.sortColumns) {
+                let result = 0;
+                switch (sortColumn.key) {
+                    case 'da':
+                        const daA = parseInt(a.da) || 0;
+                        const daB = parseInt(b.da) || 0;
+                        result = daA - daB;
+                        break;
+                    case 'di':
+                        result = a.di.localeCompare(b.di);
+                        break;
+                    case 'time':
+                        const timeA = a.time || '';
+                        const timeB = b.time || '';
+                        result = timeA.localeCompare(timeB);
+                        break;
+                }
+
+                // 应用排序方向
+                result = sortColumn.direction === 'asc' ? result : -result;
+
+                // 如果结果不为0，立即返回
+                if (result !== 0) return result;
             }
+
+            return 0;
         });
+    };
+
+    // 渲染表头排序图标
+    const renderSortIcon = (key: 'da' | 'di' | 'time') => {
+        if (!sortConfig) return null;
+
+        const columnSorts = sortConfig.sortColumns.filter(col => col.key === key);
+        
+        if (columnSorts.length === 0) return null;
+
+        // 显示最后一个排序列的图标
+        const lastSort = columnSorts[columnSorts.length - 1];
+        
+        // 显示排序优先级
+        const sortPriority = sortConfig.sortColumns.findIndex(col => col.key === key);
+        
+        return (
+            <div className="flex items-center">
+                <span className="mr-1 text-xs text-base-content/50">
+                    {sortPriority > 0 ? sortPriority + 1 : ''}
+                </span>
+                <span>
+                    {lastSort.direction === 'asc' ? '↑' : '↓'}
+                </span>
+            </div>
+        );
+    };
+
+    // 渲染表头单元格
+    const renderSortableHeader = (
+        key: 'da' | 'di' | 'time', 
+        label: string, 
+        className?: string
+    ) => {
+        const isCurrentSort = sortConfig?.sortColumns.some(col => col.key === key);
+
+        return (
+            <th 
+                className={`bg-base-200 cursor-pointer hover:bg-base-300 relative ${className || ''} ${
+                    isCurrentSort ? 'bg-base-300' : ''
+                }`}
+                onClick={() => handleSort(key)}
+            >
+                <div className="flex items-center justify-between">
+                    <span>{label}</span>
+                    <span className="ml-2 text-base-content/70">
+                        {renderSortIcon(key)}
+                    </span>
+                </div>
+                {isCurrentSort && (
+                    <div 
+                        className="absolute bottom-0 left-0 right-0 h-1"
+                        style={{
+                            backgroundColor: 'hsl(var(--p))'
+                        }}
+                    />
+                )}
+            </th>
+        );
     };
 
     const renderTableRows = () => {
@@ -210,8 +345,11 @@ const FrameExtractor: React.FC = () => {
         return sortedData.map((item, index) => {
             console.log(`渲染第${index}项:`, item);
             return (
-                <React.Fragment key={index}>
-                    <tr className="hover:bg-base-200 transition-colors" onClick={() => toggleExpand(index)}>
+                <React.Fragment key={item.uniqueId}>
+                    <tr 
+                        className="hover:bg-base-200 transition-colors" 
+                        onClick={() => toggleExpand(item.uniqueId)}
+                    >
                         <td className="font-mono">{item.da}</td>
                         <td>
                             <div className="flex items-center gap-2">
@@ -227,7 +365,10 @@ const FrameExtractor: React.FC = () => {
                         <td className="font-mono">{item.time || '-'}</td>
                     </tr>
                     {item.isExpanded && item.children && item.children.map((child, childIndex) => (
-                        <tr key={`${index}-${childIndex}`} className="bg-base-100">
+                        <tr 
+                            key={`${item.uniqueId}-${childIndex}`} 
+                            className="bg-base-100"
+                        >
                             <td></td>
                             <td className="pl-8 font-mono">{child.frameDomain}</td>
                             <td className="font-mono">{child.data}</td>
@@ -241,13 +382,21 @@ const FrameExtractor: React.FC = () => {
 
     return (
         <div className="flex flex-col h-full p-4">
-            <div className="flex gap-4 mb-4">
+            <div className="flex flex-col gap-4 mb-4">
+                <div className="flex items-center justify-between">
+                    <label className="text-sm text-base-content/70">
+                        请输入要解析的报文（每行一条报文）：
+                    </label>
+                    <span className="text-sm text-base-content/70">
+                        {input.split('\n').filter(msg => msg.trim()).length} 条报文
+                    </span>
+                </div>
                 <textarea
                     className="textarea textarea-bordered flex-grow font-mono"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="请输入要解析的报文..."
-                    rows={4}
+                    placeholder="请输入要解析的报文，每行一条..."
+                    rows={6}
                 />
                 <button
                     className="btn btn-primary"
@@ -258,37 +407,17 @@ const FrameExtractor: React.FC = () => {
                 </button>
             </div>
 
-            <div className="overflow-x-auto">
-                <table className="table table-zebra w-full">
-                    <thead>
+            <div className="overflow-x-auto border border-base-300 rounded-lg">
+                <table className="table table-zebra w-full table-pin-rows">
+                    <thead className="sticky top-0 z-10 bg-base-200">
                         <tr>
-                            <th 
-                                className="bg-base-200 cursor-pointer hover:bg-base-300"
-                                onClick={() => handleSort('da')}
-                            >
-                                信息点标识(DA)
-                                {sortConfig?.key === 'da' && (
-                                    <span className="ml-2">
-                                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                                    </span>
-                                )}
-                            </th>
-                            <th className="bg-base-200">数据标识编码(DI)</th>
-                            <th className="bg-base-200">内容</th>
-                            <th 
-                                className="bg-base-200 cursor-pointer hover:bg-base-300"
-                                onClick={() => handleSort('time')}
-                            >
-                                时间
-                                {sortConfig?.key === 'time' && (
-                                    <span className="ml-2">
-                                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                                    </span>
-                                )}
-                            </th>
+                            {renderSortableHeader('da', '信息点标识(DA)')}
+                            {renderSortableHeader('di', '数据标识编码(DI)', 'w-1/4')}
+                            <th className="bg-base-200 w-1/4">内容</th>
+                            {renderSortableHeader('time', '时间', 'w-1/4')}
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="max-h-[500px] overflow-y-auto">
                         {renderTableRows()}
                     </tbody>
                 </table>
