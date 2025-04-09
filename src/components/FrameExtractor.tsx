@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { TreeItemType } from './TreeItem';
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "../context/ToastProvider";
+import { 
+    ChevronRight, 
+    ChevronDown, 
+    ArrowUp, 
+    ArrowDown,
+    ArrowUpDown 
+} from 'lucide-react';
 
 interface ExtractedData {
     da: string;
@@ -209,46 +216,38 @@ const FrameExtractor: React.FC = () => {
     };
 
     // 排序处理函数
-    const handleSort = (key: 'da' | 'di' | 'time') => {
+    const handleSort = (key: 'da' | 'di' | 'time', direction: 'asc' | 'desc' | '') => {
         setSortConfig(prev => {
-            // 如果之前没有排序配置，创建新的排序
-            if (prev.sortColumns.length === 0) {
-                return {
-                    sortColumns: [{ key, direction: 'asc' }]
-                };
-            }
+            // 创建新的排序列数组
+            const newSortColumns = [...prev.sortColumns];
 
             // 查找当前列的排序配置
-            const existingColumnIndex = prev.sortColumns.findIndex(col => col.key === key);
+            const existingColumnIndex = newSortColumns.findIndex(col => col.key === key);
 
-            // 如果列已存在
-            if (existingColumnIndex !== -1) {
-                const newSortColumns = [...prev.sortColumns];
-                const currentColumn = newSortColumns[existingColumnIndex];
-
-                // 切换排序方向：asc -> desc -> 移除
-                if (currentColumn.direction === 'asc') {
-                    currentColumn.direction = 'desc';
-                } else {
-                    // 移除该列的排序
+            if (direction === '') {
+                // 如果选择了不排序，移除该列
+                if (existingColumnIndex !== -1) {
                     newSortColumns.splice(existingColumnIndex, 1);
                 }
-
-                return {
-                    sortColumns: newSortColumns
-                };
+            } else {
+                if (existingColumnIndex !== -1) {
+                    // 如果列已存在，更新其排序方向
+                    newSortColumns[existingColumnIndex] = { key, direction };
+                } else {
+                    // 如果列不存在，添加新的排序列
+                    newSortColumns.push({ key, direction });
+                }
             }
 
-            // 添加新的排序列（Shift + 点击实现多列排序）
             return {
-                sortColumns: [...prev.sortColumns, { key, direction: 'asc' }]
+                sortColumns: newSortColumns
             };
         });
     };
 
     // 获取排序后的数据
     const getSortedData = () => {
-        if (!sortConfig) return extractedData;
+        if (sortConfig.sortColumns.length === 0) return extractedData;
 
         return [...extractedData].sort((a, b) => {
             for (const sortColumn of sortConfig.sortColumns) {
@@ -296,11 +295,16 @@ const FrameExtractor: React.FC = () => {
         
         return (
             <div className="flex items-center">
-                <span className="mr-1 text-xs text-base-content/50">
-                    {sortPriority > 0 ? sortPriority + 1 : ''}
-                </span>
-                <span>
-                    {lastSort.direction === 'asc' ? '↑' : '↓'}
+                {sortPriority > 0 && (
+                    <span className="mr-1 text-xs text-base-content/50 bg-base-300 rounded-full w-4 h-4 flex items-center justify-center">
+                        {sortPriority + 1}
+                    </span>
+                )}
+                <span className="text-base-content/70">
+                    {lastSort.direction === 'asc' 
+                        ? <ArrowUp className="w-3 h-3" /> 
+                        : <ArrowDown className="w-3 h-3" />
+                    }
                 </span>
             </div>
         );
@@ -312,27 +316,73 @@ const FrameExtractor: React.FC = () => {
         label: string, 
         className?: string
     ) => {
-        const isCurrentSort = sortConfig?.sortColumns.some(col => col.key === key);
+        const currentSort = sortConfig.sortColumns.find(col => col.key === key);
 
         return (
             <th 
-                className={`bg-base-200 cursor-pointer hover:bg-base-300 relative ${className || ''} ${
-                    isCurrentSort ? 'bg-base-300' : ''
-                }`}
-                onClick={() => handleSort(key)}
+                className={`
+                    bg-base-200 
+                    relative 
+                    ${className || ''} 
+                    ${currentSort ? 'bg-base-300' : ''}
+                    transition-colors
+                `}
             >
                 <div className="flex items-center justify-between">
                     <span>{label}</span>
-                    <span className="ml-2 text-base-content/70">
-                        {renderSortIcon(key)}
-                    </span>
+                    <div className="dropdown dropdown-bottom dropdown-end">
+                        <div 
+                            tabIndex={0} 
+                            role="button" 
+                            className="btn btn-ghost btn-xs btn-circle"
+                        >
+                            {currentSort ? (
+                                currentSort.direction === 'asc' ? (
+                                    <ArrowUp className="w-4 h-4" />
+                                ) : (
+                                    <ArrowDown className="w-4 h-4" />
+                                )
+                            ) : (
+                                <ArrowUpDown className="w-4 h-4" />
+                            )}
+                        </div>
+                        <ul 
+                            tabIndex={0} 
+                            className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-32"
+                        >
+                            <li 
+                                onClick={() => handleSort(key, 'asc')}
+                                className={currentSort?.direction === 'asc' ? 'active' : ''}
+                            >
+                                <a>
+                                    <ArrowUp className="w-4 h-4" />
+                                    升序
+                                </a>
+                            </li>
+                            <li 
+                                onClick={() => handleSort(key, 'desc')}
+                                className={currentSort?.direction === 'desc' ? 'active' : ''}
+                            >
+                                <a>
+                                    <ArrowDown className="w-4 h-4" />
+                                    降序
+                                </a>
+                            </li>
+                            <li 
+                                onClick={() => handleSort(key, '')}
+                                className={!currentSort ? 'active' : ''}
+                            >
+                                <a>
+                                    <ArrowUpDown className="w-4 h-4" />
+                                    不排序
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
-                {isCurrentSort && (
+                {currentSort && (
                     <div 
-                        className="absolute bottom-0 left-0 right-0 h-1"
-                        style={{
-                            backgroundColor: 'hsl(var(--p))'
-                        }}
+                        className="absolute bottom-0 left-0 right-0 h-1 bg-primary transition-colors"
                     />
                 )}
             </th>
@@ -355,7 +405,10 @@ const FrameExtractor: React.FC = () => {
                             <div className="flex items-center gap-2">
                                 {item.children && item.children.length > 0 && (
                                     <span className="text-base-content/70">
-                                        {item.isExpanded ? '▼' : '▶'}
+                                        {item.isExpanded 
+                                            ? <ChevronDown className="w-4 h-4" /> 
+                                            : <ChevronRight className="w-4 h-4" />
+                                        }
                                     </span>
                                 )}
                                 <span className="font-mono">{item.di}</span>
