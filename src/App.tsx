@@ -1,6 +1,7 @@
 import { FiLayers } from 'react-icons/fi';
 import { DataItemParserTool } from './components/tools/DataItemParserTool';
 import FrameExtractorPage from './routes/frame-extractor';
+import { Toaster } from 'react-hot-toast';
 
 const tools = [
     // ... 其他工具 ...
@@ -11,4 +12,25 @@ const tools = [
         icon: <FiLayers className="w-5 h-5" />,
         component: DataItemParserTool,
     },
-]; 
+];
+
+function App() {
+    return (
+        <>
+            {/* 现有的路由或组件 */}
+            <Toaster 
+                position="top-right"
+                reverseOrder={false}
+                toastOptions={{
+                    style: {
+                        borderRadius: '10px',
+                        background: '#333',
+                        color: '#fff',
+                    },
+                }}
+            />
+        </>
+    );
+}
+
+export default App; 

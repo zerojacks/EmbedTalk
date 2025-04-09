@@ -7,8 +7,10 @@ import {
     ChevronDown, 
     ArrowUp, 
     ArrowDown,
-    ArrowUpDown 
+    ArrowUpDown,
+    FilterIcon
 } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 interface ExtractedData {
     da: string;
@@ -36,6 +38,12 @@ const FrameExtractor: React.FC = () => {
     }>({
         sortColumns: []
     });
+    const [filterConfig, setFilterConfig] = useState<{
+        [key in 'da' | 'di' | 'time']?: {
+            type: 'contains' | 'startsWith' | 'endsWith' | 'equals';
+            value: string;
+        }
+    }>({});
 
     const extractData = (items: TreeItemType[]): ExtractedData[] => {
         const result: ExtractedData[] = [];
@@ -279,6 +287,54 @@ const FrameExtractor: React.FC = () => {
         });
     };
 
+    // 过滤处理函数
+    const handleFilter = (
+        key: 'da' | 'di' | 'time', 
+        type: 'contains' | 'startsWith' | 'endsWith' | 'equals', 
+        value: string
+    ) => {
+        setFilterConfig(prev => {
+            const newFilterConfig = { ...prev };
+            
+            // 如果值为空，移除该列的过滤
+            if (!value.trim()) {
+                delete newFilterConfig[key];
+            } else {
+                newFilterConfig[key] = { type, value };
+            }
+            
+            return newFilterConfig;
+        });
+    };
+
+    // 获取过滤后的数据
+    const getFilteredData = () => {
+        let filteredData = getSortedData();
+
+        Object.entries(filterConfig).forEach(([key, filter]) => {
+            if (!filter) return;
+
+            filteredData = filteredData.filter(item => {
+                const value = item[key as keyof ExtractedData] as string;
+                
+                switch (filter.type) {
+                    case 'contains':
+                        return value.includes(filter.value);
+                    case 'startsWith':
+                        return value.startsWith(filter.value);
+                    case 'endsWith':
+                        return value.endsWith(filter.value);
+                    case 'equals':
+                        return value === filter.value;
+                    default:
+                        return true;
+                }
+            });
+        });
+
+        return filteredData;
+    };
+
     // 渲染表头排序图标
     const renderSortIcon = (key: 'da' | 'di' | 'time') => {
         if (!sortConfig) return null;
@@ -310,13 +366,185 @@ const FrameExtractor: React.FC = () => {
         );
     };
 
+    // 渲染过滤下拉菜单
+    const renderFilterMenu = (
+        key: 'da' | 'di' | 'time', 
+        label: string
+    ) => {
+        const currentFilter = filterConfig[key];
+
+        return (
+            <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                    <button 
+                        className={`
+                            btn btn-ghost btn-xs btn-circle 
+                            ${currentFilter ? 'text-primary' : ''}
+                        `}
+                    >
+                        <FilterIcon className="w-4 h-4" />
+                    </button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                    <DropdownMenu.Content 
+                        className="
+                            z-50 
+                            bg-base-100 
+                            rounded-box 
+                            p-2 
+                            shadow-lg 
+                            w-64 
+                            border 
+                            border-base-300
+                        "
+                        sideOffset={5}
+                        align="end"
+                    >
+                        <div className="card-body">
+                            <h3 className="card-title text-sm">过滤 {label}</h3>
+                            <select 
+                                className="select select-bordered select-xs w-full"
+                                value={currentFilter?.type || 'contains'}
+                                onChange={(e) => {
+                                    const type = e.target.value as 'contains' | 'startsWith' | 'endsWith' | 'equals';
+                                    handleFilter(
+                                        key, 
+                                        type, 
+                                        currentFilter?.value || ''
+                                    );
+                                }}
+                            >
+                                <option value="contains">包含</option>
+                                <option value="startsWith">开头是</option>
+                                <option value="endsWith">结尾是</option>
+                                <option value="equals">等于</option>
+                            </select>
+                            <input 
+                                type="text" 
+                                placeholder={`输入${label}过滤值`}
+                                className="input input-bordered input-xs w-full"
+                                value={currentFilter?.value || ''}
+                                onChange={(e) => {
+                                    handleFilter(
+                                        key, 
+                                        currentFilter?.type || 'contains', 
+                                        e.target.value
+                                    );
+                                }}
+                            />
+                            {currentFilter && (
+                                <button 
+                                    className="btn btn-xs btn-ghost"
+                                    onClick={() => handleFilter(key, 'contains', '')}
+                                >
+                                    清除过滤
+                                </button>
+                            )}
+                        </div>
+                    </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+        );
+    };
+
+    // 渲染排序下拉菜单
+    const renderSortMenu = (
+        key: 'da' | 'di' | 'time', 
+        label: string
+    ) => {
+        const currentSort = sortConfig.sortColumns.find(col => col.key === key);
+
+        return (
+            <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                    <button 
+                        className={`
+                            btn btn-ghost btn-xs btn-circle 
+                            ${currentSort ? 'text-primary' : ''}
+                        `}
+                    >
+                        {currentSort ? (
+                            currentSort.direction === 'asc' ? (
+                                <ArrowUp className="w-4 h-4" />
+                            ) : (
+                                <ArrowDown className="w-4 h-4" />
+                            )
+                        ) : (
+                            <ArrowUpDown className="w-4 h-4" />
+                        )}
+                    </button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                    <DropdownMenu.Content 
+                        className="
+                            z-50 
+                            bg-base-100 
+                            rounded-box 
+                            p-2 
+                            shadow-lg 
+                            w-32 
+                            border 
+                            border-base-300
+                        "
+                        sideOffset={5}
+                        align="end"
+                    >
+                        <DropdownMenu.Item 
+                            className={`
+                                px-2 py-1 
+                                rounded 
+                                cursor-pointer 
+                                hover:bg-base-200 
+                                flex items-center gap-2
+                                ${currentSort?.direction === 'asc' ? 'bg-base-200' : ''}
+                            `}
+                            onSelect={() => handleSort(key, 'asc')}
+                        >
+                            <ArrowUp className="w-4 h-4" />
+                            升序
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item 
+                            className={`
+                                px-2 py-1 
+                                rounded 
+                                cursor-pointer 
+                                hover:bg-base-200 
+                                flex items-center gap-2
+                                ${currentSort?.direction === 'desc' ? 'bg-base-200' : ''}
+                            `}
+                            onSelect={() => handleSort(key, 'desc')}
+                        >
+                            <ArrowDown className="w-4 h-4" />
+                            降序
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item 
+                            className={`
+                                px-2 py-1 
+                                rounded 
+                                cursor-pointer 
+                                hover:bg-base-200 
+                                flex items-center gap-2
+                                ${!currentSort ? 'bg-base-200' : ''}
+                            `}
+                            onSelect={() => handleSort(key, '')}
+                        >
+                            <ArrowUpDown className="w-4 h-4" />
+                            不排序
+                        </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+        );
+    };
+
     // 渲染表头单元格
-    const renderSortableHeader = (
+    const renderFilterableHeader = (
         key: 'da' | 'di' | 'time', 
         label: string, 
         className?: string
     ) => {
         const currentSort = sortConfig.sortColumns.find(col => col.key === key);
+        const currentFilter = filterConfig[key];
 
         return (
             <th 
@@ -324,63 +552,18 @@ const FrameExtractor: React.FC = () => {
                     bg-base-200 
                     relative 
                     ${className || ''} 
-                    ${currentSort ? 'bg-base-300' : ''}
+                    ${(currentSort || currentFilter) ? 'bg-base-300' : ''}
                     transition-colors
                 `}
             >
                 <div className="flex items-center justify-between">
                     <span>{label}</span>
-                    <div className="dropdown dropdown-bottom dropdown-end">
-                        <div 
-                            tabIndex={0} 
-                            role="button" 
-                            className="btn btn-ghost btn-xs btn-circle"
-                        >
-                            {currentSort ? (
-                                currentSort.direction === 'asc' ? (
-                                    <ArrowUp className="w-4 h-4" />
-                                ) : (
-                                    <ArrowDown className="w-4 h-4" />
-                                )
-                            ) : (
-                                <ArrowUpDown className="w-4 h-4" />
-                            )}
-                        </div>
-                        <ul 
-                            tabIndex={0} 
-                            className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-32"
-                        >
-                            <li 
-                                onClick={() => handleSort(key, 'asc')}
-                                className={currentSort?.direction === 'asc' ? 'active' : ''}
-                            >
-                                <a>
-                                    <ArrowUp className="w-4 h-4" />
-                                    升序
-                                </a>
-                            </li>
-                            <li 
-                                onClick={() => handleSort(key, 'desc')}
-                                className={currentSort?.direction === 'desc' ? 'active' : ''}
-                            >
-                                <a>
-                                    <ArrowDown className="w-4 h-4" />
-                                    降序
-                                </a>
-                            </li>
-                            <li 
-                                onClick={() => handleSort(key, '')}
-                                className={!currentSort ? 'active' : ''}
-                            >
-                                <a>
-                                    <ArrowUpDown className="w-4 h-4" />
-                                    不排序
-                                </a>
-                            </li>
-                        </ul>
+                    <div className="flex items-center gap-1">
+                        {renderSortMenu(key, label)}
+                        {renderFilterMenu(key, label)}
                     </div>
                 </div>
-                {currentSort && (
+                {(currentSort || currentFilter) && (
                     <div 
                         className="absolute bottom-0 left-0 right-0 h-1 bg-primary transition-colors"
                     />
@@ -390,9 +573,9 @@ const FrameExtractor: React.FC = () => {
     };
 
     const renderTableRows = () => {
-        const sortedData = getSortedData();
-        console.log('当前extractedData:', sortedData);
-        return sortedData.map((item, index) => {
+        const filteredData = getFilteredData();
+        console.log('当前extractedData:', filteredData);
+        return filteredData.map((item, index) => {
             console.log(`渲染第${index}项:`, item);
             return (
                 <React.Fragment key={item.uniqueId}>
@@ -464,10 +647,10 @@ const FrameExtractor: React.FC = () => {
                 <table className="table table-zebra w-full table-pin-rows">
                     <thead className="sticky top-0 z-10 bg-base-200">
                         <tr>
-                            {renderSortableHeader('da', '信息点标识(DA)')}
-                            {renderSortableHeader('di', '数据标识编码(DI)', 'w-1/4')}
+                            {renderFilterableHeader('da', '信息点标识(DA)')}
+                            {renderFilterableHeader('di', '数据标识编码(DI)', 'w-1/4')}
                             <th className="bg-base-200 w-1/4">内容</th>
-                            {renderSortableHeader('time', '时间', 'w-1/4')}
+                            {renderFilterableHeader('time', '时间', 'w-1/4')}
                         </tr>
                     </thead>
                     <tbody className="max-h-[500px] overflow-y-auto">
