@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
     createColumnHelper,
     flexRender,
@@ -21,8 +21,12 @@ import {
     SortAsc,
     SortDesc,
     ArrowUpDown,
-    X
+    X,
+    DownloadIcon
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeFile } from '@tauri-apps/plugin-fs';
 
 // Types
 interface ExtractedData {
@@ -76,6 +80,9 @@ const FrameExtractor: React.FC = () => {
         type: FilterType;
         value: string;
     } | null>(null);
+
+    const [exportLoading, setExportLoading] = useState(false);
+    const workerRef = useRef<Worker | null>(null);
 
     const columnHelper = createColumnHelper<ExtractedData>();
 
@@ -677,6 +684,92 @@ const FrameExtractor: React.FC = () => {
         };
     }, []);
 
+    // 创建并销毁Worker
+    useEffect(() => {
+        // 创建Worker
+        workerRef.current = new Worker(new URL('../workers/excelWorker.ts', import.meta.url), { type: 'module' });
+        
+        // 设置Worker消息处理函数
+        workerRef.current.onmessage = async (e) => {
+            const { success, data, error } = e.data;
+            
+            if (success) {
+                try {
+                    // 使用Tauri v2的fs API保存文件
+                    const now = new Date();
+                    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+                    const fileName = `数据导出_${timestamp}.xlsx`;
+                    
+                    // 打开保存文件对话框
+                    const filePath = await save({
+                        title: '保存Excel文件',
+                        defaultPath: fileName,
+                        filters: [{
+                            name: 'Excel文件',
+                            extensions: ['xlsx']
+                        }]
+                    });
+                    
+                    if (filePath) {
+                        // 将Uint8Array转换为ArrayBuffer
+                        const arrayBuffer = data.buffer;
+                        // 写入文件
+                        await writeFile(filePath, arrayBuffer);
+                        toast.success("数据导出成功");
+                    }
+                } catch (error) {
+                    console.error("保存Excel文件失败:", error);
+                    toast.error(`保存Excel文件失败: ${error instanceof Error ? error.message : '未知错误'}`);
+                }
+            } else {
+                console.error("导出Excel失败:", error);
+                toast.error(`导出Excel失败: ${error}`);
+            }
+            
+            setExportLoading(false);
+        };
+        
+        // 在组件卸载时终止Worker
+        return () => {
+            if (workerRef.current) {
+                workerRef.current.terminate();
+                workerRef.current = null;
+            }
+        };
+    }, []);
+    
+    // 导出Excel功能
+    const exportToExcel = () => {
+        // 判断是否有数据可供导出
+        if (extractedData.length === 0) {
+            toast.warning("没有数据可供导出");
+            return;
+        }
+        
+        // 避免重复点击
+        if (exportLoading) {
+            return;
+        }
+        
+        try {
+            setExportLoading(true);
+            
+            // 准备要发送给Worker的数据
+            const rowsToExport = table.getFilteredRowModel().rows.map(row => row.original);
+            
+            // 发送数据到Worker处理
+            workerRef.current?.postMessage({
+                rows: rowsToExport,
+                includeChildren: true // 包含子项内容
+            });
+            
+        } catch (error) {
+            console.error("导出Excel失败:", error);
+            toast.error("导出Excel失败");
+            setExportLoading(false);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full p-4">
             {/* Input Section */}
@@ -707,6 +800,35 @@ const FrameExtractor: React.FC = () => {
 
             {/* Table Section - 使用flex-1让表格填充剩余空间 */}
             <div className="flex-1 flex flex-col min-h-0">
+                {/* 表格工具栏 */}
+                {extractedData.length > 0 && (
+                    <div className="flex justify-between items-center mb-2">
+                        <div className="text-sm text-base-content/70">
+                            显示 {table.getFilteredRowModel().rows.length} 条结果，共 {extractedData.length} 条
+                            {selectedRows.size > 0 && `, 已选择 ${selectedRows.size} 条`}
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                className={`btn btn-sm ${exportLoading ? 'btn-disabled' : 'btn-primary'}`}
+                                onClick={exportToExcel}
+                                disabled={exportLoading}
+                            >
+                                {exportLoading ? (
+                                    <>
+                                        <span className="loading loading-spinner loading-xs mr-1"></span>
+                                        导出中...
+                                    </>
+                                ) : (
+                                    <>
+                                        <DownloadIcon className="w-4 h-4 mr-1" />
+                                        导出Excel
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                )}
+                
                 <div className="relative h-full overflow-auto border border-base-300 rounded-lg">
                     <table className="table table-zebra w-full">
                         <thead className="sticky top-0 z-10 bg-base-200">
@@ -892,14 +1014,6 @@ const FrameExtractor: React.FC = () => {
                         </tbody>
                     </table>
                 </div>
-                
-                {/* Results Summary */}
-                {extractedData.length > 0 && (
-                    <div className="mt-3 text-sm text-base-content/70">
-                        显示 {table.getFilteredRowModel().rows.length} 条结果，共 {extractedData.length} 条
-                        {selectedRows.size > 0 && `, 已选择 ${selectedRows.size} 条`}
-                    </div>
-                )}
             </div>
         </div>
     );

@@ -39,6 +39,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^1.2.1",
     "dom-to-image": "^2.6.0",
+    "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "localforage": "^1.10.0",
     "lodash": "^4.17.21",
