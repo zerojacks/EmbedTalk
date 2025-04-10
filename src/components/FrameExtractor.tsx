@@ -1,4 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+    createColumnHelper,
+    flexRender,
+    getCoreRowModel, 
+    getFilteredRowModel, 
+    getSortedRowModel, 
+    useReactTable,
+    SortingState,
+    ColumnFiltersState
+} from '@tanstack/react-table';
 import { TreeItemType } from './TreeItem';
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "../context/ToastProvider";
@@ -7,12 +17,16 @@ import {
     ChevronDown, 
     ArrowUp, 
     ArrowDown,
+    FilterIcon,
+    SortAsc,
+    SortDesc,
     ArrowUpDown,
-    FilterIcon
+    X
 } from 'lucide-react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
+// Types
 interface ExtractedData {
+    id: string;
     da: string;
     di: string;
     content: string;
@@ -24,27 +38,198 @@ interface ExtractedData {
     }[];
     isExpanded?: boolean;
     uniqueId: string;
+    level?: number;
 }
+
+type FilterType = 'contains' | 'startsWith' | 'endsWith' | 'equals';
+
+interface FilterValue {
+    type: FilterType;
+    value: string;
+}
+
+// Constants
+const FILTER_TYPE_LABELS: Record<FilterType, string> = {
+    'contains': '包含',
+    'startsWith': '开头是',
+    'endsWith': '结尾是',
+    'equals': '等于'
+};
 
 const FrameExtractor: React.FC = () => {
     const [input, setInput] = useState('');
     const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [sortConfig, setSortConfig] = useState<{
-        sortColumns: Array<{
-            key: 'da' | 'di' | 'time';
-            direction: 'asc' | 'desc';
-        }>;
-    }>({
-        sortColumns: []
-    });
-    const [filterConfig, setFilterConfig] = useState<{
-        [key in 'da' | 'di' | 'time']?: {
-            type: 'contains' | 'startsWith' | 'endsWith' | 'equals';
-            value: string;
-        }
-    }>({});
+    
+    // 选中行状态
+    const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+    const [lastSelectedRow, setLastSelectedRow] = useState<string | null>(null);
+    
+    // Table state
+    const [sorting, setSorting] = useState<SortingState>([]);
+    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+    
+    // Filter UI state - 修改为两个独立状态，一个用于UI显示，一个用于实际应用
+    const [activeFilterPanel, setActiveFilterPanel] = useState<string | null>(null);
+    const [filterSettings, setFilterSettings] = useState<{
+        column: string;
+        type: FilterType;
+        value: string;
+    } | null>(null);
 
+    const columnHelper = createColumnHelper<ExtractedData>();
+
+    // Column definitions
+    const columns = [
+        columnHelper.accessor('da', {
+            header: '信息点标识(DA)',
+            cell: info => info.getValue(),
+            enableSorting: true,
+            enableColumnFilter: true,
+            filterFn: (row, columnId, filterValue: FilterValue) => {
+                const value = row.getValue(columnId) as string;
+                const { type, value: filterText } = filterValue;
+                
+                if (!filterText) return true;
+                
+                switch (type) {
+                    case 'contains':
+                        return value.includes(filterText);
+                    case 'startsWith':
+                        return value.startsWith(filterText);
+                    case 'endsWith':
+                        return value.endsWith(filterText);
+                    case 'equals':
+                        return value === filterText;
+                    default:
+                        return true;
+                }
+            }
+        }),
+        columnHelper.accessor('di', {
+            header: '数据标识编码(DI)',
+            cell: info => info.getValue(),
+            enableSorting: true,
+            enableColumnFilter: true,
+            filterFn: (row, columnId, filterValue: FilterValue) => {
+                const value = row.getValue(columnId) as string;
+                const { type, value: filterText } = filterValue;
+                
+                if (!filterText) return true;
+                
+                switch (type) {
+                    case 'contains':
+                        return value.includes(filterText);
+                    case 'startsWith':
+                        return value.startsWith(filterText);
+                    case 'endsWith':
+                        return value.endsWith(filterText);
+                    case 'equals':
+                        return value === filterText;
+                    default:
+                        return true;
+                }
+            }
+        }),
+        columnHelper.accessor('content', {
+            header: '内容',
+            cell: info => info.getValue(),
+            enableSorting: false,
+            enableColumnFilter: false,
+        }),
+        columnHelper.accessor('time', {
+            header: '时间',
+            cell: info => info.getValue() || '-',
+            enableSorting: true,
+            enableColumnFilter: true,
+            filterFn: (row, columnId, filterValue: FilterValue) => {
+                const value = (row.getValue(columnId) as string) || '';
+                const { type, value: filterText } = filterValue;
+                
+                if (!filterText) return true;
+                
+                switch (type) {
+                    case 'contains':
+                        return value.includes(filterText);
+                    case 'startsWith':
+                        return value.startsWith(filterText);
+                    case 'endsWith':
+                        return value.endsWith(filterText);
+                    case 'equals':
+                        return value === filterText;
+                    default:
+                        return true;
+                }
+            }
+        }),
+    ];
+
+    // 自定义排序处理
+    const handleSortingChange = (updaterOrValue: SortingState | ((old: SortingState) => SortingState)) => {
+        setSorting(old => {
+            // 如果传入的是函数，执行它获取新值
+            const newValue = typeof updaterOrValue === 'function' ? updaterOrValue(old) : updaterOrValue;
+            
+            // 如果新值为空数组，则清除所有排序
+            if (newValue.length === 0) {
+                return [];
+            }
+            
+            // 检查是否是取消某列的排序
+            if (newValue.length < old.length) {
+                // 找出被移除的列
+                const oldIds = old.map(col => col.id);
+                const newIds = newValue.map(col => col.id);
+                const removedIds = oldIds.filter(id => !newIds.includes(id));
+                
+                if (removedIds.length > 0) {
+                    // 如果有列被移除，从旧排序中删除该列的排序
+                    return old.filter(col => !removedIds.includes(col.id));
+                }
+            }
+            
+            // 检查是否是修改某列的排序方向
+            const modifiedColumns = newValue.filter(newCol => {
+                const oldCol = old.find(o => o.id === newCol.id);
+                return oldCol && oldCol.desc !== newCol.desc;
+            });
+            
+            if (modifiedColumns.length > 0) {
+                // 如果只是修改了排序方向，保留修改后的结果
+                return newValue;
+            }
+            
+            // 如果是新增列排序，保留旧的排序并添加新列
+            const existingColumnIds = old.map(col => col.id);
+            const newColumns = newValue.filter(col => !existingColumnIds.includes(col.id));
+            
+            if (newColumns.length > 0) {
+                // 添加新列到已有排序的末尾
+                return [...old, ...newColumns];
+            }
+            
+            // 默认返回新值
+            return newValue;
+        });
+    };
+
+    // Table instance
+    const table = useReactTable({
+        data: extractedData,
+        columns,
+        state: {
+            sorting,
+            columnFilters,
+        },
+        onSortingChange: handleSortingChange,
+        onColumnFiltersChange: setColumnFilters,
+        getCoreRowModel: getCoreRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+        enableMultiSort: true,
+    });
+
+    // Data extraction and parsing
     const extractData = (items: TreeItemType[]): ExtractedData[] => {
         const result: ExtractedData[] = [];
         console.log('原始解析数据:', JSON.stringify(items));
@@ -54,6 +239,7 @@ const FrameExtractor: React.FC = () => {
             for (let i = 0; i < items.length; i++) {
                 const currentItem = items[i];
                 const nextItem = items[i + 1];
+                const timeitem = items[i + 3];
 
                 // 检查当前项是否包含信息点标识DA
                 if (currentItem.frameDomain.includes('信息点标识DA')) {
@@ -87,12 +273,12 @@ const FrameExtractor: React.FC = () => {
                         );
                         const content = contentItem?.data || '';
 
-                        // 查找数据时间
-                        const timeItem = items.find(item => 
-                            item.frameDomain.includes('数据时间')
-                        );
-                        const time = timeItem?.data || '';
+                        let time = '';
 
+                        console.log("timeitem", timeitem);
+                        if (timeitem && timeitem.frameDomain.includes('数据时间')) {
+                            time =  timeitem.data;
+                        }
                         // 提取子项
                         const children: ExtractedData['children'] = [];
                         if (contentItem?.children) {
@@ -134,6 +320,7 @@ const FrameExtractor: React.FC = () => {
                         // 只有当DA和DI存在时才添加数据
                         if (da && di) {
                             const extractedItem: ExtractedData = {
+                                id: `${da}-${di}-${content}-${time}-${Math.random().toString(36).substr(2, 9)}`,
                                 da,
                                 di,
                                 content,
@@ -176,6 +363,70 @@ const FrameExtractor: React.FC = () => {
         });
     };
 
+    // 处理行选择
+    const handleRowSelect = (uniqueId: string, event: React.MouseEvent) => {
+        // 阻止事件传播，防止影响其他事件处理
+        event.stopPropagation();
+        
+        if (event.shiftKey && lastSelectedRow) {
+            // Shift + 点击进行范围选择
+            // 获取表格中所有主行（不包括展开的子项行）
+            const visibleRows = table.getRowModel().rows;
+            const visibleRowsMap = new Map();
+            
+            // 创建可见行索引映射
+            visibleRows.forEach((row, index) => {
+                visibleRowsMap.set(row.original.uniqueId, index);
+            });
+            
+            // 确定选择范围
+            const startIndex = visibleRowsMap.get(lastSelectedRow);
+            const endIndex = visibleRowsMap.get(uniqueId);
+            
+            if (startIndex !== undefined && endIndex !== undefined) {
+                // 确保起始和结束索引的顺序正确
+                const minIndex = Math.min(startIndex, endIndex);
+                const maxIndex = Math.max(startIndex, endIndex);
+                
+                // 创建新的选中集合
+                const newSelected = new Set<string>();
+                
+                // 只选择范围内的实际行，不包括子项行
+                for (let i = minIndex; i <= maxIndex; i++) {
+                    const rowId = visibleRows[i].original.uniqueId;
+                    newSelected.add(rowId);
+                }
+                
+                setSelectedRows(newSelected);
+            }
+        } else if (event.ctrlKey || event.metaKey) {
+            // Ctrl/Cmd + 点击切换单个行的选中状态
+            setSelectedRows(prev => {
+                const newSelected = new Set(prev);
+                if (newSelected.has(uniqueId)) {
+                    newSelected.delete(uniqueId);
+                } else {
+                    newSelected.add(uniqueId);
+                }
+                return newSelected;
+            });
+        } else {
+            // 普通点击，清除其他选中并选中当前行
+            setSelectedRows(new Set([uniqueId]));
+        }
+        
+        // 记录最后选中的行，用于后续的Shift选择
+        setLastSelectedRow(uniqueId);
+    };
+
+    // 处理双击展开
+    const handleRowDoubleClick = (uniqueId: string, event: React.MouseEvent) => {
+        // 阻止事件传播
+        event.stopPropagation();
+        // 双击展开/收起子项
+        toggleExpand(uniqueId);
+    };
+
     const handleParse = async () => {
         if (!input.trim()) {
             toast.error("请输入要解析的报文");
@@ -184,7 +435,6 @@ const FrameExtractor: React.FC = () => {
 
         setIsLoading(true);
         try {
-            // 分割多条报文
             const messages = input.split('\n').filter(msg => msg.trim());
             const allExtractedData: ExtractedData[] = [];
 
@@ -223,401 +473,213 @@ const FrameExtractor: React.FC = () => {
         }
     };
 
-    // 排序处理函数
-    const handleSort = (key: 'da' | 'di' | 'time', direction: 'asc' | 'desc' | '') => {
-        setSortConfig(prev => {
-            // 创建新的排序列数组
-            const newSortColumns = [...prev.sortColumns];
-
-            // 查找当前列的排序配置
-            const existingColumnIndex = newSortColumns.findIndex(col => col.key === key);
-
-            if (direction === '') {
-                // 如果选择了不排序，移除该列
-                if (existingColumnIndex !== -1) {
-                    newSortColumns.splice(existingColumnIndex, 1);
-                }
-            } else {
-                if (existingColumnIndex !== -1) {
-                    // 如果列已存在，更新其排序方向
-                    newSortColumns[existingColumnIndex] = { key, direction };
-                } else {
-                    // 如果列不存在，添加新的排序列
-                    newSortColumns.push({ key, direction });
-                }
-            }
-
-            return {
-                sortColumns: newSortColumns
-            };
+    // 更新过滤状态但不立即应用
+    const updateFilterSetting = (update: Partial<typeof filterSettings>) => {
+        if (!filterSettings) return;
+        setFilterSettings({
+            ...filterSettings,
+            ...update
         });
     };
 
-    // 获取排序后的数据
-    const getSortedData = () => {
-        if (sortConfig.sortColumns.length === 0) return extractedData;
-
-        return [...extractedData].sort((a, b) => {
-            for (const sortColumn of sortConfig.sortColumns) {
-                let result = 0;
-                switch (sortColumn.key) {
-                    case 'da':
-                        const daA = parseInt(a.da) || 0;
-                        const daB = parseInt(b.da) || 0;
-                        result = daA - daB;
-                        break;
-                    case 'di':
-                        result = a.di.localeCompare(b.di);
-                        break;
-                    case 'time':
-                        const timeA = a.time || '';
-                        const timeB = b.time || '';
-                        result = timeA.localeCompare(timeB);
-                        break;
-                }
-
-                // 应用排序方向
-                result = sortColumn.direction === 'asc' ? result : -result;
-
-                // 如果结果不为0，立即返回
-                if (result !== 0) return result;
-            }
-
-            return 0;
-        });
-    };
-
-    // 过滤处理函数
-    const handleFilter = (
-        key: 'da' | 'di' | 'time', 
-        type: 'contains' | 'startsWith' | 'endsWith' | 'equals', 
-        value: string
-    ) => {
-        setFilterConfig(prev => {
-            const newFilterConfig = { ...prev };
-            
-            // 如果值为空，移除该列的过滤
-            if (!value.trim()) {
-                delete newFilterConfig[key];
-            } else {
-                newFilterConfig[key] = { type, value };
-            }
-            
-            return newFilterConfig;
-        });
-    };
-
-    // 获取过滤后的数据
-    const getFilteredData = () => {
-        let filteredData = getSortedData();
-
-        Object.entries(filterConfig).forEach(([key, filter]) => {
-            if (!filter) return;
-
-            filteredData = filteredData.filter(item => {
-                const value = item[key as keyof ExtractedData] as string;
-                
-                switch (filter.type) {
-                    case 'contains':
-                        return value.includes(filter.value);
-                    case 'startsWith':
-                        return value.startsWith(filter.value);
-                    case 'endsWith':
-                        return value.endsWith(filter.value);
-                    case 'equals':
-                        return value === filter.value;
-                    default:
-                        return true;
-                }
-            });
-        });
-
-        return filteredData;
-    };
-
-    // 渲染表头排序图标
-    const renderSortIcon = (key: 'da' | 'di' | 'time') => {
-        if (!sortConfig) return null;
-
-        const columnSorts = sortConfig.sortColumns.filter(col => col.key === key);
+    // 打开过滤面板时初始化过滤设置
+    const openFilterPanel = (columnId: string) => {
+        // 查找现有过滤器
+        const existingFilter = columnFilters.find(f => f.id === columnId);
         
-        if (columnSorts.length === 0) return null;
-
-        // 显示最后一个排序列的图标
-        const lastSort = columnSorts[columnSorts.length - 1];
+        // 设置过滤面板状态
+        setActiveFilterPanel(columnId);
         
-        // 显示排序优先级
-        const sortPriority = sortConfig.sortColumns.findIndex(col => col.key === key);
+        // 设置过滤器设置，用于UI展示
+        setFilterSettings({
+            column: columnId,
+            type: existingFilter 
+                ? (existingFilter.value as FilterValue).type 
+                : 'contains',
+            value: existingFilter 
+                ? (existingFilter.value as FilterValue).value 
+                : ''
+        });
+    };
+
+    // 仅在用户确认时应用过滤器
+    const applyFilter = () => {
+        if (!filterSettings) return;
+        
+        const { column, type, value } = filterSettings;
+        
+        if (!value.trim()) {
+            // 如果值为空，则删除此列的过滤器
+            setColumnFilters(prev => prev.filter(filter => filter.id !== column));
+        } else {
+            // 否则应用过滤器
+            setColumnFilters(prev => [
+                ...prev.filter(filter => filter.id !== column),
+                {
+                    id: column,
+                    value: { type, value },
+                }
+            ]);
+        }
+        
+        // 关闭过滤面板
+        setActiveFilterPanel(null);
+        setFilterSettings(null);
+    };
+
+    // 关闭过滤面板
+    const closeFilterPanel = () => {
+        setActiveFilterPanel(null);
+        setFilterSettings(null);
+    };
+
+    // 清除指定列的过滤器
+    const clearFilter = (columnId: string) => {
+        setColumnFilters(prev => prev.filter(filter => filter.id !== columnId));
+    };
+
+    // 清除所有过滤器
+    const clearAllFilters = () => {
+        setColumnFilters([]);
+    };
+
+    // 重置当前列的过滤条件，但不关闭面板
+    const resetFilterSetting = () => {
+        if (!filterSettings) return;
+        
+        // 重置过滤设置为默认值
+        setFilterSettings({
+            ...filterSettings,
+            type: 'contains',
+            value: ''
+        });
+    };
+
+    // 过滤指示器徽章组件
+    const FilterBadge = ({ column }: { column: string }) => {
+        const filter = columnFilters.find(f => f.id === column);
+        if (!filter) return null;
+        
+        const { type, value } = filter.value as FilterValue;
         
         return (
-            <div className="flex items-center">
-                {sortPriority > 0 && (
-                    <span className="mr-1 text-xs text-base-content/50 bg-base-300 rounded-full w-4 h-4 flex items-center justify-center">
-                        {sortPriority + 1}
-                    </span>
-                )}
-                <span className="text-base-content/70">
-                    {lastSort.direction === 'asc' 
-                        ? <ArrowUp className="w-3 h-3" /> 
-                        : <ArrowDown className="w-3 h-3" />
-                    }
-                </span>
+            <div className="badge badge-sm badge-primary gap-1">
+                {FILTER_TYPE_LABELS[type]}: {value}
+                <button 
+                    className="ml-1" 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        clearFilter(column);
+                    }}
+                >
+                    <X className="w-3 h-3" />
+                </button>
             </div>
         );
     };
 
-    // 渲染过滤下拉菜单
-    const renderFilterMenu = (
-        key: 'da' | 'di' | 'time', 
-        label: string
-    ) => {
-        const currentFilter = filterConfig[key];
-
+    // 过滤面板组件
+    const FilterPanel = () => {
+        if (!activeFilterPanel || !filterSettings) return null;
+        
         return (
-            <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
+            <div className="absolute z-50 top-8 right-0 bg-base-100 shadow-lg rounded-box p-4 border border-base-300 min-w-64">
+                <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-sm font-semibold">过滤选项</h3>
                     <button 
-                        className={`
-                            btn btn-ghost btn-xs btn-circle 
-                            ${currentFilter ? 'text-primary' : ''}
-                        `}
+                        className="btn btn-ghost btn-xs" 
+                        onClick={closeFilterPanel}
                     >
-                        <FilterIcon className="w-4 h-4" />
+                        <X className="w-4 h-4" />
                     </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                    <DropdownMenu.Content 
-                        className="
-                            z-50 
-                            bg-base-100 
-                            rounded-box 
-                            p-2 
-                            shadow-lg 
-                            w-64 
-                            border 
-                            border-base-300
-                        "
-                        sideOffset={5}
-                        align="end"
-                    >
-                        <div className="card-body">
-                            <h3 className="card-title text-sm">过滤 {label}</h3>
-                            <select 
-                                className="select select-bordered select-xs w-full"
-                                value={currentFilter?.type || 'contains'}
-                                onChange={(e) => {
-                                    const type = e.target.value as 'contains' | 'startsWith' | 'endsWith' | 'equals';
-                                    handleFilter(
-                                        key, 
-                                        type, 
-                                        currentFilter?.value || ''
-                                    );
-                                }}
+                </div>
+                
+                <div className="space-y-3">
+                    <div className="form-control w-full">
+                        <label className="label">
+                            <span className="label-text">过滤方式</span>
+                        </label>
+                        <select 
+                            className="select select-bordered select-sm w-full"
+                            value={filterSettings.type}
+                            onChange={(e) => updateFilterSetting({
+                                type: e.target.value as FilterType
+                            })}
+                        >
+                            {Object.entries(FILTER_TYPE_LABELS).map(([type, label]) => (
+                                <option key={type} value={type}>{label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    
+                    <div className="form-control w-full">
+                        <label className="label">
+                            <span className="label-text">过滤值</span>
+                        </label>
+                        <input 
+                            type="text"
+                            className="input input-bordered input-sm w-full"
+                            value={filterSettings.value}
+                            onChange={(e) => updateFilterSetting({
+                                value: e.target.value
+                            })}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    applyFilter();
+                                }
+                            }}
+                            placeholder="输入过滤值..."
+                            autoFocus
+                        />
+                    </div>
+                    
+                    <div className="flex justify-between items-center gap-2 mt-3">
+                        <button 
+                            className="btn btn-ghost btn-sm"
+                            onClick={resetFilterSetting}
+                        >
+                            重置
+                        </button>
+                        <div className="flex gap-2">
+                            <button 
+                                className="btn btn-ghost btn-sm"
+                                onClick={closeFilterPanel}
                             >
-                                <option value="contains">包含</option>
-                                <option value="startsWith">开头是</option>
-                                <option value="endsWith">结尾是</option>
-                                <option value="equals">等于</option>
-                            </select>
-                            <input 
-                                type="text" 
-                                placeholder={`输入${label}过滤值`}
-                                className="input input-bordered input-xs w-full"
-                                value={currentFilter?.value || ''}
-                                onChange={(e) => {
-                                    handleFilter(
-                                        key, 
-                                        currentFilter?.type || 'contains', 
-                                        e.target.value
-                                    );
-                                }}
-                            />
-                            {currentFilter && (
-                                <button 
-                                    className="btn btn-xs btn-ghost"
-                                    onClick={() => handleFilter(key, 'contains', '')}
-                                >
-                                    清除过滤
-                                </button>
-                            )}
+                                取消
+                            </button>
+                            <button 
+                                className="btn btn-primary btn-sm"
+                                onClick={applyFilter}
+                            >
+                                应用
+                            </button>
                         </div>
-                    </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-            </DropdownMenu.Root>
-        );
-    };
-
-    // 渲染排序下拉菜单
-    const renderSortMenu = (
-        key: 'da' | 'di' | 'time', 
-        label: string
-    ) => {
-        const currentSort = sortConfig.sortColumns.find(col => col.key === key);
-
-        return (
-            <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                    <button 
-                        className={`
-                            btn btn-ghost btn-xs btn-circle 
-                            ${currentSort ? 'text-primary' : ''}
-                        `}
-                    >
-                        {currentSort ? (
-                            currentSort.direction === 'asc' ? (
-                                <ArrowUp className="w-4 h-4" />
-                            ) : (
-                                <ArrowDown className="w-4 h-4" />
-                            )
-                        ) : (
-                            <ArrowUpDown className="w-4 h-4" />
-                        )}
-                    </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                    <DropdownMenu.Content 
-                        className="
-                            z-50 
-                            bg-base-100 
-                            rounded-box 
-                            p-2 
-                            shadow-lg 
-                            w-32 
-                            border 
-                            border-base-300
-                        "
-                        sideOffset={5}
-                        align="end"
-                    >
-                        <DropdownMenu.Item 
-                            className={`
-                                px-2 py-1 
-                                rounded 
-                                cursor-pointer 
-                                hover:bg-base-200 
-                                flex items-center gap-2
-                                ${currentSort?.direction === 'asc' ? 'bg-base-200' : ''}
-                            `}
-                            onSelect={() => handleSort(key, 'asc')}
-                        >
-                            <ArrowUp className="w-4 h-4" />
-                            升序
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item 
-                            className={`
-                                px-2 py-1 
-                                rounded 
-                                cursor-pointer 
-                                hover:bg-base-200 
-                                flex items-center gap-2
-                                ${currentSort?.direction === 'desc' ? 'bg-base-200' : ''}
-                            `}
-                            onSelect={() => handleSort(key, 'desc')}
-                        >
-                            <ArrowDown className="w-4 h-4" />
-                            降序
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Item 
-                            className={`
-                                px-2 py-1 
-                                rounded 
-                                cursor-pointer 
-                                hover:bg-base-200 
-                                flex items-center gap-2
-                                ${!currentSort ? 'bg-base-200' : ''}
-                            `}
-                            onSelect={() => handleSort(key, '')}
-                        >
-                            <ArrowUpDown className="w-4 h-4" />
-                            不排序
-                        </DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-            </DropdownMenu.Root>
-        );
-    };
-
-    // 渲染表头单元格
-    const renderFilterableHeader = (
-        key: 'da' | 'di' | 'time', 
-        label: string, 
-        className?: string
-    ) => {
-        const currentSort = sortConfig.sortColumns.find(col => col.key === key);
-        const currentFilter = filterConfig[key];
-
-        return (
-            <th 
-                className={`
-                    bg-base-200 
-                    relative 
-                    ${className || ''} 
-                    ${(currentSort || currentFilter) ? 'bg-base-300' : ''}
-                    transition-colors
-                `}
-            >
-                <div className="flex items-center justify-between">
-                    <span>{label}</span>
-                    <div className="flex items-center gap-1">
-                        {renderSortMenu(key, label)}
-                        {renderFilterMenu(key, label)}
                     </div>
                 </div>
-                {(currentSort || currentFilter) && (
-                    <div 
-                        className="absolute bottom-0 left-0 right-0 h-1 bg-primary transition-colors"
-                    />
-                )}
-            </th>
+            </div>
         );
     };
 
-    const renderTableRows = () => {
-        const filteredData = getFilteredData();
-        console.log('当前extractedData:', filteredData);
-        return filteredData.map((item, index) => {
-            console.log(`渲染第${index}项:`, item);
-            return (
-                <React.Fragment key={item.uniqueId}>
-                    <tr 
-                        className="hover:bg-base-200 transition-colors" 
-                        onClick={() => toggleExpand(item.uniqueId)}
-                    >
-                        <td className="font-mono">{item.da}</td>
-                        <td>
-                            <div className="flex items-center gap-2">
-                                {item.children && item.children.length > 0 && (
-                                    <span className="text-base-content/70">
-                                        {item.isExpanded 
-                                            ? <ChevronDown className="w-4 h-4" /> 
-                                            : <ChevronRight className="w-4 h-4" />
-                                        }
-                                    </span>
-                                )}
-                                <span className="font-mono">{item.di}</span>
-                            </div>
-                        </td>
-                        <td className="font-mono">{item.content}</td>
-                        <td className="font-mono">{item.time || '-'}</td>
-                    </tr>
-                    {item.isExpanded && item.children && item.children.map((child, childIndex) => (
-                        <tr 
-                            key={`${item.uniqueId}-${childIndex}`} 
-                            className="bg-base-100"
-                        >
-                            <td></td>
-                            <td className="pl-8 font-mono">{child.frameDomain}</td>
-                            <td className="font-mono">{child.data}</td>
-                            <td className="font-mono">{child.description}</td>
-                        </tr>
-                    ))}
-                </React.Fragment>
-            );
-        });
-    };
+    // 在组件卸载时或点击页面其他区域时关闭过滤面板
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            // 检查是否点击了过滤面板之外的区域
+            const target = e.target as HTMLElement;
+            if (!target.closest('.filter-panel-container') && !target.closest('.filter-button')) {
+                closeFilterPanel();
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     return (
         <div className="flex flex-col h-full p-4">
+            {/* Input Section */}
             <div className="flex flex-col gap-4 mb-4">
                 <div className="flex items-center justify-between">
                     <label className="text-sm text-base-content/70">
@@ -628,7 +690,7 @@ const FrameExtractor: React.FC = () => {
                     </span>
                 </div>
                 <textarea
-                    className="textarea textarea-bordered flex-grow font-mono"
+                    className="textarea textarea-bordered font-mono"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="请输入要解析的报文，每行一条..."
@@ -643,20 +705,201 @@ const FrameExtractor: React.FC = () => {
                 </button>
             </div>
 
-            <div className="overflow-x-auto border border-base-300 rounded-lg">
-                <table className="table table-zebra w-full table-pin-rows">
-                    <thead className="sticky top-0 z-10 bg-base-200">
-                        <tr>
-                            {renderFilterableHeader('da', '信息点标识(DA)')}
-                            {renderFilterableHeader('di', '数据标识编码(DI)', 'w-1/4')}
-                            <th className="bg-base-200 w-1/4">内容</th>
-                            {renderFilterableHeader('time', '时间', 'w-1/4')}
-                        </tr>
-                    </thead>
-                    <tbody className="max-h-[500px] overflow-y-auto">
-                        {renderTableRows()}
-                    </tbody>
-                </table>
+            {/* Table Section - 使用flex-1让表格填充剩余空间 */}
+            <div className="flex-1 flex flex-col min-h-0">
+                <div className="relative h-full overflow-auto border border-base-300 rounded-lg">
+                    <table className="table table-zebra w-full">
+                        <thead className="sticky top-0 z-10 bg-base-200">
+                            {table.getHeaderGroups().map(headerGroup => (
+                                <tr key={headerGroup.id}>
+                                    {headerGroup.headers.map(header => {
+                                        const column = header.column;
+                                        
+                                        return (
+                                            <th key={header.id} className="bg-base-200">
+                                                <div className="flex items-center justify-between">
+                                                    <div 
+                                                        className={`
+                                                            flex items-center gap-2
+                                                            ${column.getCanSort() ? 'cursor-pointer select-none' : ''}
+                                                        `}
+                                                        onClick={(e) => {
+                                                            if (!column.getCanSort()) return;
+                                                            
+                                                            // 获取当前排序状态
+                                                            const currentSortDir = column.getIsSorted();
+                                                            let nextSortDir: boolean | undefined;
+                                                            
+                                                            // 循环切换：未排序 -> 升序 -> 降序 -> 未排序
+                                                            if (currentSortDir === 'asc') {
+                                                                // 当前是升序，下一个是降序
+                                                                nextSortDir = true;
+                                                            } else if (currentSortDir === 'desc') {
+                                                                // 当前是降序，下一个是移除排序
+                                                                nextSortDir = undefined;
+                                                            } else {
+                                                                // 当前未排序，下一个是升序
+                                                                nextSortDir = false;
+                                                            }
+                                                            
+                                                            // 根据下一个排序方向，更新排序状态
+                                                            if (nextSortDir === undefined) {
+                                                                // 移除此列排序
+                                                                setSorting(prev => prev.filter(s => s.id !== column.id));
+                                                            } else {
+                                                                // 更新或添加此列排序
+                                                                setSorting(prev => {
+                                                                    // 检查此列是否已有排序
+                                                                    const existingIndex = prev.findIndex(s => s.id === column.id);
+                                                                    if (existingIndex !== -1) {
+                                                                        // 更新现有排序方向
+                                                                        const updated = [...prev];
+                                                                        updated[existingIndex] = {
+                                                                            id: column.id,
+                                                                            desc: nextSortDir
+                                                                        };
+                                                                        return updated;
+                                                                    } else {
+                                                                        // 添加新排序
+                                                                        return [...prev, {
+                                                                            id: column.id,
+                                                                            desc: nextSortDir
+                                                                        }];
+                                                                    }
+                                                                });
+                                                            }
+                                                        }}
+                                                    >
+                                                        <span>{flexRender(column.columnDef.header, header.getContext())}</span>
+                                                        
+                                                        {column.getCanSort() && (
+                                                            <span className="text-base-content/70">
+                                                                {column.getIsSorted() === 'asc' ? (
+                                                                    <SortAsc className="w-4 h-4" />
+                                                                ) : column.getIsSorted() === 'desc' ? (
+                                                                    <SortDesc className="w-4 h-4" />
+                                                                ) : (
+                                                                    <ArrowUpDown className="w-4 h-4 opacity-30" />
+                                                                )}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    {column.getCanFilter() && (
+                                                        <div className="relative filter-panel-container">
+                                                            <button 
+                                                                className="btn btn-ghost btn-circle btn-xs filter-button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    openFilterPanel(column.id);
+                                                                }}
+                                                            >
+                                                                <FilterIcon 
+                                                                    className={`
+                                                                        w-4 h-4 
+                                                                        ${column.getIsFiltered() ? 'text-primary' : 'text-base-content/50'}
+                                                                    `} 
+                                                                />
+                                                            </button>
+                                                            
+                                                            {activeFilterPanel === column.id && (
+                                                                <FilterPanel />
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </th>
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                        </thead>
+                        
+                        <tbody>
+                            {table.getRowModel().rows.length ? (
+                                table.getRowModel().rows.map(row => {
+                                    const item = row.original;
+                                    const isSelected = selectedRows.has(item.uniqueId);
+                                    
+                                    return (
+                                        <React.Fragment key={item.uniqueId}>
+                                            <tr 
+                                                className={`
+                                                    transition-colors cursor-pointer select-none
+                                                    ${isSelected 
+                                                        ? 'bg-info/20 hover:bg-info/30 border-l-4 border-info' 
+                                                        : 'hover:bg-base-200'
+                                                    }
+                                                `}
+                                                onClick={(e) => handleRowSelect(item.uniqueId, e)}
+                                                onDoubleClick={(e) => handleRowDoubleClick(item.uniqueId, e)}
+                                            >
+                                                {row.getVisibleCells().map((cell, cellIndex) => {
+                                                    return (
+                                                        <td key={cell.id} className="font-mono">
+                                                            {cellIndex === 1 && item.children && item.children.length > 0 ? (
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-base-content/70">
+                                                                        {item.isExpanded 
+                                                                            ? <ChevronDown className="w-4 h-4" /> 
+                                                                            : <ChevronRight className="w-4 h-4" />
+                                                                        }
+                                                                    </span>
+                                                                    {flexRender(
+                                                                        cell.column.columnDef.cell, 
+                                                                        cell.getContext()
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                flexRender(
+                                                                    cell.column.columnDef.cell, 
+                                                                    cell.getContext()
+                                                                )
+                                                            )}
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                            
+                                            {/* Expandable Detail Rows */}
+                                            {item.isExpanded && item.children && item.children.map((child, childIndex) => (
+                                                <tr 
+                                                    key={`${item.uniqueId}-${childIndex}`} 
+                                                    className="bg-base-100/50 select-none"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <td></td>
+                                                    <td className="pl-8 font-mono">{child.frameDomain}</td>
+                                                    <td className="font-mono">{child.data}</td>
+                                                    <td className="font-mono">{child.description}</td>
+                                                </tr>
+                                            ))}
+                                        </React.Fragment>
+                                    );
+                                })
+                            ) : (
+                                <tr>
+                                    <td colSpan={4} className="text-center py-8 text-base-content/70">
+                                        {isLoading 
+                                            ? '加载中...' 
+                                            : extractedData.length > 0 
+                                                ? '没有符合过滤条件的数据'
+                                                : '没有数据'
+                                        }
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {/* Results Summary */}
+                {extractedData.length > 0 && (
+                    <div className="mt-3 text-sm text-base-content/70">
+                        显示 {table.getFilteredRowModel().rows.length} 条结果，共 {extractedData.length} 条
+                        {selectedRows.size > 0 && `, 已选择 ${selectedRows.size} 条`}
+                    </div>
+                )}
             </div>
         </div>
     );

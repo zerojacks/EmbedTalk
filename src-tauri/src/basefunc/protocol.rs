@@ -4,6 +4,7 @@ use crate::basefunc::frame_csg::FrameCsg;
 use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::frame_tctask::TCMeterTask;
 use crate::basefunc::frame_moudle::FrameMoudle;
+use crate::basefunc::frame_speecial::SpcialFrame;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement};
 use regex::Regex;
 use serde_json::Value;
@@ -55,6 +56,12 @@ impl FrameAnalisyic {
             FrameMoudle::analysic_moudle_frame(frame, &mut parsed_data, 0, region);
         } else if TCMeterTask::is_meter_task(frame) {
             let result = TCMeterTask::analysic_meter_task(frame, &mut parsed_data, 0, region);
+            match result {
+                Ok(_) => {}
+                Err(_) => {}
+            }
+        } else if SpcialFrame::is_special_frame(frame, region) {
+            let result = SpcialFrame::analysic_special_frame(frame, &mut parsed_data, 0, region);
             match result {
                 Ok(_) => {}
                 Err(_) => {}
