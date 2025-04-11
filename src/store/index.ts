@@ -5,12 +5,14 @@ import channelReducer, { loadChannelConfig, initializeChannelService } from './s
 import themeReducer, { initTheme } from './slices/themeSlice';
 import splitSizeReducer from './slices/splitSizeSlice';
 import fileParseReducer from './slices/fileParseSlice';
+import frameExtractorReducer from './slices/frameExtractorSlice';
 // 合并所有 reducer
 const rootReducer = combineReducers({
   channel: channelReducer,
   theme: themeReducer,
   splitSize: splitSizeReducer,
   fileParse: fileParseReducer,
+  frameExtractor: frameExtractorReducer,
   // 可以在这里添加其他 reducer
 });
 
