@@ -4,7 +4,7 @@ import { MdOutlineMonitor, MdOutlineDevices } from "react-icons/md";
 import { BiNetworkChart } from "react-icons/bi";
 import { TbDeviceAnalytics } from "react-icons/tb";
 import { BiSolidFileArchive } from "react-icons/bi";
-import { FiTool } from "react-icons/fi";
+import { FiTool,FiDatabase } from "react-icons/fi";
 import clsx from "clsx";
 
 export default function Layout() {
@@ -67,7 +67,7 @@ export default function Layout() {
             />
           </Link>
           <Link className={linkClass} to="/frame-extractor">
-            <FiTool
+            <FiDatabase
               className={clsx(defaultClass, {
                 [selectedClass]: location.pathname === "/frame-extractor",
               })}

@@ -1049,7 +1049,7 @@ const FrameExtractor: React.FC = () => {
         <div className="flex flex-col h-full p-4 bg-base-100">
             {/* 顶部工具栏 */}
             <div className="flex justify-between items-center mb-6 bg-base-100 rounded-lg p-3 shadow-sm border border-base-200">
-                <h1 className="text-xl font-semibold">报文解析工具</h1>
+                <h1 className="text-xl font-semibold">报文数据提取</h1>
                 <div className="flex gap-2">
                     <button 
                         className="btn btn-primary"
@@ -1474,7 +1474,7 @@ const FrameExtractor: React.FC = () => {
                                     暂无报文，请点击 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-xs">+</span> 添加
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
+                                <div className="overflow-x-auto max-h-[50vh] overflow-y-auto">
                                     <table className="table table-compact w-full table-fixed">
                                         <colgroup>
                                             <col className="w-10" />
@@ -1482,7 +1482,7 @@ const FrameExtractor: React.FC = () => {
                                             <col /> {/* 自动占用剩余宽度 */}
                                             <col className="w-28" />
                                         </colgroup>
-                                        <thead>
+                                        <thead className="sticky top-0 bg-base-200 z-10">
                                             <tr className="bg-base-200/30">
                                                 <th className="text-center p-0 pl-1">
                                                     <label className="cursor-pointer flex justify-center">
