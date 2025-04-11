@@ -22,7 +22,14 @@ import {
     SortDesc,
     ArrowUpDown,
     X,
-    DownloadIcon
+    DownloadIcon,
+    PlusIcon,
+    Trash2,
+    Edit,
+    Save,
+    MessageSquarePlus,
+    Copy,
+    ArrowRight
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { save } from '@tauri-apps/plugin-dialog';
@@ -45,6 +52,13 @@ interface ExtractedData {
     level?: number;
 }
 
+interface FrameMessage {
+    id: string;
+    message: string;
+    createdAt: Date;
+    selected?: boolean;
+}
+
 type FilterType = 'contains' | 'startsWith' | 'endsWith' | 'equals';
 
 interface FilterValue {
@@ -65,7 +79,17 @@ const FrameExtractor: React.FC = () => {
     const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     
-    // 选中行状态
+    // 报文管理相关状态
+    const [messages, setMessages] = useState<FrameMessage[]>([]);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [currentMessage, setCurrentMessage] = useState<string>('');
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    
+    // 选中报文的状态
+    const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set());
+    
+    // 选中表格行状态
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [lastSelectedRow, setLastSelectedRow] = useState<string | null>(null);
     
@@ -83,6 +107,39 @@ const FrameExtractor: React.FC = () => {
 
     const [exportLoading, setExportLoading] = useState(false);
     const workerRef = useRef<Worker | null>(null);
+
+    // 过滤面板参考元素
+    const filterButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+    // 检测面板是否应该向左对齐
+    const [shouldAlignRight, setShouldAlignRight] = useState<Record<string, boolean>>({});
+
+    // 从本地存储加载报文
+    useEffect(() => {
+        const savedMessages = localStorage.getItem('frameMessages');
+        if (savedMessages) {
+            try {
+                const parsedMessages = JSON.parse(savedMessages);
+                // 转换日期字符串为Date对象
+                const messages = parsedMessages.map((msg: any) => ({
+                    ...msg,
+                    createdAt: new Date(msg.createdAt)
+                }));
+                setMessages(messages);
+            } catch (error) {
+                console.error('加载保存的报文失败:', error);
+            }
+        }
+    }, []);
+
+    // 保存报文到本地存储
+    useEffect(() => {
+        if (messages.length > 0) {
+            localStorage.setItem('frameMessages', JSON.stringify(messages));
+        } else {
+            // 如果没有报文，清除本地存储
+            localStorage.removeItem('frameMessages');
+        }
+    }, [messages]);
 
     const columnHelper = createColumnHelper<ExtractedData>();
 
@@ -246,6 +303,7 @@ const FrameExtractor: React.FC = () => {
             for (let i = 0; i < items.length; i++) {
                 const currentItem = items[i];
                 const nextItem = items[i + 1];
+                const dataitem = items[i + 2];
                 const timeitem = items[i + 3];
 
                 // 检查当前项是否包含信息点标识DA
@@ -275,10 +333,11 @@ const FrameExtractor: React.FC = () => {
                         const di = diMatch ? diMatch[1] : nextItem.frameDomain || '';
 
                         // 查找数据内容
-                        const contentItem = items.find(item => 
-                            item.frameDomain.includes('数据内容')
-                        );
-                        const content = contentItem?.data || '';
+                        console.log("dataitem", dataitem);
+                        let content = '';
+                        if (dataitem && dataitem.frameDomain.includes('数据内容')) {
+                            content = dataitem.data;
+                        }
 
                         let time = '';
 
@@ -288,8 +347,8 @@ const FrameExtractor: React.FC = () => {
                         }
                         // 提取子项
                         const children: ExtractedData['children'] = [];
-                        if (contentItem?.children) {
-                            contentItem.children.forEach(child => {
+                        if (dataitem?.children) {
+                            dataitem.children.forEach(child => {
                                 if (child.children) {
                                     child.children.forEach(grandChild => {
                                         if (grandChild.children) {
@@ -318,9 +377,9 @@ const FrameExtractor: React.FC = () => {
                             });
                         } else {
                             children.push({
-                                frameDomain: contentItem?.frameDomain || "",
-                                data: contentItem?.data || "",
-                                description: contentItem?.description || ""
+                                frameDomain: dataitem?.frameDomain || "",
+                                data: dataitem?.data || "",
+                                description: dataitem?.description || ""
                             });
                         }
 
@@ -434,19 +493,251 @@ const FrameExtractor: React.FC = () => {
         toggleExpand(uniqueId);
     };
 
-    const handleParse = async () => {
-        if (!input.trim()) {
-            toast.error("请输入要解析的报文");
+    // 格式化报文内容
+    const formatMessageContent = (message: string): string => {
+        // 移除所有空格和换行符，并转为大写
+        const cleanedMessage = message.replace(/\s+/g, '').toUpperCase();
+        
+        // 验证是否只包含有效的十六进制字符 (0-9, A-F)
+        const isValidHex = /^[0-9A-F]+$/.test(cleanedMessage);
+        
+        if (!isValidHex) {
+            toast.warning("报文包含非十六进制字符，已自动过滤");
+            // 过滤掉非十六进制字符
+            return cleanedMessage.replace(/[^0-9A-F]/g, '');
+        }
+        
+        return cleanedMessage;
+    };
+
+    // 添加新报文
+    const handleAddMessage = () => {
+        if (!currentMessage.trim()) {
+            toast.error("请输入报文内容");
+            return;
+        }
+
+        // 格式化报文内容
+        const formattedMessage = formatMessageContent(currentMessage.trim());
+
+        // 添加新报文到列表
+        const newMessage: FrameMessage = {
+            id: Date.now().toString(),
+            message: formattedMessage,
+            createdAt: new Date(),
+            selected: false
+        };
+
+        setMessages(prev => [...prev, newMessage]);
+        setCurrentMessage(''); // 清空输入框
+        setIsAddDialogOpen(false); // 关闭添加对话框
+        toast.success("报文添加成功");
+    };
+
+    // 更新编辑中的报文
+    const handleUpdateMessage = () => {
+        if (!editingMessageId || !currentMessage.trim()) {
+            toast.error("请输入报文内容");
+            return;
+        }
+
+        // 格式化报文内容
+        const formattedMessage = formatMessageContent(currentMessage.trim());
+
+        setMessages(prev => prev.map(msg => 
+            msg.id === editingMessageId 
+                ? { ...msg, message: formattedMessage } 
+                : msg
+        ));
+
+        setEditingMessageId(null);
+        setCurrentMessage('');
+        setIsAddDialogOpen(false); // 关闭添加对话框
+        toast.success("报文更新成功");
+    };
+
+    // 选择/取消选择单个报文
+    const toggleMessageSelection = (id: string) => {
+        setMessages(prev => prev.map(msg => 
+            msg.id === id ? { ...msg, selected: !msg.selected } : msg
+        ));
+    };
+
+    // 全选/取消全选报文
+    const toggleSelectAll = () => {
+        const allSelected = messages.every(msg => msg.selected);
+        
+        // 如果全部选中，则取消全选；否则全选
+        setMessages(prev => prev.map(msg => ({ ...msg, selected: !allSelected })));
+    };
+    
+    // 获取选中状态
+    // 0: 未选中, 1: 部分选中, 2: 全部选中
+    const getSelectAllState = (): number => {
+        if (messages.length === 0) return 0;
+        
+        const selectedCount = messages.filter(msg => msg.selected).length;
+        
+        if (selectedCount === 0) return 0;
+        if (selectedCount === messages.length) return 2;
+        return 1;
+    };
+    
+    // 解析选中的报文（并行执行）
+    const parseSelectedMessages = async () => {
+        const selectedMessages = messages.filter(msg => msg.selected);
+        
+        if (selectedMessages.length === 0) {
+            toast.warning("请先选择要解析的报文");
             return;
         }
 
         setIsLoading(true);
         try {
-            const messages = input.split('\n').filter(msg => msg.trim());
+            // 清空现有解析结果
+            setExtractedData([]);
+            
             const allExtractedData: ExtractedData[] = [];
+            
+            // 创建所有解析任务的Promise数组
+            const parsePromises = selectedMessages.map(async (messageItem) => {
+                // 用于发送到后端的格式化报文（添加空格）
+                const formattedValue = messageItem.message
+                    .replace(/\s+/g, '')
+                    .replace(/(.{2})/g, '$1 ')
+                    .trim()
+                    .toUpperCase();
 
-            for (const message of messages) {
-                const formattedValue = message
+                try {
+                    const result = await invoke<{ data: TreeItemType[]; error?: string }>('on_text_change', {
+                        message: formattedValue,
+                        region: "南网"
+                    });
+
+                    if (result.error) {
+                        toast.error(`解析报文失败：${result.error}`);
+                        return [];
+                    }
+
+                    return extractData(result.data);
+                } catch (error) {
+                    console.error(`解析报文失败:`, error);
+                    toast.error(`解析报文失败: ${error instanceof Error ? error.message : '未知错误'}`);
+                    return [];
+                }
+            });
+            
+            // 并行执行所有解析任务
+            const results = await Promise.all(parsePromises);
+            
+            // 合并所有解析结果
+            for (const extracted of results) {
+                allExtractedData.push(...extracted);
+            }
+
+            setExtractedData(allExtractedData);
+            
+            if (allExtractedData.length === 0) {
+                toast.warning("没有成功解析出任何数据");
+            } else {
+                toast.success(`成功解析 ${allExtractedData.length} 条数据`);
+                // 关闭对话框
+                setIsDialogOpen(false);
+            }
+        } catch (error) {
+            console.error("解析失败:", error);
+            toast.error("解析失败！");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 编辑报文
+    const handleEditMessage = (message: FrameMessage) => {
+        setEditingMessageId(message.id);
+        setCurrentMessage(message.message);
+        setIsAddDialogOpen(true); // 打开添加对话框进行编辑
+    };
+
+    // 删除报文
+    const handleDeleteMessage = (id: string) => {
+        setMessages(prev => prev.filter(msg => msg.id !== id));
+        
+        // 如果删除的是正在编辑的报文，清空编辑状态
+        if (editingMessageId === id) {
+            setEditingMessageId(null);
+            setCurrentMessage('');
+        }
+        
+        toast.success("报文已删除");
+    };
+
+    // 解析单条报文
+    const parseMessage = async (message: string) => {
+        if (!message.trim()) {
+            toast.error("报文内容为空");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            // 清空现有解析结果
+            setExtractedData([]);
+            
+            // 先确保报文已格式化
+            const formattedValue = message
+                .replace(/\s+/g, '')
+                .replace(/(.{2})/g, '$1 ')
+                .trim()
+                .toUpperCase();
+
+            const result = await invoke<{ data: TreeItemType[]; error?: string }>('on_text_change', {
+                message: formattedValue,
+                region: "南网"
+            });
+
+            if (result.error) {
+                toast.error(`解析失败：${result.error}`);
+                return;
+            }
+
+            const extracted = extractData(result.data);
+            
+            // 直接设置新的解析结果，不再追加
+            setExtractedData(extracted);
+            
+            if (extracted.length === 0) {
+                toast.warning("没有成功解析出任何数据");
+            } else {
+                toast.success(`成功解析 ${extracted.length} 条数据`);
+                // 解析成功后关闭对话框
+                setIsDialogOpen(false);
+            }
+        } catch (error) {
+            console.error("解析失败:", error);
+            toast.error("解析失败！");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 解析所有报文
+    const parseAllMessages = async () => {
+        if (messages.length === 0) {
+            toast.warning("没有报文可解析");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            // 清空现有解析结果
+            setExtractedData([]);
+            
+            const allExtractedData: ExtractedData[] = [];
+            
+            for (const messageItem of messages) {
+                // 用于发送到后端的格式化报文（添加空格）
+                const formattedValue = messageItem.message
                     .replace(/\s+/g, '')
                     .replace(/(.{2})/g, '$1 ')
                     .trim()
@@ -466,11 +757,15 @@ const FrameExtractor: React.FC = () => {
                 allExtractedData.push(...extracted);
             }
 
+            // 直接设置新的解析结果，不再追加
             setExtractedData(allExtractedData);
+            
             if (allExtractedData.length === 0) {
                 toast.warning("没有成功解析出任何数据");
             } else {
                 toast.success(`成功解析 ${allExtractedData.length} 条数据`);
+                // 关闭对话框
+                setIsDialogOpen(false);
             }
         } catch (error) {
             console.error("解析失败:", error);
@@ -507,6 +802,38 @@ const FrameExtractor: React.FC = () => {
                 ? (existingFilter.value as FilterValue).value 
                 : ''
         });
+
+        // 检查过滤面板是否靠近右边界和底部边界
+        setTimeout(() => {
+            const buttonEl = filterButtonRefs.current[columnId];
+            if (buttonEl) {
+                const buttonRect = buttonEl.getBoundingClientRect();
+                const windowWidth = window.innerWidth;
+                const windowHeight = window.innerHeight;
+                const panelWidth = 300; // 面板宽度
+                const panelHeight = 260; // 预估的面板高度
+                
+                // 判断面板放在按钮右侧是否会超出窗口
+                const shouldAlign = buttonRect.right + panelWidth > windowWidth;
+                setShouldAlignRight(prev => ({...prev, [columnId]: shouldAlign}));
+                
+                // 检查是否会超出底部
+                if (buttonRect.bottom + panelHeight > windowHeight) {
+                    // 如果会超出底部，尝试让表格容器滚动，使按钮上移
+                    const tableContainer = document.querySelector('.relative.flex-1.overflow-auto');
+                    if (tableContainer) {
+                        const scrollAmount = Math.min(
+                            buttonRect.bottom + panelHeight - windowHeight + 20,
+                            (tableContainer as HTMLElement).scrollTop + 300
+                        );
+                        (tableContainer as HTMLElement).scrollBy({
+                            top: -scrollAmount,
+                            behavior: 'smooth'
+                        });
+                    }
+                }
+            }
+        }, 0);
     };
 
     // 仅在用户确认时应用过滤器
@@ -585,94 +912,16 @@ const FrameExtractor: React.FC = () => {
         );
     };
 
-    // 过滤面板组件
-    const FilterPanel = () => {
-        if (!activeFilterPanel || !filterSettings) return null;
-        
-        return (
-            <div className="absolute z-50 top-8 right-0 bg-base-100 shadow-lg rounded-box p-4 border border-base-300 min-w-64">
-                <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-sm font-semibold">过滤选项</h3>
-                    <button 
-                        className="btn btn-ghost btn-xs" 
-                        onClick={closeFilterPanel}
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
-                
-                <div className="space-y-3">
-                    <div className="form-control w-full">
-                        <label className="label">
-                            <span className="label-text">过滤方式</span>
-                        </label>
-                        <select 
-                            className="select select-bordered select-sm w-full"
-                            value={filterSettings.type}
-                            onChange={(e) => updateFilterSetting({
-                                type: e.target.value as FilterType
-                            })}
-                        >
-                            {Object.entries(FILTER_TYPE_LABELS).map(([type, label]) => (
-                                <option key={type} value={type}>{label}</option>
-                            ))}
-                        </select>
-                    </div>
-                    
-                    <div className="form-control w-full">
-                        <label className="label">
-                            <span className="label-text">过滤值</span>
-                        </label>
-                        <input 
-                            type="text"
-                            className="input input-bordered input-sm w-full"
-                            value={filterSettings.value}
-                            onChange={(e) => updateFilterSetting({
-                                value: e.target.value
-                            })}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    applyFilter();
-                                }
-                            }}
-                            placeholder="输入过滤值..."
-                            autoFocus
-                        />
-                    </div>
-                    
-                    <div className="flex justify-between items-center gap-2 mt-3">
-                        <button 
-                            className="btn btn-ghost btn-sm"
-                            onClick={resetFilterSetting}
-                        >
-                            重置
-                        </button>
-                        <div className="flex gap-2">
-                            <button 
-                                className="btn btn-ghost btn-sm"
-                                onClick={closeFilterPanel}
-                            >
-                                取消
-                            </button>
-                            <button 
-                                className="btn btn-primary btn-sm"
-                                onClick={applyFilter}
-                            >
-                                应用
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
     // 在组件卸载时或点击页面其他区域时关闭过滤面板
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             // 检查是否点击了过滤面板之外的区域
             const target = e.target as HTMLElement;
-            if (!target.closest('.filter-panel-container') && !target.closest('.filter-button')) {
+            if (
+                activeFilterPanel &&
+                !target.closest('.filter-panel-content') && 
+                !target.closest('.filter-button')
+            ) {
                 closeFilterPanel();
             }
         };
@@ -682,7 +931,7 @@ const FrameExtractor: React.FC = () => {
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, []);
+    }, [activeFilterPanel]);
 
     // 创建并销毁Worker
     useEffect(() => {
@@ -770,46 +1019,57 @@ const FrameExtractor: React.FC = () => {
         }
     };
 
-    return (
-        <div className="flex flex-col h-full p-4">
-            {/* Input Section */}
-            <div className="flex flex-col gap-4 mb-4">
-                <div className="flex items-center justify-between">
-                    <label className="text-sm text-base-content/70">
-                        请输入要解析的报文（每行一条报文）：
-                    </label>
-                    <span className="text-sm text-base-content/70">
-                        {input.split('\n').filter(msg => msg.trim()).length} 条报文
-                    </span>
-                </div>
-                <textarea
-                    className="textarea textarea-bordered font-mono"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="请输入要解析的报文，每行一条..."
-                    rows={6}
-                />
-                <button
-                    className="btn btn-primary"
-                    onClick={handleParse}
-                    disabled={isLoading}
-                >
-                    {isLoading ? '解析中...' : '解析'}
-                </button>
-            </div>
+    // 关闭报文对话框时重置状态
+    const closeMessageDialog = () => {
+        setIsDialogOpen(false);
+    };
 
-            {/* Table Section - 使用flex-1让表格填充剩余空间 */}
-            <div className="flex-1 flex flex-col min-h-0">
-                {/* 表格工具栏 */}
-                {extractedData.length > 0 && (
-                    <div className="flex justify-between items-center mb-2">
-                        <div className="text-sm text-base-content/70">
-                            显示 {table.getFilteredRowModel().rows.length} 条结果，共 {extractedData.length} 条
-                            {selectedRows.size > 0 && `, 已选择 ${selectedRows.size} 条`}
-                        </div>
-                        <div className="flex gap-2">
+    // 关闭添加/编辑对话框时重置状态
+    const closeAddDialog = () => {
+        setIsAddDialogOpen(false);
+        if (editingMessageId) {
+            setEditingMessageId(null);
+            setCurrentMessage('');
+        }
+    };
+
+    // 复制报文内容到剪贴板
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                toast.success('报文已复制到剪贴板');
+            })
+            .catch((err) => {
+                console.error('复制失败:', err);
+                toast.error('复制失败');
+            });
+    };
+
+    return (
+        <div className="flex flex-col h-full p-4 bg-base-100">
+            {/* 顶部工具栏 */}
+            <div className="flex justify-between items-center mb-6 bg-base-100 rounded-lg p-3 shadow-sm border border-base-200">
+                <h1 className="text-xl font-semibold">报文解析工具</h1>
+                <div className="flex gap-2">
+                    <button 
+                        className="btn btn-primary"
+                        onClick={() => setIsDialogOpen(true)}
+                    >
+                        <MessageSquarePlus className="w-5 h-5 mr-1" />
+                        报文管理
+                    </button>
+                    {extractedData.length > 0 && (
+                        <>
                             <button
-                                className={`btn btn-sm ${exportLoading ? 'btn-disabled' : 'btn-primary'}`}
+                                className="btn btn-outline btn-error"
+                                onClick={() => setExtractedData([])}
+                                title="清空当前解析结果"
+                            >
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                清空数据
+                            </button>
+                            <button
+                                className={`btn ${exportLoading ? 'btn-disabled' : 'btn-outline'}`}
                                 onClick={exportToExcel}
                                 disabled={exportLoading}
                             >
@@ -825,11 +1085,34 @@ const FrameExtractor: React.FC = () => {
                                     </>
                                 )}
                             </button>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* Table Section - 使用flex-1让表格填充剩余空间 */}
+            <div className="flex-1 flex flex-col min-h-0 bg-base-100 rounded-lg shadow-sm border border-base-200 overflow-hidden">
+                {/* 表格工具栏 */}
+                {extractedData.length > 0 && (
+                    <div className="flex justify-between items-center p-3 bg-base-200/50 border-b border-base-200">
+                        <div className="text-sm">
+                            显示 <span className="font-semibold">{table.getFilteredRowModel().rows.length}</span> 条结果，共 <span className="font-semibold">{extractedData.length}</span> 条
+                            {selectedRows.size > 0 && <span>，已选择 <span className="font-semibold text-primary">{selectedRows.size}</span> 条</span>}
+                        </div>
+                        <div className="flex gap-2">
+                            {selectedRows.size > 0 && (
+                                <button
+                                    className="btn btn-sm btn-outline btn-error"
+                                    onClick={() => setSelectedRows(new Set())}
+                                >
+                                    清除选择
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}
                 
-                <div className="relative h-full overflow-auto border border-base-300 rounded-lg">
+                <div className="relative flex-1 overflow-auto">
                     <table className="table table-zebra w-full">
                         <thead className="sticky top-0 z-10 bg-base-200">
                             {table.getHeaderGroups().map(headerGroup => (
@@ -915,6 +1198,8 @@ const FrameExtractor: React.FC = () => {
                                                                     e.stopPropagation();
                                                                     openFilterPanel(column.id);
                                                                 }}
+                                                                title="过滤"
+                                                                ref={el => filterButtonRefs.current[column.id] = el}
                                                             >
                                                                 <FilterIcon 
                                                                     className={`
@@ -925,7 +1210,91 @@ const FrameExtractor: React.FC = () => {
                                                             </button>
                                                             
                                                             {activeFilterPanel === column.id && (
-                                                                <FilterPanel />
+                                                                <div className="absolute z-[200] mt-2 shadow-xl rounded-lg border border-base-300 bg-base-100" 
+                                                                    style={{ 
+                                                                        minWidth: '300px',
+                                                                        maxWidth: '350px',
+                                                                        ...(shouldAlignRight[column.id] 
+                                                                            ? { right: '0px' } 
+                                                                            : { left: '0px' }),
+                                                                        top: 'calc(100% + 5px)',
+                                                                    }}
+                                                                >
+                                                                    <div className="p-4 filter-panel-content">
+                                                                        <div className="flex justify-between items-center mb-3">
+                                                                            <h3 className="text-sm font-semibold">过滤选项</h3>
+                                                                            <button 
+                                                                                className="btn btn-ghost btn-xs" 
+                                                                                onClick={closeFilterPanel}
+                                                                            >
+                                                                                <X className="w-4 h-4" />
+                                                                            </button>
+                                                                        </div>
+                                                                        
+                                                                        <div className="space-y-3">
+                                                                            <div className="form-control w-full">
+                                                                                <label className="label">
+                                                                                    <span className="label-text">过滤方式</span>
+                                                                                </label>
+                                                                                <select 
+                                                                                    className="select select-bordered select-sm w-full"
+                                                                                    value={filterSettings?.type}
+                                                                                    onChange={(e) => updateFilterSetting({
+                                                                                        type: e.target.value as FilterType
+                                                                                    })}
+                                                                                >
+                                                                                    {Object.entries(FILTER_TYPE_LABELS).map(([type, label]) => (
+                                                                                        <option key={type} value={type}>{label}</option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            </div>
+                                                                            
+                                                                            <div className="form-control w-full">
+                                                                                <label className="label">
+                                                                                    <span className="label-text">过滤值</span>
+                                                                                </label>
+                                                                                <input 
+                                                                                    type="text"
+                                                                                    className="input input-bordered input-sm w-full"
+                                                                                    value={filterSettings?.value || ''}
+                                                                                    onChange={(e) => updateFilterSetting({
+                                                                                        value: e.target.value
+                                                                                    })}
+                                                                                    onKeyDown={(e) => {
+                                                                                        if (e.key === 'Enter') {
+                                                                                            applyFilter();
+                                                                                        }
+                                                                                    }}
+                                                                                    placeholder="输入过滤值..."
+                                                                                    autoFocus
+                                                                                />
+                                                                            </div>
+                                                                            
+                                                                            <div className="flex justify-between items-center gap-2 mt-3">
+                                                                                <button 
+                                                                                    className="btn btn-ghost btn-sm"
+                                                                                    onClick={resetFilterSetting}
+                                                                                >
+                                                                                    重置
+                                                                                </button>
+                                                                                <div className="flex gap-2">
+                                                                                    <button 
+                                                                                        className="btn btn-ghost btn-sm"
+                                                                                        onClick={closeFilterPanel}
+                                                                                    >
+                                                                                        取消
+                                                                                    </button>
+                                                                                    <button 
+                                                                                        className="btn btn-primary btn-sm"
+                                                                                        onClick={applyFilter}
+                                                                                    >
+                                                                                        应用
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
                                                             )}
                                                         </div>
                                                     )}
@@ -949,7 +1318,7 @@ const FrameExtractor: React.FC = () => {
                                                 className={`
                                                     transition-colors cursor-pointer select-none
                                                     ${isSelected 
-                                                        ? 'bg-info/20 hover:bg-info/30 border-l-4 border-info' 
+                                                        ? 'bg-primary/10 hover:bg-primary/20 border-l-4 border-primary' 
                                                         : 'hover:bg-base-200'
                                                     }
                                                 `}
@@ -987,13 +1356,21 @@ const FrameExtractor: React.FC = () => {
                                             {item.isExpanded && item.children && item.children.map((child, childIndex) => (
                                                 <tr 
                                                     key={`${item.uniqueId}-${childIndex}`} 
-                                                    className="bg-base-100/50 select-none"
+                                                    className={`
+                                                        select-none border-t border-base-200/30
+                                                        ${isSelected 
+                                                            ? 'bg-primary/5 border-l-4 border-l-primary' 
+                                                            : 'bg-base-100/50'
+                                                        }
+                                                    `}
                                                     onClick={(e) => e.stopPropagation()}
                                                 >
-                                                    <td></td>
-                                                    <td className="pl-8 font-mono">{child.frameDomain}</td>
-                                                    <td className="font-mono">{child.data}</td>
-                                                    <td className="font-mono">{child.description}</td>
+                                                    <td className="w-8">
+                                                        <div className="w-4 h-4 ml-4 border-l-2 border-b-2 border-base-300 rounded-bl-lg"></div>
+                                                    </td>
+                                                    <td className="pl-6 font-mono text-xs">{child.frameDomain}</td>
+                                                    <td className="font-mono text-xs">{child.data}</td>
+                                                    <td className="font-mono text-xs">{child.description}</td>
                                                 </tr>
                                             ))}
                                         </React.Fragment>
@@ -1001,13 +1378,36 @@ const FrameExtractor: React.FC = () => {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={4} className="text-center py-8 text-base-content/70">
-                                        {isLoading 
-                                            ? '加载中...' 
-                                            : extractedData.length > 0 
-                                                ? '没有符合过滤条件的数据'
-                                                : '没有数据'
-                                        }
+                                    <td colSpan={4} className="text-center py-12">
+                                        {isLoading ? (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <span className="loading loading-spinner loading-md"></span>
+                                                <span className="text-base-content/70">正在加载数据...</span>
+                                            </div>
+                                        ) : extractedData.length > 0 ? (
+                                            <div className="flex flex-col items-center gap-2 text-base-content/70">
+                                                <FilterIcon className="w-12 h-12 opacity-30" />
+                                                <p>没有符合过滤条件的数据</p>
+                                                <button 
+                                                    className="btn btn-sm btn-ghost mt-2"
+                                                    onClick={clearAllFilters}
+                                                >
+                                                    清除所有过滤器
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-2 text-base-content/70">
+                                                <MessageSquarePlus className="w-12 h-12 opacity-30" />
+                                                <p>暂无数据，请添加并解析报文</p>
+                                                <button 
+                                                    className="btn btn-sm btn-primary mt-2"
+                                                    onClick={() => setIsDialogOpen(true)}
+                                                >
+                                                    <PlusIcon className="w-4 h-4 mr-1" />
+                                                    添加报文
+                                                </button>
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
                             )}
@@ -1015,6 +1415,244 @@ const FrameExtractor: React.FC = () => {
                     </table>
                 </div>
             </div>
+
+            {/* 报文管理对话框 */}
+            <dialog className={`modal z-40 ${isDialogOpen ? 'modal-open' : ''}`}>
+                <div className="modal-box w-11/12 max-w-3xl bg-base-100">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-lg font-semibold">报文管理</h2>
+                            <div className="flex items-center">
+                                <span className="badge badge-ghost badge-sm mr-1">已添加 {messages.length}</span>
+                                {messages.some(msg => msg.selected) && (
+                                    <span className="badge badge-primary badge-sm">已选中 {messages.filter(msg => msg.selected).length}</span>
+                                )}
+                            </div>
+                        </div>
+                        <button 
+                            className="btn btn-sm btn-circle btn-ghost"
+                            onClick={closeMessageDialog}
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                    
+                    {/* 报文列表 */}
+                    <div className="mb-4">
+                        <div className="border border-base-200 rounded-lg bg-base-100 overflow-hidden">
+                            <div className="bg-base-200/50 p-3 border-b border-base-200 flex justify-between items-center">
+                                <div className="flex items-center">
+                                    <span className="text-sm font-medium">已选中 {messages.filter(msg => msg.selected).length} / {messages.length}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button 
+                                        className="btn btn-circle btn-sm btn-primary"
+                                        onClick={() => setIsAddDialogOpen(true)}
+                                        title="添加报文"
+                                    >
+                                        <PlusIcon className="w-4 h-4" />
+                                    </button>
+                                    {messages.some(msg => msg.selected) && (
+                                        <button 
+                                            className="btn btn-circle btn-sm btn-primary"
+                                            onClick={parseSelectedMessages}
+                                            disabled={isLoading}
+                                            title="解析选中的报文"
+                                        >
+                                            {isLoading ? (
+                                                <span className="loading loading-spinner loading-xs"></span>
+                                            ) : (
+                                                <ArrowRight className="w-4 h-4" />
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            {messages.length === 0 ? (
+                                <div className="text-center py-6 text-base-content/70">
+                                    暂无报文，请点击 <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-xs">+</span> 添加
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="table table-compact w-full table-fixed">
+                                        <colgroup>
+                                            <col className="w-10" />
+                                            <col className="w-12" />
+                                            <col /> {/* 自动占用剩余宽度 */}
+                                            <col className="w-28" />
+                                        </colgroup>
+                                        <thead>
+                                            <tr className="bg-base-200/30">
+                                                <th className="text-center p-0 pl-1">
+                                                    <label className="cursor-pointer flex justify-center">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            className="checkbox checkbox-xs checkbox-primary"
+                                                            checked={getSelectAllState() === 2}
+                                                            ref={input => {
+                                                                if (input) {
+                                                                    // 设置indeterminate状态
+                                                                    input.indeterminate = getSelectAllState() === 1;
+                                                                }
+                                                            }}
+                                                            onChange={toggleSelectAll}
+                                                        />
+                                                    </label>
+                                                </th>
+                                                <th className="text-center text-xs">序号</th>
+                                                <th className="text-xs">报文信息</th>
+                                                <th className="text-center text-xs">操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {messages.map((msg, index) => (
+                                                <tr 
+                                                    key={msg.id} 
+                                                    className={`group hover:bg-base-200 ${msg.selected ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
+                                                >
+                                                    <td className="p-0 pl-1">
+                                                        <label className="cursor-pointer flex justify-center">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                className="checkbox checkbox-xs checkbox-primary"
+                                                                checked={msg.selected || false}
+                                                                onChange={() => toggleMessageSelection(msg.id)}
+                                                            />
+                                                        </label>
+                                                    </td>
+                                                    <td className="text-center text-xs">{index + 1}</td>
+                                                    <td className="p-0">
+                                                        <div className="flex items-center w-full">
+                                                            <div className="flex-grow truncate font-mono text-xs py-2 px-2 hover:bg-base-200/50 transition-colors" title={msg.message}>
+                                                                {msg.message}
+                                                            </div>
+                                                            <div className="flex-none w-8 h-full flex items-center justify-center border-l border-base-200">
+                                                                <button 
+                                                                    className="btn btn-xs btn-square btn-ghost"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        copyToClipboard(msg.message);
+                                                                    }}
+                                                                    title="复制报文"
+                                                                >
+                                                                    <Copy className="w-3 h-3" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="flex justify-center items-center gap-1">
+                                                            <button 
+                                                                className="btn btn-ghost btn-xs btn-square"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleEditMessage(msg);
+                                                                }}
+                                                                title="编辑"
+                                                            >
+                                                                <Edit className="w-3 h-3" />
+                                                            </button>
+                                                            <button 
+                                                                className="btn btn-ghost btn-xs btn-square text-error"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteMessage(msg.id);
+                                                                }}
+                                                                title="删除"
+                                                            >
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </button>
+                                                            <button 
+                                                                className="btn btn-ghost btn-xs btn-square text-success"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    parseMessage(msg.message);
+                                                                }}
+                                                                disabled={isLoading}
+                                                                title="解析"
+                                                            >
+                                                                {isLoading ? (
+                                                                    <span className="loading loading-spinner loading-xs"></span>
+                                                                ) : <ArrowRight className="w-3 h-3" />}
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <form method="dialog" className="modal-backdrop">
+                    <button onClick={closeMessageDialog}>关闭</button>
+                </form>
+            </dialog>
+
+            {/* 添加/编辑报文对话框 - 使用ReactDOM.createPortal确保在最顶层 */}
+            {isAddDialogOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" 
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) {
+                            closeAddDialog();
+                        }
+                    }}
+                >
+                    <div className="bg-base-100 rounded-lg shadow-xl w-11/12 max-w-xl p-6" 
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold">
+                                {editingMessageId ? '编辑报文' : '添加新报文'}
+                            </h2>
+                            <button 
+                                className="btn btn-sm btn-circle btn-ghost"
+                                onClick={closeAddDialog}
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        
+                        <div className="form-control">
+                            <textarea
+                                className="textarea textarea-bordered font-mono w-full mb-4"
+                                value={currentMessage}
+                                onChange={(e) => setCurrentMessage(e.target.value)}
+                                placeholder="请输入报文内容..."
+                                rows={4}
+                                autoFocus
+                            />
+                            
+                            <div className="flex justify-between gap-2">
+                                <button 
+                                    className="btn btn-outline"
+                                    onClick={() => setCurrentMessage(formatMessageContent(currentMessage))}
+                                >
+                                    格式化
+                                </button>
+                                
+                                <div className="flex gap-2">
+                                    <button 
+                                        className="btn"
+                                        onClick={closeAddDialog}
+                                    >
+                                        取消
+                                    </button>
+                                    <button 
+                                        className="btn btn-primary"
+                                        onClick={editingMessageId ? handleUpdateMessage : handleAddMessage}
+                                    >
+                                        {editingMessageId ? '保存' : '添加'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

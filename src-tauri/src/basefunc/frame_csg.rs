@@ -341,7 +341,7 @@ impl FrameCsg {
             if Self::is_contoine_custom_head(&frame[..84]) {
                 Self::analysic_csg_custom_head_frame(frame, result_list, index)?;
                 let new_frame = frame[84..].to_vec();
-                Self::analysic_csg_frame_by_afn(&new_frame, result_list, index + 84, region)?;
+                return Self::analysic_csg_frame_by_afn(&new_frame, result_list, index + 84, region);
             }
         }
 
@@ -2982,7 +2982,7 @@ impl FrameCsg {
                     }
                 }
 
-                let item_data: Vec<Value> = Vec::new();
+                let mut item_data: Vec<Value> = Vec::new();
                 let mut sub_length = 0;
                 let mut sub_datament: &[u8] = &[];
 
@@ -2991,19 +2991,19 @@ impl FrameCsg {
                         let sub_length_cont = item_elem.get_child_text("length").unwrap();
                         (sub_length, sub_datament) = if sub_length_cont.to_uppercase() == "UNKNOWN"
                         {
-                            let new_sub_length = Self::calculate_item_length(
+                            let sub_length = Self::calculate_item_length(
                                 &mut item_elem,
-                                &data_segment[pos + 4..],
+                                &data_segment[pos..],
                                 protocol,
                                 region,
                                 Some(dir),
                                 None,
                             );
-                            let new_sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
-                            (new_sub_length, new_sub_datament)
+                            let sub_datament = &data_segment[pos..pos + sub_length];
+                            (sub_length, sub_datament)
                         } else {
                             let sub_length = sub_length_cont.parse::<usize>().unwrap();
-                            let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
+                            let sub_datament = &data_segment[pos..pos + sub_length];
                             let (new_sub_length, new_datament) = Self::recalculate_sub_length(
                                 &mut item_elem,
                                 sub_datament,
@@ -3013,6 +3013,15 @@ impl FrameCsg {
                             );
                             (new_sub_length, new_datament)
                         };
+                        item_elem.update_value("length", sub_length.to_string());
+                        item_data = FrameAnalisyic::prase_data(
+                            &mut item_elem,
+                            protocol,
+                            region,
+                            sub_datament,
+                            index + pos,
+                            Some(dir),
+                        );
                     } else {
                         sub_length = 0;
                     }
