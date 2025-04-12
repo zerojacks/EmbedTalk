@@ -84,28 +84,28 @@ const FrameExtractorPage: React.FC = () => {
     return (
         <div className="flex-1 flex flex-col min-w-0 min-h-0 p-4 bg-base-100 w-full h-full">
             {/* 顶部工具栏 */}
-            <div className="flex-none flex justify-between items-center mb-6 bg-base-100 rounded-lg p-3 shadow-sm border border-base-200">
-                <h1 className="text-xl font-semibold">报文数据提取</h1>
+            <div className="flex-none flex justify-between items-center mb-4 bg-base-100 rounded-lg px-3 py-2 shadow-sm border border-base-200">
+                <h1 className="text-base font-semibold">报文数据提取</h1>
                 <div className="flex gap-2">
                     <button
-                        className="btn btn-primary"
+                        className="btn btn-primary btn-sm h-8 min-h-0"
                         onClick={() => dispatch(setDialogOpen(true))}
                     >
-                        <MessageSquarePlus className="w-5 h-5 mr-1" />
+                        <MessageSquarePlus className="w-4 h-4 mr-1" />
                         报文管理
                     </button>
                     {extractedData.length > 0 && (
                         <>
                             <button
-                                className="btn btn-outline btn-error"
+                                className="btn btn-outline btn-error btn-sm h-8 min-h-0"
                                 onClick={() => dispatch(clearExtractedData())}
                                 title="清空当前解析结果"
                             >
-                                <Trash2 className="w-4 h-4 mr-1" />
+                                <Trash2 className="w-3.5 h-3.5 mr-1" />
                                 清空数据
                             </button>
                             <button
-                                className={`btn ${ui.exportLoading ? 'btn-disabled' : 'btn-outline'}`}
+                                className={`btn btn-sm h-8 min-h-0 ${ui.exportLoading ? 'btn-disabled' : 'btn-outline'}`}
                                 onClick={exportToExcel}
                                 disabled={ui.exportLoading}
                             >
@@ -116,7 +116,7 @@ const FrameExtractorPage: React.FC = () => {
                                     </>
                                 ) : (
                                     <>
-                                        <DownloadIcon className="w-4 h-4 mr-1" />
+                                        <DownloadIcon className="w-3.5 h-3.5 mr-1" />
                                         导出Excel
                                     </>
                                 )}

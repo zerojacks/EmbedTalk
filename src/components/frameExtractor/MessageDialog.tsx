@@ -26,7 +26,7 @@ const MessageDialog: React.FC = () => {
     const dispatch = useAppDispatch();
     const {
         messages,
-        isLoading,
+        parsingMessageIds,
         ui: { isDialogOpen, isAddDialogOpen },
         currentEditingMessage: { id: editingMessageId }
     } = useAppSelector(state => state.frameExtractor);
@@ -103,10 +103,11 @@ const MessageDialog: React.FC = () => {
     };
 
     // 解析单条消息
-    const handleParseMessage = async (message: string) => {
+    const handleParseMessage = async (messageId: string, messageContent: string) => {
         try {
-            await dispatch(parseFrameMessage(message)).unwrap();
+            await dispatch(parseFrameMessage({ id: messageId, content: messageContent })).unwrap();
             toast.success('解析成功');
+            closeDialog();
         } catch (error) {
             toast.error(error as string);
         }
@@ -194,10 +195,10 @@ const MessageDialog: React.FC = () => {
                                                     dispatch(parseSelectedMessages());
                                                     closeDialog();
                                                 }}
-                                                disabled={isLoading}
+                                                disabled={parsingMessageIds.length > 0}
                                                 title="解析选中"
                                             >
-                                                {isLoading ? (
+                                                {parsingMessageIds.length > 0 ? (
                                                     <span className="loading loading-spinner loading-xs"></span>
                                                 ) : (
                                                     <PlayCircle className="w-4 h-4" />
@@ -206,10 +207,10 @@ const MessageDialog: React.FC = () => {
                                             <button
                                                 className="btn btn-circle btn-sm btn-primary"
                                                 onClick={handleDeleteSelected}
-                                                disabled={isLoading}
+                                                disabled={parsingMessageIds.length > 0}
                                                 title="删除选中"
                                             >
-                                                {isLoading ? (
+                                                {parsingMessageIds.length > 0 ? (
                                                     <span className="loading loading-spinner loading-xs"></span>
                                                 ) : (
                                                     <Trash2 className="w-4 h-4" />
@@ -257,7 +258,7 @@ const MessageDialog: React.FC = () => {
                                             {messages.map((msg, index) => (
                                                 <tr
                                                     key={msg.id}
-                                                    className={`group hover:bg-base-200 ${msg.selected ? 'bg-primary/10 border-l-4 border-l-primary' : ''}`}
+                                                    className={`group hover:bg-base-200 border-l-4 ${msg.selected ? 'border-l-primary bg-primary/10' : 'border-l-transparent'}`}
                                                 >
                                                     <td className="p-0 pl-1">
                                                         <label className="cursor-pointer flex justify-center">
@@ -318,12 +319,12 @@ const MessageDialog: React.FC = () => {
                                                                 className="btn btn-ghost btn-xs btn-square text-success"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    handleParseMessage(msg.message);
+                                                                    handleParseMessage(msg.id, msg.message);
                                                                 }}
-                                                                disabled={isLoading}
+                                                                disabled={parsingMessageIds.includes(msg.id)}
                                                                 title="解析"
                                                             >
-                                                                {isLoading ? (
+                                                                {parsingMessageIds.includes(msg.id) ? (
                                                                     <span className="loading loading-spinner loading-xs"></span>
                                                                 ) : <PlayCircle className="w-3 h-3" />}
                                                             </button>

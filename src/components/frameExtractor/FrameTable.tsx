@@ -396,8 +396,8 @@ const FrameTable: React.FC = () => {
 
     // 计算每行的实际高度（包括可能的子行）
     const getRowHeight = useCallback((row: ExtractedData) => {
-        const baseHeight = 52; // 基础行高
-        const childHeight = 44; // 子行高度
+        const baseHeight = 44; // 基础行高
+        const childHeight = 36; // 子行高度
         if (row.isExpanded && row.children) {
             return baseHeight + (row.children.length * childHeight);
         }
@@ -413,9 +413,9 @@ const FrameTable: React.FC = () => {
         getScrollElement: () => tableContainerRef.current,
         estimateSize: useCallback((index: number) => {
             const row = table.getRowModel().rows[index]?.original;
-            if (!row) return 52;
+            if (!row) return 44;
             return row.isExpanded && row.children ? 
-                52 + (row.children.length * 44) : 52;
+                44 + (row.children.length * 36) : 44;
         }, [table]),
         overscan: 5,
         paddingStart: 0,
@@ -436,13 +436,13 @@ const FrameTable: React.FC = () => {
     return (
         <div className="h-full w-full flex flex-col bg-base-100 rounded-lg shadow-sm border border-base-200">
             {/* 固定表头 */}
-            <div className="flex-none sticky top-0 z-20 bg-base-200 border-b border-base-200 shadow-sm w-full">
+            <div className="flex-none sticky top-0 z-20 bg-base-200 border-b border-base-200 w-full">
                 <div className="overflow-auto w-full">
                     <div className="grid w-full" style={{ gridTemplateColumns: '15% 20% minmax(45%, 1fr) 20%' }}>
                         {table.getHeaderGroups().map(headerGroup => (
                             headerGroup.headers.map(header => (
-                                <div key={header.id} className="px-3 py-2 text-sm font-semibold">
-                                    <div className="flex items-center justify-between gap-2 select-none">
+                                <div key={header.id} className="px-2 py-2 text-xs font-medium">
+                                    <div className="flex items-center justify-between gap-1 select-none">
                                         <div
                                             className={clsx(
                                                 "flex items-center gap-1 truncate",
@@ -458,11 +458,11 @@ const FrameTable: React.FC = () => {
                                             </span>
                                             <span className="flex-shrink-0">
                                                 {{
-                                                    asc: <SortAsc className="w-4 h-4" />,
-                                                    desc: <SortDesc className="w-4 h-4" />,
+                                                    asc: <SortAsc className="w-3 h-3" />,
+                                                    desc: <SortDesc className="w-3 h-3" />,
                                                 }[header.column.getIsSorted() as string] ?? (
                                                     header.column.getCanSort() ? (
-                                                        <ArrowUpDown className="w-4 h-4 opacity-30" />
+                                                        <ArrowUpDown className="w-3 h-3 opacity-30" />
                                                     ) : null
                                                 )}
                                             </span>
@@ -472,7 +472,7 @@ const FrameTable: React.FC = () => {
                                             <button
                                                 ref={el => filterButtonRefs.current[header.column.id] = el}
                                                 className={clsx(
-                                                    "btn btn-ghost btn-xs btn-circle flex-shrink-0",
+                                                    "btn btn-ghost btn-xs btn-circle flex-shrink-0 w-5 h-5 min-h-0",
                                                     header.column.getIsFiltered() && "text-primary",
                                                     activeFilterPanel === header.column.id && "bg-base-300"
                                                 )}
@@ -512,7 +512,7 @@ const FrameTable: React.FC = () => {
                         const row = table.getRowModel().rows[virtualRow.index].original;
                         const isSelected = selectedRows.includes(row.uniqueId);
                         const rowHeight = row.isExpanded && row.children ? 
-                            52 + (row.children.length * 44) : 52;
+                            44 + (row.children.length * 36) : 44;
 
                         return (
                             <div 
@@ -526,15 +526,15 @@ const FrameTable: React.FC = () => {
                             >
                                 <div
                                     className={clsx(
-                                        'grid w-full h-[52px]',
-                                        isSelected ? 'bg-primary/10 hover:bg-primary/20 border-l-4 border-l-primary' : 'hover:bg-base-200'
+                                        'grid w-full h-[44px]',
+                                        isSelected ? 'bg-primary/10 hover:bg-primary/20 border-l-4 border-l-primary' : 'border-l-4 border-l-transparent hover:bg-base-200'
                                     )}
                                     style={{ gridTemplateColumns: '15% 20% minmax(45%, 1fr) 20%' }}
                                     onClick={(e) => handleRowSelect(row.uniqueId, e)}
                                     onDoubleClick={(e) => handleRowDoubleClick(row.uniqueId, e)}
                                 >
-                                    <div className="px-3 py-2 font-mono flex items-center select-none truncate">{row.da}</div>
-                                    <div className="px-3 py-2 font-mono flex items-center select-none truncate">
+                                    <div className="px-3 py-1.5 font-mono flex items-center select-none truncate">{row.da}</div>
+                                    <div className="px-3 py-1.5 font-mono flex items-center select-none truncate">
                                         <div className="flex items-center gap-2 min-w-0 w-full">
                                             {row.children && row.children.length > 0 && (
                                                 <span className="text-base-content/70 flex-shrink-0">
@@ -547,8 +547,8 @@ const FrameTable: React.FC = () => {
                                             <span className="truncate">{row.di}</span>
                                         </div>
                                     </div>
-                                    <div className="px-3 py-2 font-mono flex items-center select-none truncate">{row.content}</div>
-                                    <div className="px-3 py-2 font-mono flex items-center select-none truncate">{row.time || '-'}</div>
+                                    <div className="px-3 py-1.5 font-mono flex items-center select-none truncate">{row.content}</div>
+                                    <div className="px-3 py-1.5 font-mono flex items-center select-none truncate">{row.time || '-'}</div>
                                 </div>
 
                                 {row.isExpanded && row.children && (
@@ -557,18 +557,18 @@ const FrameTable: React.FC = () => {
                                             <div
                                                 key={`${row.uniqueId}-${childIndex}`}
                                                 className={clsx(
-                                                    'grid w-full h-[44px]',
-                                                    isSelected ? 'bg-primary/5 border-l-4 border-l-primary' : 'bg-base-100/50'
+                                                    'grid w-full h-[36px]',
+                                                    isSelected ? 'bg-primary/5 border-l-4 border-l-primary' : 'border-l-4 border-l-transparent bg-base-100/50'
                                                 )}
                                                 style={{ gridTemplateColumns: '15% 20% minmax(45%, 1fr) 20%' }}
                                                 onClick={(e) => e.stopPropagation()}
                                             >
-                                                <div className="px-3 py-2 flex items-center select-none truncate">
-                                                    <div className="w-4 h-4 ml-4 border-l-2 border-b-2 border-base-300 rounded-bl-lg flex-shrink-0"></div>
+                                                <div className="px-3 py-1 flex items-center select-none truncate">
+                                                    <div className="w-3 h-3 ml-4 border-l-2 border-b-2 border-base-300 rounded-bl-lg flex-shrink-0"></div>
                                                 </div>
-                                                <div className="px-3 py-2 pl-6 font-mono text-xs flex items-center select-none truncate">{child.frameDomain}</div>
-                                                <div className="px-3 py-2 font-mono text-xs flex items-center select-none truncate">{child.data}</div>
-                                                <div className="px-3 py-2 font-mono text-xs flex items-center select-none truncate">{child.description}</div>
+                                                <div className="px-3 py-1 pl-6 font-mono text-xs flex items-center select-none truncate">{child.frameDomain}</div>
+                                                <div className="px-3 py-1 font-mono text-xs flex items-center select-none truncate">{child.data}</div>
+                                                <div className="px-3 py-1 font-mono text-xs flex items-center select-none truncate">{child.description}</div>
                                             </div>
                                         ))}
                                     </div>

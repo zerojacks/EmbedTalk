@@ -41,6 +41,7 @@ interface FrameExtractorState {
     messages: FrameMessage[];
     extractedData: ExtractedData[];
     isLoading: boolean;
+    parsingMessageIds: string[]; // 新增：正在解析的报文ID列表
     error: string | null;
     currentEditingMessage: {
         id: string | null;
@@ -75,6 +76,7 @@ const initialState: FrameExtractorState = {
     messages: [],
     extractedData: [],
     isLoading: false,
+    parsingMessageIds: [], // 新增：初始化为空数组
     error: null,
     currentEditingMessage: {
         id: null,
@@ -105,10 +107,10 @@ export const FILTER_TYPE_LABELS: Record<FilterType, string> = {
 // 异步 thunks
 export const parseFrameMessage = createAsyncThunk(
     'frameExtractor/parseFrameMessage',
-    async (message: string, { rejectWithValue }) => {
+    async (message: { id: string; content: string }, { rejectWithValue }) => {
         try {
             // 格式化报文内容
-            const formattedValue = message
+            const formattedValue = message.content
                 .replace(/\s+/g, '')
                 .replace(/(.{2})/g, '$1 ')
                 .trim()
@@ -123,7 +125,7 @@ export const parseFrameMessage = createAsyncThunk(
                 return rejectWithValue(`解析报文失败：${result.error}`);
             }
 
-            return result.data;
+            return { id: message.id, data: result.data };
         } catch (error) {
             return rejectWithValue(error instanceof Error ? error.message : '未知错误');
         }
@@ -145,8 +147,11 @@ export const parseSelectedMessages = createAsyncThunk(
             
             // 为每个选中的消息创建一个解析任务
             for (const messageItem of selectedMessages) {
-                const result = await dispatch(parseFrameMessage(messageItem.message)).unwrap();
-                results.push(result);
+                const result = await dispatch(parseFrameMessage({
+                    id: messageItem.id,
+                    content: messageItem.message
+                })).unwrap();
+                results.push(result.data);
             }
             
             return results;
@@ -171,8 +176,11 @@ export const parseAllMessages = createAsyncThunk(
             
             // 为每个消息创建一个解析任务
             for (const messageItem of messages) {
-                const result = await dispatch(parseFrameMessage(messageItem.message)).unwrap();
-                results.push(result);
+                const result = await dispatch(parseFrameMessage({
+                    id: messageItem.id,
+                    content: messageItem.message
+                })).unwrap();
+                results.push(result.data);
             }
             
             return results;
@@ -455,25 +463,41 @@ const frameExtractorSlice = createSlice({
         clearSelectedMessages: (state) => {
             state.messages.forEach(msg => msg.selected = false);
         },
+
+        // 新增：添加正在解析的报文ID
+        addParsingMessageId: (state, action: PayloadAction<string>) => {
+            if (!state.parsingMessageIds.includes(action.payload)) {
+                state.parsingMessageIds.push(action.payload);
+            }
+        },
+        // 新增：移除已完成解析的报文ID
+        removeParsingMessageId: (state, action: PayloadAction<string>) => {
+            state.parsingMessageIds = state.parsingMessageIds.filter(id => id !== action.payload);
+        },
     },
     extraReducers: (builder) => {
         // 处理单条报文解析
         builder
-            .addCase(parseFrameMessage.pending, (state) => {
-                state.isLoading = true;
+            .addCase(parseFrameMessage.pending, (state, action) => {
+                const messageId = (action.meta.arg as { id: string }).id;
+                if (!state.parsingMessageIds.includes(messageId)) {
+                    state.parsingMessageIds.push(messageId);
+                }
                 state.error = null;
             })
             .addCase(parseFrameMessage.fulfilled, (state, action) => {
-                state.isLoading = false;
+                const messageId = action.payload.id;
+                state.parsingMessageIds = state.parsingMessageIds.filter(id => id !== messageId);
                 // 解析并更新 extractedData，同时清空选中的行和过滤条件
-                const extracted = extractData(action.payload);
+                const extracted = extractData(action.payload.data);
                 state.extractedData = extracted;
                 state.ui.selectedRows = [];
                 state.ui.lastSelectedRow = null;
                 state.ui.columnFilters = [];
             })
             .addCase(parseFrameMessage.rejected, (state, action) => {
-                state.isLoading = false;
+                const messageId = (action.meta.arg as { id: string }).id;
+                state.parsingMessageIds = state.parsingMessageIds.filter(id => id !== messageId);
                 state.error = action.payload as string || "解析报文失败";
             });
         
@@ -560,7 +584,9 @@ export const {
     setExportLoading,
     selectMessage,
     deleteSelectedMessages,
-    clearSelectedMessages
+    clearSelectedMessages,
+    addParsingMessageId,
+    removeParsingMessageId,
 } = frameExtractorSlice.actions;
 
 // 导出reducer
