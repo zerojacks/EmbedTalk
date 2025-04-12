@@ -238,13 +238,13 @@ const FrameTable: React.FC = () => {
     const openFilterPanel = (columnId: string, buttonElement: HTMLElement) => {
         // 查找现有过滤器
         const existingFilter = columnFilters.find(f => f.id === columnId);
-        
+
         // 计算面板位置
         const buttonRect = buttonElement.getBoundingClientRect();
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
+                const windowWidth = window.innerWidth;
+                const windowHeight = window.innerHeight;
         const panelWidth = 300;
-        const panelHeight = 260; // 预估的面板高度
+                const panelHeight = 260; // 预估的面板高度
 
         // 计算水平位置
         let left: number | 'auto' = buttonRect.left;
@@ -322,7 +322,7 @@ const FrameTable: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <div className="text-sm flex items-center">
                             显示 <span className="font-semibold">{table.getFilteredRowModel().rows.length}</span> 条结果
-                            {selectedRows.length > 0 && <span>，已选择 <span className="font-semibold text-primary">{selectedRows.length}</span> 条</span>}
+                        {selectedRows.length > 0 && <span>，已选择 <span className="font-semibold text-primary">{selectedRows.length}</span> 条</span>}
                         </div>
                         {columnFilters.length > 0 && (
                             <div className="flex items-center gap-2 text-sm">
@@ -366,7 +366,7 @@ const FrameTable: React.FC = () => {
 
             <div className="relative flex-1 overflow-auto">
                 <div className="overflow-x-auto">
-                    <table className="table table-zebra w-full">
+                <table className="table table-zebra w-full">
                         <colgroup>
                             <col style={{ width: '20%' }} />
                             <col style={{ width: '20%' }} />
@@ -375,7 +375,7 @@ const FrameTable: React.FC = () => {
                         </colgroup>
                         <thead className="sticky top-0 z-20 bg-base-200">
                             <tr>
-                                {table.getHeaderGroups().map(headerGroup => (
+                        {table.getHeaderGroups().map(headerGroup => (
                                     headerGroup.headers.map(header => (
                                         <th key={header.id} className="relative bg-base-200">
                                             <div className="flex items-center justify-between gap-2 select-none">
@@ -395,144 +395,144 @@ const FrameTable: React.FC = () => {
                                                         desc: <SortDesc className="w-4 h-4" />,
                                                     }[header.column.getIsSorted() as string] ?? (
                                                         header.column.getCanSort() ? (
-                                                            <ArrowUpDown className="w-4 h-4 opacity-30" />
+                                                                <ArrowUpDown className="w-4 h-4 opacity-30" />
                                                         ) : null
                                                     )}
                                                 </div>
 
                                                 {header.column.getCanFilter() && (
-                                                    <button
+                                                        <button
                                                         ref={el => filterButtonRefs.current[header.column.id] = el}
                                                         className={clsx(
                                                             "btn btn-ghost btn-xs btn-circle",
                                                             header.column.getIsFiltered() && "text-primary",
                                                             activeFilterPanel === header.column.id && "bg-base-300"
                                                         )}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
                                                             const buttonEl = filterButtonRefs.current[header.column.id];
                                                             if (buttonEl) {
                                                                 openFilterPanel(header.column.id, buttonEl);
                                                             }
-                                                        }}
-                                                        title="过滤"
+                                                            }}
+                                                            title="过滤"
                                                     >
                                                         <FilterIcon className="w-3 h-3" />
-                                                    </button>
+                                                                                </button>
                                                 )}
                                             </div>
                                         </th>
                                     ))
                                 ))}
                             </tr>
-                        </thead>
+                    </thead>
 
-                        <tbody>
-                            {table.getRowModel().rows.length ? (
-                                table.getRowModel().rows.map(row => {
-                                    const item = row.original;
-                                    const isSelected = selectedRows.includes(item.uniqueId);
+                    <tbody>
+                        {table.getRowModel().rows.length ? (
+                            table.getRowModel().rows.map(row => {
+                                const item = row.original;
+                                const isSelected = selectedRows.includes(item.uniqueId);
 
-                                    return (
-                                        <React.Fragment key={item.uniqueId}>
-                                            <tr
-                                                className={`transition-colors cursor-pointer select-none
-                                                        ${isSelected ? 'bg-primary/10 hover:bg-primary/20 border-l-4 border-primary'
-                                                        : 'hover:bg-base-200'
-                                                    }
-                                                `}
-                                                onClick={(e) => handleRowSelect(item.uniqueId, e)}
-                                                onDoubleClick={(e) => handleRowDoubleClick(item.uniqueId, e)}
-                                            >
-                                                {row.getVisibleCells().map((cell, cellIndex) => {
-                                                    return (
-                                                        <td key={cell.id} className="font-mono">
-                                                            {cellIndex === 1 && item.children && item.children.length > 0 ? (
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-base-content/70">
-                                                                        {item.isExpanded
-                                                                            ? <ChevronDown className="w-4 h-4" />
-                                                                            : <ChevronRight className="w-4 h-4" />
-                                                                        }
-                                                                    </span>
-                                                                    {flexRender(
-                                                                        cell.column.columnDef.cell,
-                                                                        cell.getContext()
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                flexRender(
+                                return (
+                                    <React.Fragment key={item.uniqueId}>
+                                        <tr
+                                            className={`transition-colors cursor-pointer select-none
+                                                    ${isSelected ? 'bg-primary/10 hover:bg-primary/20 border-l-4 border-primary'
+                                                    : 'hover:bg-base-200'
+                                                }
+                                            `}
+                                            onClick={(e) => handleRowSelect(item.uniqueId, e)}
+                                            onDoubleClick={(e) => handleRowDoubleClick(item.uniqueId, e)}
+                                        >
+                                            {row.getVisibleCells().map((cell, cellIndex) => {
+                                                return (
+                                                    <td key={cell.id} className="font-mono">
+                                                        {cellIndex === 1 && item.children && item.children.length > 0 ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-base-content/70">
+                                                                    {item.isExpanded
+                                                                        ? <ChevronDown className="w-4 h-4" />
+                                                                        : <ChevronRight className="w-4 h-4" />
+                                                                    }
+                                                                </span>
+                                                                {flexRender(
                                                                     cell.column.columnDef.cell,
                                                                     cell.getContext()
-                                                                )
-                                                            )}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                                flexRender(
+                                                                cell.column.columnDef.cell,
+                                                                cell.getContext()
+                                                            )
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
 
-                                            {/* 展开的详情行 */}
-                                            {item.isExpanded && item.children && item.children.map((child, childIndex) => (
-                                                <tr
-                                                    key={`${item.uniqueId}-${childIndex}`}
-                                                    className={`
-                                  select-none border-t border-base-200/30
-                                  ${isSelected
+                                        {/* 展开的详情行 */}
+                                        {item.isExpanded && item.children && item.children.map((child, childIndex) => (
+                                            <tr
+                                                key={`${item.uniqueId}-${childIndex}`}
+                                                className={`
+                                                        select-none border-t border-base-200/30
+                                                        ${isSelected
                                                         ? 'bg-primary/5 border-l-4 border-l-primary'
                                                         : 'bg-base-100/50'
                                                     }
-                                                  `}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    <td className="w-8">
-                                                        <div className="w-4 h-4 ml-4 border-l-2 border-b-2 border-base-300 rounded-bl-lg"></div>
-                                                    </td>
-                                                    <td className="pl-6 font-mono text-xs">{child.frameDomain}</td>
-                                                    <td className="font-mono text-xs">{child.data}</td>
-                                                    <td className="font-mono text-xs">{child.description}</td>
-                                                </tr>
-                                            ))}
-                                        </React.Fragment>
-                                    );
-                                })
-                            ) : (
-                                <tr>
-                                    <td colSpan={4} className="text-center py-12">
-                                        {isLoading ? (
-                                            <div className="flex flex-col items-center gap-2">
-                                                <span className="loading loading-spinner loading-md"></span>
-                                                <span className="text-base-content/70">正在加载数据...</span>
-                                            </div>
-                                        ) : extractedData.length > 0 ? (
-                                            <div className="flex flex-col items-center gap-2 text-base-content/70">
-                                                <FilterIcon className="w-12 h-12 opacity-30" />
-                                                <p>没有符合过滤条件的数据</p>
-                                                <button
-                                                    className="btn btn-sm btn-ghost mt-2"
-                                                    onClick={() => dispatch(clearAllFilters())}
-                                                >
-                                                    清除所有过滤器
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex flex-col items-center gap-2 text-base-content/70">
-                                                <MessageSquarePlus className="w-12 h-12 opacity-30" />
-                                                <p>暂无数据，请添加并解析报文</p>
-                                                <button
-                                                    className="btn btn-sm btn-primary mt-2"
-                                                    onClick={() => dispatch(setDialogOpen(true))}
-                                                >
-                                                    <PlusIcon className="w-4 h-4 mr-1" />
-                                                    添加报文
-                                                </button>
-                                            </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                                `}
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <td className="w-8">
+                                                    <div className="w-4 h-4 ml-4 border-l-2 border-b-2 border-base-300 rounded-bl-lg"></div>
+                                                </td>
+                                                <td className="pl-6 font-mono text-xs">{child.frameDomain}</td>
+                                                <td className="font-mono text-xs">{child.data}</td>
+                                                <td className="font-mono text-xs">{child.description}</td>
+                                            </tr>
+                                        ))}
+                                    </React.Fragment>
+                                );
+                            })
+                        ) : (
+                            <tr>
+                                <td colSpan={4} className="text-center py-12">
+                                    {isLoading ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <span className="loading loading-spinner loading-md"></span>
+                                            <span className="text-base-content/70">正在加载数据...</span>
+                                        </div>
+                                    ) : extractedData.length > 0 ? (
+                                        <div className="flex flex-col items-center gap-2 text-base-content/70">
+                                            <FilterIcon className="w-12 h-12 opacity-30" />
+                                            <p>没有符合过滤条件的数据</p>
+                                            <button
+                                                className="btn btn-sm btn-ghost mt-2"
+                                                onClick={() => dispatch(clearAllFilters())}
+                                            >
+                                                清除所有过滤器
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-2 text-base-content/70">
+                                            <MessageSquarePlus className="w-12 h-12 opacity-30" />
+                                            <p>暂无数据，请添加并解析报文</p>
+                                            <button
+                                                className="btn btn-sm btn-primary mt-2"
+                                                onClick={() => dispatch(setDialogOpen(true))}
+                                            >
+                                                <PlusIcon className="w-4 h-4 mr-1" />
+                                                添加报文
+                                            </button>
+                                        </div>
+                                    )}
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
             </div>
 
             {/* 过滤面板 */}

@@ -228,10 +228,7 @@ const MessageDialog: React.FC = () => {
                                 <div className="overflow-x-auto max-h-[50vh] overflow-y-auto">
                                     <table className="table table-compact w-full table-fixed">
                                         <colgroup>
-                                            <col className="w-10" />
-                                            <col className="w-12" />
-                                            <col /> {/* 自动占用剩余宽度 */}
-                                            <col className="w-28" />
+                                            <col className="w-10" /><col className="w-12" /><col /><col className="w-28" />
                                         </colgroup>
                                         <thead className="sticky top-0 bg-base-200 z-10">
                                             <tr className="bg-base-200/30">
