@@ -1,5 +1,5 @@
 // src/components/frameExtractor/FrameTable.tsx
-import React, { useRef } from 'react';
+import React, { useRef, useCallback, memo } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     setActiveFilterPanel,
@@ -27,10 +27,83 @@ import {
     SortingState,
     ColumnFiltersState
 } from '@tanstack/react-table';
+import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
 import { ExtractedData, FilterValue, FILTER_TYPE_LABELS } from '../../store/slices/frameExtractorSlice';
 import FilterBadge from './FilterBadge';
 import clsx from 'clsx';
 import FilterPanel from './FilterPanel';
+
+// 表格行组件
+const TableRow = memo(({ 
+    row, 
+    isSelected, 
+    onSelect, 
+    onDoubleClick, 
+    isLoading,
+    style 
+}: { 
+    row: ExtractedData;
+    isSelected: boolean;
+    onSelect: (uniqueId: string, event: React.MouseEvent) => void;
+    onDoubleClick: (uniqueId: string, event: React.MouseEvent) => void;
+    isLoading: boolean;
+    style?: React.CSSProperties;
+}) => {
+    return (
+        <div className="contents" style={style}>
+            <tr
+                className={`transition-colors cursor-pointer select-none
+                    ${isSelected ? 'bg-primary/10 hover:bg-primary/20 border-l-4 border-l-primary'
+                    : 'hover:bg-base-200'
+                    }
+                `}
+                onClick={(e) => onSelect(row.uniqueId, e)}
+                onDoubleClick={(e) => onDoubleClick(row.uniqueId, e)}
+            >
+                <td className="font-mono">{row.da}</td>
+                <td className="font-mono">
+                    <div className="flex items-center gap-2">
+                        {row.children && row.children.length > 0 && (
+                            <span className="text-base-content/70">
+                                {row.isExpanded
+                                    ? <ChevronDown className="w-4 h-4" />
+                                    : <ChevronRight className="w-4 h-4" />
+                                }
+                            </span>
+                        )}
+                        {row.di}
+                    </div>
+                </td>
+                <td className="font-mono">{row.content}</td>
+                <td className="font-mono">{row.time || '-'}</td>
+            </tr>
+
+            {/* 展开的详情行 */}
+            {row.isExpanded && row.children && row.children.map((child, childIndex) => (
+                <tr
+                    key={`${row.uniqueId}-${childIndex}`}
+                    className={`
+                        select-none border-t border-base-200/30
+                        ${isSelected
+                            ? 'bg-primary/5 border-l-4 border-l-primary'
+                            : 'bg-base-100/50'
+                        }
+                    `}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <td className="w-8">
+                        <div className="w-4 h-4 ml-4 border-l-2 border-b-2 border-base-300 rounded-bl-lg"></div>
+                    </td>
+                    <td className="pl-6 font-mono text-xs">{child.frameDomain}</td>
+                    <td className="font-mono text-xs">{child.data}</td>
+                    <td className="font-mono text-xs">{child.description}</td>
+                </tr>
+            ))}
+        </div>
+    );
+});
+
+TableRow.displayName = 'TableRow';
 
 const FrameTable: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -225,6 +298,10 @@ const FrameTable: React.FC = () => {
         event.stopPropagation();
         // 双击展开/收起子项
         dispatch(toggleRowExpand(uniqueId));
+        // 强制重新计算虚拟滚动
+        setTimeout(() => {
+            rowVirtualizer.measure();
+        }, 0);
     };
 
     // 过滤面板位置状态
@@ -314,6 +391,45 @@ const FrameTable: React.FC = () => {
         setFilterPanelPosition(null);
     };
 
+    // 计算每行的实际高度（包括可能的子行）
+    const getRowHeight = useCallback((row: ExtractedData) => {
+        const baseHeight = 52; // 基础行高
+        const childHeight = 44; // 子行高度
+        if (row.isExpanded && row.children) {
+            return baseHeight + (row.children.length * childHeight);
+        }
+        return baseHeight;
+    }, []);
+
+    // 表格容器引用
+    const tableContainerRef = useRef<HTMLDivElement>(null);
+
+    // 创建虚拟滚动实例
+    const rowVirtualizer = useVirtualizer({
+        count: table.getRowModel().rows.length,
+        getScrollElement: () => tableContainerRef.current,
+        estimateSize: useCallback((index: number) => {
+            const row = table.getRowModel().rows[index]?.original;
+            if (!row) return 52;
+            return row.isExpanded && row.children ? 
+                52 + (row.children.length * 44) : 52;
+        }, [table]),
+        overscan: 5,
+        paddingStart: 0,
+        paddingEnd: 0,
+        scrollPaddingStart: 0,
+        scrollPaddingEnd: 0,
+        getItemKey: useCallback((index: number) => {
+            const row = table.getRowModel().rows[index]?.original;
+            return row?.uniqueId || index;
+        }, [table])
+    });
+
+    const paddingTop = rowVirtualizer.getVirtualItems().length > 0 ? rowVirtualizer.getVirtualItems()?.[0]?.start || 0 : 0;
+    const paddingBottom = rowVirtualizer.getVirtualItems().length > 0
+        ? rowVirtualizer.getTotalSize() - (rowVirtualizer.getVirtualItems()?.[rowVirtualizer.getVirtualItems().length - 1]?.end || 0)
+        : 0;
+
     return (
         <div className="flex-1 flex flex-col min-h-0 bg-base-100 rounded-lg shadow-sm border border-base-200 overflow-hidden">
             {/* 表格工具栏 */}
@@ -364,175 +480,145 @@ const FrameTable: React.FC = () => {
                 </div>
             </div>
 
-            <div className="relative flex-1 overflow-auto">
-                <div className="overflow-x-auto">
-                <table className="table table-zebra w-full">
-                        <colgroup>
-                            <col style={{ width: '20%' }} />
-                            <col style={{ width: '20%' }} />
-                            <col style={{ width: '40%' }} />
-                            <col style={{ width: '20%' }} />
-                        </colgroup>
-                        <thead className="sticky top-0 z-20 bg-base-200">
-                            <tr>
+            <div className="relative flex-1 flex flex-col overflow-hidden">
+                {/* 固定表头 */}
+                <div className="sticky top-0 z-20 bg-base-200 w-full border-b border-base-200 shadow-sm">
+                    <div className="grid grid-cols-4 w-full">
                         {table.getHeaderGroups().map(headerGroup => (
-                                    headerGroup.headers.map(header => (
-                                        <th key={header.id} className="relative bg-base-200">
-                                            <div className="flex items-center justify-between gap-2 select-none">
-                                                <div
-                                                    className={clsx(
-                                                        "flex items-center gap-1",
-                                                        header.column.getCanSort() && "cursor-pointer hover:bg-base-300"
-                                                    )}
-                                                    onClick={header.column.getToggleSortingHandler()}
-                                                >
-                                                    {flexRender(
-                                                        header.column.columnDef.header,
-                                                        header.getContext()
-                                                    )}
-                                                    {{
-                                                        asc: <SortAsc className="w-4 h-4" />,
-                                                        desc: <SortDesc className="w-4 h-4" />,
-                                                    }[header.column.getIsSorted() as string] ?? (
-                                                        header.column.getCanSort() ? (
-                                                                <ArrowUpDown className="w-4 h-4 opacity-30" />
-                                                        ) : null
-                                                    )}
-                                                </div>
-
-                                                {header.column.getCanFilter() && (
-                                                        <button
-                                                        ref={el => filterButtonRefs.current[header.column.id] = el}
-                                                        className={clsx(
-                                                            "btn btn-ghost btn-xs btn-circle",
-                                                            header.column.getIsFiltered() && "text-primary",
-                                                            activeFilterPanel === header.column.id && "bg-base-300"
-                                                        )}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                            const buttonEl = filterButtonRefs.current[header.column.id];
-                                                            if (buttonEl) {
-                                                                openFilterPanel(header.column.id, buttonEl);
-                                                            }
-                                                            }}
-                                                            title="过滤"
-                                                    >
-                                                        <FilterIcon className="w-3 h-3" />
-                                                                                </button>
-                                                )}
-                                            </div>
-                                        </th>
-                                    ))
-                                ))}
-                            </tr>
-                    </thead>
-
-                    <tbody>
-                        {table.getRowModel().rows.length ? (
-                            table.getRowModel().rows.map(row => {
-                                const item = row.original;
-                                const isSelected = selectedRows.includes(item.uniqueId);
-
-                                return (
-                                    <React.Fragment key={item.uniqueId}>
-                                        <tr
-                                            className={`transition-colors cursor-pointer select-none
-                                                    ${isSelected ? 'bg-primary/10 hover:bg-primary/20 border-l-4 border-primary'
-                                                    : 'hover:bg-base-200'
-                                                }
-                                            `}
-                                            onClick={(e) => handleRowSelect(item.uniqueId, e)}
-                                            onDoubleClick={(e) => handleRowDoubleClick(item.uniqueId, e)}
+                            headerGroup.headers.map(header => (
+                                <div key={header.id} className="px-4 py-3 text-sm font-semibold">
+                                    <div className="flex items-center justify-between gap-2 select-none">
+                                        <div
+                                            className={clsx(
+                                                "flex items-center gap-1",
+                                                header.column.getCanSort() && "cursor-pointer hover:bg-base-300"
+                                            )}
+                                            onClick={header.column.getToggleSortingHandler()}
                                         >
-                                            {row.getVisibleCells().map((cell, cellIndex) => {
-                                                return (
-                                                    <td key={cell.id} className="font-mono">
-                                                        {cellIndex === 1 && item.children && item.children.length > 0 ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-base-content/70">
-                                                                    {item.isExpanded
-                                                                        ? <ChevronDown className="w-4 h-4" />
-                                                                        : <ChevronRight className="w-4 h-4" />
-                                                                    }
-                                                                </span>
-                                                                {flexRender(
-                                                                    cell.column.columnDef.cell,
-                                                                    cell.getContext()
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                                flexRender(
-                                                                cell.column.columnDef.cell,
-                                                                cell.getContext()
-                                                            )
-                                                        )}
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
+                                            {flexRender(
+                                                header.column.columnDef.header,
+                                                header.getContext()
+                                            )}
+                                            {{
+                                                asc: <SortAsc className="w-4 h-4" />,
+                                                desc: <SortDesc className="w-4 h-4" />,
+                                            }[header.column.getIsSorted() as string] ?? (
+                                                header.column.getCanSort() ? (
+                                                    <ArrowUpDown className="w-4 h-4 opacity-30" />
+                                                ) : null
+                                            )}
+                                        </div>
 
-                                        {/* 展开的详情行 */}
-                                        {item.isExpanded && item.children && item.children.map((child, childIndex) => (
-                                            <tr
-                                                key={`${item.uniqueId}-${childIndex}`}
-                                                className={`
-                                                        select-none border-t border-base-200/30
-                                                        ${isSelected
-                                                        ? 'bg-primary/5 border-l-4 border-l-primary'
-                                                        : 'bg-base-100/50'
+                                        {header.column.getCanFilter() && (
+                                            <button
+                                                ref={el => filterButtonRefs.current[header.column.id] = el}
+                                                className={clsx(
+                                                    "btn btn-ghost btn-xs btn-circle",
+                                                    header.column.getIsFiltered() && "text-primary",
+                                                    activeFilterPanel === header.column.id && "bg-base-300"
+                                                )}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const buttonEl = filterButtonRefs.current[header.column.id];
+                                                    if (buttonEl) {
+                                                        openFilterPanel(header.column.id, buttonEl);
                                                     }
-                                                `}
-                                                onClick={(e) => e.stopPropagation()}
+                                                }}
+                                                title="过滤"
                                             >
-                                                <td className="w-8">
-                                                    <div className="w-4 h-4 ml-4 border-l-2 border-b-2 border-base-300 rounded-bl-lg"></div>
-                                                </td>
-                                                <td className="pl-6 font-mono text-xs">{child.frameDomain}</td>
-                                                <td className="font-mono text-xs">{child.data}</td>
-                                                <td className="font-mono text-xs">{child.description}</td>
-                                            </tr>
-                                        ))}
-                                    </React.Fragment>
-                                );
-                            })
-                        ) : (
-                            <tr>
-                                <td colSpan={4} className="text-center py-12">
-                                    {isLoading ? (
-                                        <div className="flex flex-col items-center gap-2">
-                                            <span className="loading loading-spinner loading-md"></span>
-                                            <span className="text-base-content/70">正在加载数据...</span>
-                                        </div>
-                                    ) : extractedData.length > 0 ? (
-                                        <div className="flex flex-col items-center gap-2 text-base-content/70">
-                                            <FilterIcon className="w-12 h-12 opacity-30" />
-                                            <p>没有符合过滤条件的数据</p>
-                                            <button
-                                                className="btn btn-sm btn-ghost mt-2"
-                                                onClick={() => dispatch(clearAllFilters())}
-                                            >
-                                                清除所有过滤器
+                                                <FilterIcon className="w-3 h-3" />
                                             </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        ))}
+                    </div>
+                </div>
+
+                {/* 表格内容区域 */}
+                <div 
+                    className="flex-1 overflow-auto" 
+                    ref={tableContainerRef}
+                >
+                    <div 
+                        style={{
+                            height: `${rowVirtualizer.getTotalSize()}px`,
+                            width: '100%',
+                            position: 'relative'
+                        }}
+                    >
+                        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                            const row = table.getRowModel().rows[virtualRow.index].original;
+                            const isSelected = selectedRows.includes(row.uniqueId);
+                            const rowHeight = row.isExpanded && row.children ? 
+                                52 + (row.children.length * 44) : 52;
+
+                            return (
+                                <div 
+                                    key={row.uniqueId} 
+                                    data-index={virtualRow.index}
+                                    style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        height: `${rowHeight}px`,
+                                        transform: `translateY(${virtualRow.start}px)`,
+                                    }}
+                                >
+                                    <div
+                                        className={clsx(
+                                            'grid grid-cols-4 h-[52px]',
+                                            isSelected ? 'bg-primary/10 hover:bg-primary/20 border-l-4 border-l-primary' : 'hover:bg-base-200'
+                                        )}
+                                        onClick={(e) => handleRowSelect(row.uniqueId, e)}
+                                        onDoubleClick={(e) => handleRowDoubleClick(row.uniqueId, e)}
+                                    >
+                                        <div className="px-4 py-3 font-mono flex items-center select-none truncate">{row.da}</div>
+                                        <div className="px-4 py-3 font-mono flex items-center select-none truncate">
+                                            <div className="flex items-center gap-2 min-w-0 w-full">
+                                                {row.children && row.children.length > 0 && (
+                                                    <span className="text-base-content/70 flex-shrink-0">
+                                                        {row.isExpanded
+                                                            ? <ChevronDown className="w-4 h-4" />
+                                                            : <ChevronRight className="w-4 h-4" />
+                                                        }
+                                                    </span>
+                                                )}
+                                                <span className="truncate">{row.di}</span>
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center gap-2 text-base-content/70">
-                                            <MessageSquarePlus className="w-12 h-12 opacity-30" />
-                                            <p>暂无数据，请添加并解析报文</p>
-                                            <button
-                                                className="btn btn-sm btn-primary mt-2"
-                                                onClick={() => dispatch(setDialogOpen(true))}
-                                            >
-                                                <PlusIcon className="w-4 h-4 mr-1" />
-                                                添加报文
-                                            </button>
+                                        <div className="px-4 py-3 font-mono flex items-center select-none truncate">{row.content}</div>
+                                        <div className="px-4 py-3 font-mono flex items-center select-none truncate">{row.time || '-'}</div>
+                                    </div>
+
+                                    {row.isExpanded && row.children && (
+                                        <div className="border-t border-base-200/30">
+                                            {row.children.map((child, childIndex) => (
+                                                <div
+                                                    key={`${row.uniqueId}-${childIndex}`}
+                                                    className={clsx(
+                                                        'grid grid-cols-4 h-[44px]',
+                                                        isSelected ? 'bg-primary/5 border-l-4 border-l-primary' : 'bg-base-100/50'
+                                                    )}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <div className="px-4 py-3 flex items-center select-none truncate">
+                                                        <div className="w-4 h-4 ml-4 border-l-2 border-b-2 border-base-300 rounded-bl-lg flex-shrink-0"></div>
+                                                    </div>
+                                                    <div className="px-4 py-3 pl-6 font-mono text-xs flex items-center select-none truncate">{child.frameDomain}</div>
+                                                    <div className="px-4 py-3 font-mono text-xs flex items-center select-none truncate">{child.data}</div>
+                                                    <div className="px-4 py-3 font-mono text-xs flex items-center select-none truncate">{child.description}</div>
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
             </div>
 
             {/* 过滤面板 */}
@@ -556,4 +642,4 @@ const FrameTable: React.FC = () => {
     );
 };
 
-export default FrameTable;
+export default memo(FrameTable);
