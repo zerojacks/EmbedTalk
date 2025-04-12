@@ -32,6 +32,9 @@ import { ExtractedData, FilterValue, FILTER_TYPE_LABELS } from '../../store/slic
 import FilterBadge from './FilterBadge';
 import clsx from 'clsx';
 import FilterPanel from './FilterPanel';
+import ContextMenu from './ContextMenu';
+import { toast } from 'react-hot-toast';
+import { FrameExtractorService } from '../../services/frameExtractorService';
 
 // 表格行组件
 const TableRow = memo(({ 
@@ -433,8 +436,92 @@ const FrameTable: React.FC = () => {
         ? rowVirtualizer.getTotalSize() - (rowVirtualizer.getVirtualItems()?.[rowVirtualizer.getVirtualItems().length - 1]?.end || 0)
         : 0;
 
+    const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number } | null>(null);
+
+    // 处理右键菜单
+    const handleContextMenu = (event: React.MouseEvent) => {
+        event.preventDefault();
+        setContextMenu({ x: event.clientX, y: event.clientY });
+    };
+
+    // 展开全部
+    const handleExpandAll = () => {
+        const collapsedIds = extractedData
+            .filter(row => row.children && row.children.length > 0 && !row.isExpanded)
+            .map(row => row.uniqueId);
+        
+        if (collapsedIds.length > 0) {
+            collapsedIds.forEach(id => {
+                dispatch(toggleRowExpand(id));
+            });
+            
+            // 强制重新计算虚拟滚动
+            setTimeout(() => {
+                rowVirtualizer.measure();
+            }, 0);
+        }
+        setContextMenu(null);
+    };
+
+    // 折叠全部
+    const handleCollapseAll = () => {
+        const expandedIds = extractedData
+            .filter(row => row.isExpanded)
+            .map(row => row.uniqueId);
+        
+        if (expandedIds.length > 0) {
+            expandedIds.forEach(id => {
+                dispatch(toggleRowExpand(id));
+            });
+            
+            // 强制重新计算虚拟滚动
+            setTimeout(() => {
+                rowVirtualizer.measure();
+            }, 0);
+        }
+        setContextMenu(null);
+    };
+
+    // 导出选中项
+    const handleExportSelected = () => {
+        const selectedData = extractedData.filter(row => selectedRows.includes(row.uniqueId));
+        if (selectedData.length === 0) return;
+
+        // 发送数据到 Worker 处理
+        const worker = new Worker(new URL('../../workers/excelWorker.ts', import.meta.url), { type: 'module' });
+        
+        worker.onmessage = async (e) => {
+            const { success, data, error } = e.data;
+
+            if (success) {
+                try {
+                    await FrameExtractorService.exportToExcel(data);
+                    toast.success("选中数据导出成功");
+                } catch (error) {
+                    console.error("保存Excel文件失败:", error);
+                    toast.error(`保存Excel文件失败: ${error instanceof Error ? error.message : '未知错误'}`);
+                }
+            } else {
+                console.error("导出Excel失败:", error);
+                toast.error(`导出Excel失败: ${error}`);
+            }
+
+            worker.terminate();
+        };
+
+        worker.postMessage({
+            rows: selectedData,
+            includeChildren: true
+        });
+
+        setContextMenu(null);
+    };
+
     return (
-        <div className="h-full w-full flex flex-col bg-base-100 rounded-lg shadow-sm border border-base-200">
+        <div 
+            className="h-full w-full flex flex-col bg-base-100 rounded-lg shadow-sm border border-base-200"
+            onContextMenu={handleContextMenu}
+        >
             {/* 固定表头 */}
             <div className="flex-none sticky top-0 z-20 bg-base-200 border-b border-base-200 w-full">
                 <div className="overflow-auto w-full">
@@ -642,6 +729,18 @@ const FrameTable: React.FC = () => {
                             closeFilterPanel();
                         }
                     }}
+                />
+            )}
+
+            {contextMenu && (
+                <ContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onClose={() => setContextMenu(null)}
+                    onExpandAll={handleExpandAll}
+                    onCollapseAll={handleCollapseAll}
+                    onExportSelected={handleExportSelected}
+                    hasSelectedRows={selectedRows.length > 0}
                 />
             )}
         </div>
