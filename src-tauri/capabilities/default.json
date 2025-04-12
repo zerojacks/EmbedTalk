@@ -111,6 +111,8 @@
     "sql:allow-close",
     "sql:allow-execute",
     "sql:allow-load",
-    "sql:allow-select"
+    "sql:allow-select",
+    "log:allow-log",
+    "log:default"
   ]
 }

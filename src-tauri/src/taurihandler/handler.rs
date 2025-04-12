@@ -557,7 +557,6 @@ pub fn parse_item_data(item: String, input: String, protocol: String, region: St
 
     let dir = Some(1);
     let mut sub_result = Vec::new();
-    let mut item_data: Vec<Value> = Vec::new();
 
     // 将数据标识和数据内容转换为字节数组
     let itemdata = FrameFun::get_frame_list_from_str(&item);
@@ -589,7 +588,7 @@ pub fn parse_item_data(item: String, input: String, protocol: String, region: St
     data_item_elem.update_value("length", sub_length.to_string());
 
     // 解析数据
-    item_data = FrameAnalisyic::prase_data(
+    let item_data = FrameAnalisyic::prase_data(
         &mut data_item_elem,
         &protocol,
         &region,

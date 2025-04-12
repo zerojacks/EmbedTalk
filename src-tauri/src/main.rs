@@ -8,9 +8,7 @@ use tauri::Manager;
 // use tauri::{CustomMenuItem, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem};
 use tauri::Emitter;
 use tracing::{error, info};
-use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::fmt::format::Writer;
-use tracing_subscriber::FmtSubscriber;
 use tracing_subscriber::{self, fmt::time::FormatTime};
 
 pub mod basefunc;
@@ -34,6 +32,7 @@ use crate::taurihandler::handler::{
 use crate::taurihandler::dlt645_handler::{
     parse_dlt645_frame, build_dlt645_frame, list_channels
 };
+use tauri_plugin_log::{Target, TargetKind};
 // 用来格式化日志的输出时间格式
 struct LocalTimer;
 
@@ -52,19 +51,6 @@ fn main() {
         eprintln!("Backtrace: {:?}", backtrace);
     }));
 
-    // 配置日志输出到文件
-    let file_appender = RollingFileAppender::new(Rotation::DAILY, "logs", "app.log");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-
-    // 初始化 tracing 日志系统
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(tracing::Level::DEBUG) // 设置最大日志级别
-        .with_writer(non_blocking) // 将日志写入文件
-        .finish();
-
-    // 设置全局 tracing subscriber
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-
     // let quit = CustomMenuItem::new("quit".to_string(), "退出");
     // let hide = CustomMenuItem::new("hide".to_string(), "隐藏窗口");
     // let tray_menu = SystemTrayMenu::new()
@@ -82,6 +68,14 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_sql::Builder::default().build())
+        .plugin(tauri_plugin_log::Builder::new()
+        .targets([
+            Target::new(TargetKind::Stdout),
+            Target::new(TargetKind::LogDir { file_name: None }),
+            Target::new(TargetKind::Webview),
+        ])
+        .build()
+        )
         .manage(WindowState::default()) // 添加窗口位置状态管理
         .setup(|app| {
             let handle = app.app_handle();
