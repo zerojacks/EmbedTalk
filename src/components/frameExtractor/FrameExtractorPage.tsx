@@ -127,7 +127,9 @@ const FrameExtractorPage: React.FC = () => {
             </div>
 
             {/* 表格部分 */}
-            <FrameTable />
+            <div className="flex-1 min-h-0 min-w-0">
+                <FrameTable />
+            </div>
 
             {/* 报文管理对话框 */}
             <MessageDialog />

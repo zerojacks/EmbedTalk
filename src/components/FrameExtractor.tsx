@@ -4,10 +4,12 @@ import { store } from '../store';
 import FrameExtractorPage from './frameExtractor/FrameExtractorPage';
 
 const FrameExtractor: React.FC = () => {
-        return (
-    <Provider store={store}>
-      <FrameExtractorPage />
-    </Provider>
+    return (
+        <Provider store={store}>
+            <div className="flex-1 min-w-0 flex">
+                <FrameExtractorPage />
+            </div>
+        </Provider>
     );
 };
 

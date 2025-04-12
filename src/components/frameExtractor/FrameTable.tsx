@@ -105,6 +105,13 @@ const TableRow = memo(({
 
 TableRow.displayName = 'TableRow';
 
+// 修改 FilterPanel 的 position 类型定义
+type FilterPanelPosition = {
+    top: number;
+    left: number | 'auto';
+    right: number | 'auto';
+};
+
 const FrameTable: React.FC = () => {
     const dispatch = useAppDispatch();
     const {
@@ -304,12 +311,8 @@ const FrameTable: React.FC = () => {
         }, 0);
     };
 
-    // 过滤面板位置状态
-    const [filterPanelPosition, setFilterPanelPosition] = React.useState<{
-        top: number;
-        left: number | 'auto';
-        right: number | 'auto';
-    } | null>(null);
+    // 修改 filterPanelPosition 的类型定义
+    const [filterPanelPosition, setFilterPanelPosition] = React.useState<FilterPanelPosition | null>(null);
 
     // 打开过滤面板
     const openFilterPanel = (columnId: string, buttonElement: HTMLElement) => {
@@ -431,9 +434,9 @@ const FrameTable: React.FC = () => {
         : 0;
 
     return (
-        <div className="flex-1 flex flex-col min-h-0 bg-base-100 rounded-lg shadow-sm border border-base-200 overflow-hidden">
+        <div className="h-full flex flex-col bg-base-100 rounded-lg shadow-sm border border-base-200">
             {/* 表格工具栏 */}
-            <div className="flex flex-col p-3 bg-base-200/50 border-b border-base-200">
+            <div className="flex-none flex flex-col p-3 bg-base-200/50 border-b border-base-200">
                 <div className="flex justify-between items-center min-h-[32px]">
                     <div className="flex items-center gap-4">
                         <div className="text-sm flex items-center">
@@ -480,72 +483,77 @@ const FrameTable: React.FC = () => {
                 </div>
             </div>
 
-            <div className="relative flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col min-h-0">
                 {/* 固定表头 */}
-                <div className="sticky top-0 z-20 bg-base-200 w-full border-b border-base-200 shadow-sm">
-                    <div className="grid grid-cols-4 w-full">
-                        {table.getHeaderGroups().map(headerGroup => (
-                            headerGroup.headers.map(header => (
-                                <div key={header.id} className="px-4 py-3 text-sm font-semibold">
-                                    <div className="flex items-center justify-between gap-2 select-none">
-                                        <div
-                                            className={clsx(
+                <div className="flex-none sticky top-0 z-20 bg-base-200 border-b border-base-200 shadow-sm">
+                    <div className="overflow-auto">
+                        <div className="grid grid-cols-4 min-w-[800px]">
+                            {table.getHeaderGroups().map(headerGroup => (
+                                headerGroup.headers.map(header => (
+                                    <div key={header.id} className="px-4 py-3 text-sm font-semibold">
+                                        <div className="flex items-center justify-between gap-2 select-none">
+                                            <div
+                                                className={clsx(
                                                 "flex items-center gap-1",
-                                                header.column.getCanSort() && "cursor-pointer hover:bg-base-300"
-                                            )}
-                                            onClick={header.column.getToggleSortingHandler()}
-                                        >
-                                            {flexRender(
-                                                header.column.columnDef.header,
-                                                header.getContext()
-                                            )}
-                                            {{
-                                                asc: <SortAsc className="w-4 h-4" />,
-                                                desc: <SortDesc className="w-4 h-4" />,
-                                            }[header.column.getIsSorted() as string] ?? (
-                                                header.column.getCanSort() ? (
-                                                    <ArrowUpDown className="w-4 h-4 opacity-30" />
-                                                ) : null
+                                                    header.column.getCanSort() && "cursor-pointer hover:bg-base-300"
+                                                )}
+                                                onClick={header.column.getToggleSortingHandler()}
+                                            >
+                                                <span className="truncate">
+                                                    {flexRender(
+                                                        header.column.columnDef.header,
+                                                        header.getContext()
+                                                    )}
+                                                </span>
+                                                <span className="flex-shrink-0">
+                                                    {{
+                                                        asc: <SortAsc className="w-4 h-4" />,
+                                                        desc: <SortDesc className="w-4 h-4" />,
+                                                    }[header.column.getIsSorted() as string] ?? (
+                                                        header.column.getCanSort() ? (
+                                                            <ArrowUpDown className="w-4 h-4 opacity-30" />
+                                                        ) : null
+                                                    )}
+                                                </span>
+                                            </div>
+
+                                            {header.column.getCanFilter() && (
+                                                <button
+                                                    ref={el => filterButtonRefs.current[header.column.id] = el}
+                                                    className={clsx(
+                                                        "btn btn-ghost btn-xs btn-circle flex-shrink-0",
+                                                        header.column.getIsFiltered() && "text-primary",
+                                                        activeFilterPanel === header.column.id && "bg-base-300"
+                                                    )}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const buttonEl = filterButtonRefs.current[header.column.id];
+                                                        if (buttonEl) {
+                                                            openFilterPanel(header.column.id, buttonEl);
+                                                        }
+                                                    }}
+                                                    title="过滤"
+                                                >
+                                                    <FilterIcon className="w-3 h-3" />
+                                                </button>
                                             )}
                                         </div>
-
-                                        {header.column.getCanFilter() && (
-                                            <button
-                                                ref={el => filterButtonRefs.current[header.column.id] = el}
-                                                className={clsx(
-                                                    "btn btn-ghost btn-xs btn-circle",
-                                                    header.column.getIsFiltered() && "text-primary",
-                                                    activeFilterPanel === header.column.id && "bg-base-300"
-                                                )}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const buttonEl = filterButtonRefs.current[header.column.id];
-                                                    if (buttonEl) {
-                                                        openFilterPanel(header.column.id, buttonEl);
-                                                    }
-                                                }}
-                                                title="过滤"
-                                            >
-                                                <FilterIcon className="w-3 h-3" />
-                                            </button>
-                                        )}
                                     </div>
-                                </div>
-                            ))
-                        ))}
+                                ))
+                            ))}
+                        </div>
                     </div>
                 </div>
 
                 {/* 表格内容区域 */}
                 <div 
-                    className="flex-1 overflow-auto" 
                     ref={tableContainerRef}
+                    className="flex-1 overflow-auto"
                 >
                     <div 
+                        className="relative min-w-[800px]"
                         style={{
                             height: `${rowVirtualizer.getTotalSize()}px`,
-                            width: '100%',
-                            position: 'relative'
                         }}
                     >
                         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -558,11 +566,8 @@ const FrameTable: React.FC = () => {
                                 <div 
                                     key={row.uniqueId} 
                                     data-index={virtualRow.index}
+                                    className="absolute w-full"
                                     style={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        width: '100%',
                                         height: `${rowHeight}px`,
                                         transform: `translateY(${virtualRow.start}px)`,
                                     }}
@@ -626,8 +631,8 @@ const FrameTable: React.FC = () => {
                 <FilterPanel
                     isOpen={true}
                     position={filterPanelPosition}
-                    initialType={filterSettings.type}
-                    initialValue={filterSettings.value}
+                    initialType={filterSettings?.type || 'contains'}
+                    initialValue={filterSettings?.value || ''}
                     onApply={handleApplyFilter}
                     onClose={closeFilterPanel}
                     onReset={() => {

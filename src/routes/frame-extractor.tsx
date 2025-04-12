@@ -3,7 +3,7 @@ import FrameExtractor from '../components/FrameExtractor';
 
 const FrameExtractorPage: React.FC = () => {
   return (
-    <div className="h-full">
+    <div className="h-full w-full flex">
       <FrameExtractor />
     </div>
   );
