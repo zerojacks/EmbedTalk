@@ -342,7 +342,6 @@ pub async fn open_window(app_handle: tauri::AppHandle, state: State<'_, WindowSt
         .always_on_top(true)
         .focused(true)
         .resizable(false)
-        .drag_and_drop(true)
         .build()
         .map_err(|e| e.to_string())?;
 
