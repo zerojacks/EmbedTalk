@@ -13,7 +13,8 @@ import {
     clearSelectedRows,
     setSorting,
     setColumnFilters,
-    setDialogOpen
+    setDialogOpen,
+    FilterType
 } from '../../store/slices/frameExtractorSlice';
 import { MessageSquarePlus, FilterIcon, X, ChevronDown, ChevronRight, SortAsc, SortDesc, ArrowUpDown, PlusIcon } from 'lucide-react';
 import {
@@ -29,6 +30,7 @@ import {
 import { ExtractedData, FilterValue, FILTER_TYPE_LABELS } from '../../store/slices/frameExtractorSlice';
 import FilterBadge from './FilterBadge';
 import clsx from 'clsx';
+import FilterPanel from './FilterPanel';
 
 const FrameTable: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -225,75 +227,65 @@ const FrameTable: React.FC = () => {
         dispatch(toggleRowExpand(uniqueId));
     };
 
+    // 过滤面板位置状态
+    const [filterPanelPosition, setFilterPanelPosition] = React.useState<{
+        top: number;
+        left: number | 'auto';
+        right: number | 'auto';
+    } | null>(null);
+
     // 打开过滤面板
-    const openFilterPanel = (columnId: string) => {
+    const openFilterPanel = (columnId: string, buttonElement: HTMLElement) => {
         // 查找现有过滤器
         const existingFilter = columnFilters.find(f => f.id === columnId);
+        
+        // 计算面板位置
+        const buttonRect = buttonElement.getBoundingClientRect();
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        const panelWidth = 300;
+        const panelHeight = 260; // 预估的面板高度
 
-        // 设置过滤面板状态
-        dispatch(setActiveFilterPanel(columnId));
+        // 计算水平位置
+        let left: number | 'auto' = buttonRect.left;
+        let right: number | 'auto' = 'auto';
 
-        // 设置过滤器设置，用于UI展示
+        // 如果面板会超出右边界，则从右侧对齐
+        if (buttonRect.left + panelWidth > windowWidth) {
+            left = 'auto';
+            right = windowWidth - buttonRect.right;
+        }
+
+        // 计算垂直位置
+        let top = buttonRect.bottom + 4;
+
+        // 如果面板会超出底部，则显示在按钮上方
+        if (buttonRect.bottom + panelHeight + 4 > windowHeight) {
+            top = Math.max(4, buttonRect.top - panelHeight - 4);
+        }
+
+        setFilterPanelPosition({
+            top,
+            left,
+            right
+        });
+
+        // 设置过滤器设置
         dispatch(setFilterSettings({
             column: columnId,
-            type: existingFilter
-                ? (existingFilter.value as FilterValue).type
-                : 'contains',
-            value: existingFilter
-                ? (existingFilter.value as FilterValue).value
-                : ''
+            type: existingFilter ? (existingFilter.value as FilterValue).type : 'contains',
+            value: existingFilter ? (existingFilter.value as FilterValue).value : ''
         }));
 
-        // 检查过滤面板是否靠近右边界和底部边界
-        setTimeout(() => {
-            const buttonEl = filterButtonRefs.current[columnId];
-            if (buttonEl) {
-                const buttonRect = buttonEl.getBoundingClientRect();
-                const windowWidth = window.innerWidth;
-                const windowHeight = window.innerHeight;
-                const panelWidth = 300; // 面板宽度
-                const panelHeight = 260; // 预估的面板高度
-
-                // 判断面板放在按钮右侧是否会超出窗口
-                const shouldAlign = buttonRect.right + panelWidth > windowWidth;
-                dispatch(setShouldAlignRight({
-                    columnId,
-                    value: shouldAlign
-                }));
-
-                // 检查是否会超出底部
-                if (buttonRect.bottom + panelHeight > windowHeight) {
-                    // 如果会超出底部，尝试让表格容器滚动，使按钮上移
-                    const tableContainer = document.querySelector('.relative.flex-1.overflow-auto');
-                    if (tableContainer) {
-                        const scrollAmount = Math.min(
-                            buttonRect.bottom + panelHeight - windowHeight + 20,
-                            (tableContainer as HTMLElement).scrollTop + 300
-                        );
-                        (tableContainer as HTMLElement).scrollBy({
-                            top: -scrollAmount,
-                            behavior: 'smooth'
-                        });
-                    }
-                }
-            }
-        }, 0);
-    };
-
-    // 更新过滤设置
-    const updateFilterSetting = (update: Partial<typeof filterSettings>) => {
-        if (!filterSettings) return;
-        dispatch(setFilterSettings({
-            ...filterSettings,
-            ...update
-        }));
+        // 设置活动面板
+        dispatch(setActiveFilterPanel(columnId));
     };
 
     // 应用过滤器
-    const applyFilter = () => {
+    const handleApplyFilter = (type: FilterType, value: string) => {
         if (!filterSettings) return;
 
-        const { column, type, value } = filterSettings;
+        const { column } = filterSettings;
 
         if (!value.trim()) {
             // 如果值为空，则删除此列的过滤器
@@ -304,7 +296,7 @@ const FrameTable: React.FC = () => {
                 ...columnFilters.filter(filter => filter.id !== column),
                 {
                     id: column,
-                    value: { type, value },
+                    value: { type, value: value.trim() } as FilterValue
                 }
             ]));
         }
@@ -312,135 +304,63 @@ const FrameTable: React.FC = () => {
         // 关闭过滤面板
         dispatch(setActiveFilterPanel(null));
         dispatch(setFilterSettings(null));
+        setFilterPanelPosition(null);
     };
 
     // 关闭过滤面板
     const closeFilterPanel = () => {
         dispatch(setActiveFilterPanel(null));
         dispatch(setFilterSettings(null));
-    };
-
-    // 重置当前列的过滤条件，但不关闭面板
-    const resetFilterSetting = () => {
-        if (!filterSettings) return;
-
-        // 重置过滤设置为默认值
-        dispatch(setFilterSettings({
-            ...filterSettings,
-            type: 'contains',
-            value: ''
-        }));
-    };
-
-    // 在 return 语句前添加 FilterPopover 组件
-    const FilterPopover = ({ column, header }: { column: string; header: string }) => {
-        if (!filterSettings || filterSettings.column !== column) return null;
-
-        return (
-            <div className="absolute left-0 right-0 top-full mt-1 z-[1000] bg-base-100 shadow-xl rounded-lg border border-base-300 p-3">
-                <div className="space-y-3">
-                    <div className="form-control w-full">
-                        <label className="label">
-                            <span className="label-text">过滤方式</span>
-                        </label>
-                        <select
-                            className="select select-bordered select-sm w-full"
-                            value={filterSettings.type}
-                            onChange={(e) => updateFilterSetting({
-                                type: e.target.value as any
-                            })}
-                        >
-                            {Object.entries(FILTER_TYPE_LABELS).map(([type, label]) => (
-                                <option key={type} value={type}>{label}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="form-control w-full">
-                        <label className="label">
-                            <span className="label-text">过滤值</span>
-                        </label>
-                        <input
-                            type="text"
-                            className="input input-bordered input-sm w-full"
-                            value={filterSettings.value}
-                            onChange={(e) => updateFilterSetting({
-                                value: e.target.value
-                            })}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    applyFilter();
-                                }
-                            }}
-                            placeholder="输入过滤值..."
-                            autoFocus
-                        />
-                    </div>
-
-                    <div className="flex justify-between items-center gap-2">
-                        <button
-                            className="btn btn-ghost btn-xs"
-                            onClick={resetFilterSetting}
-                        >
-                            重置
-                        </button>
-                        <div className="flex gap-2">
-                            <button
-                                className="btn btn-ghost btn-xs"
-                                onClick={closeFilterPanel}
-                            >
-                                取消
-                            </button>
-                            <button
-                                className="btn btn-primary btn-xs"
-                                onClick={applyFilter}
-                            >
-                                应用
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
+        setFilterPanelPosition(null);
     };
 
     return (
         <div className="flex-1 flex flex-col min-h-0 bg-base-100 rounded-lg shadow-sm border border-base-200 overflow-hidden">
             {/* 表格工具栏 */}
-            <div className="flex justify-between items-center p-3 bg-base-200/50 border-b border-base-200">
-                <div className="flex items-center gap-4">
-                    <div className="text-sm">
-                        显示 <span className="font-semibold">{table.getFilteredRowModel().rows.length}</span> 条结果
-                        {selectedRows.length > 0 && <span>，已选择 <span className="font-semibold text-primary">{selectedRows.length}</span> 条</span>}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {columnFilters.map(filter => (
-                            <FilterBadge
-                                key={filter.id}
-                                column={filter.id}
-                                filter={filter}
-                            />
-                        ))}
+            <div className="flex flex-col p-3 bg-base-200/50 border-b border-base-200">
+                <div className="flex justify-between items-center min-h-[32px]">
+                    <div className="flex items-center gap-4">
+                        <div className="text-sm flex items-center">
+                            显示 <span className="font-semibold">{table.getFilteredRowModel().rows.length}</span> 条结果
+                            {selectedRows.length > 0 && <span>，已选择 <span className="font-semibold text-primary">{selectedRows.length}</span> 条</span>}
+                        </div>
                         {columnFilters.length > 0 && (
-                            <button
-                                className="btn btn-ghost btn-xs gap-1"
-                                onClick={() => dispatch(clearAllFilters())}
-                            >
-                                <X className="w-3 h-3" />
-                                清除全部
-                            </button>
+                            <div className="flex items-center gap-2 text-sm">
+                                <span className="opacity-75">过滤条件：</span>
+                                <div className="flex items-center flex-wrap gap-2">
+                                    {columnFilters.map(filter => {
+                                        const column = table.getColumn(filter.id);
+                                        const columnName = column?.columnDef?.header as string;
+                                        return (
+                                            <FilterBadge
+                                                key={filter.id}
+                                                column={filter.id}
+                                                columnName={columnName}
+                                                filter={filter}
+                                            />
+                                        );
+                                    })}
+                                    <button
+                                        className="btn btn-ghost btn-xs gap-1 hover:bg-base-300 h-6"
+                                        onClick={() => dispatch(clearAllFilters())}
+                                    >
+                                        <X className="w-3 h-3" />
+                                        清除全部
+                                    </button>
+                                </div>
+                            </div>
                         )}
                     </div>
-                </div>
-                <div className="flex gap-2">
-                    {selectedRows.length > 0 && (
-                        <button
-                            className="btn btn-sm btn-outline btn-error"
-                            onClick={() => dispatch(clearSelectedRows())}
-                        >
-                            清除选择
-                        </button>
-                    )}
+                    <div className="flex gap-2 min-h-[28px]">
+                        {selectedRows.length > 0 ? (
+                            <button
+                                className="btn btn-sm btn-outline btn-error"
+                                onClick={() => dispatch(clearSelectedRows())}
+                            >
+                                清除选择
+                            </button>
+                        ) : <div className="h-7" />}
+                    </div>
                 </div>
             </div>
 
@@ -482,6 +402,7 @@ const FrameTable: React.FC = () => {
 
                                                 {header.column.getCanFilter() && (
                                                     <button
+                                                        ref={el => filterButtonRefs.current[header.column.id] = el}
                                                         className={clsx(
                                                             "btn btn-ghost btn-xs btn-circle",
                                                             header.column.getIsFiltered() && "text-primary",
@@ -489,7 +410,10 @@ const FrameTable: React.FC = () => {
                                                         )}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            openFilterPanel(header.column.id);
+                                                            const buttonEl = filterButtonRefs.current[header.column.id];
+                                                            if (buttonEl) {
+                                                                openFilterPanel(header.column.id, buttonEl);
+                                                            }
                                                         }}
                                                         title="过滤"
                                                     >
@@ -497,13 +421,6 @@ const FrameTable: React.FC = () => {
                                                     </button>
                                                 )}
                                             </div>
-
-                                            {header.column.getCanFilter() && (
-                                                <FilterPopover
-                                                    column={header.column.id}
-                                                    header={header.column.columnDef.header as string}
-                                                />
-                                            )}
                                         </th>
                                     ))
                                 ))}
@@ -618,11 +535,21 @@ const FrameTable: React.FC = () => {
                 </div>
             </div>
 
-            {/* 点击其他区域关闭过滤面板的遮罩层 */}
-            {activeFilterPanel && (
-                <div 
-                    className="fixed inset-0 z-[900]" 
-                    onClick={closeFilterPanel}
+            {/* 过滤面板 */}
+            {activeFilterPanel && filterSettings && filterPanelPosition && (
+                <FilterPanel
+                    isOpen={true}
+                    position={filterPanelPosition}
+                    initialType={filterSettings.type}
+                    initialValue={filterSettings.value}
+                    onApply={handleApplyFilter}
+                    onClose={closeFilterPanel}
+                    onReset={() => {
+                        if (filterSettings) {
+                            dispatch(clearFilter(filterSettings.column));
+                            closeFilterPanel();
+                        }
+                    }}
                 />
             )}
         </div>

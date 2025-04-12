@@ -377,6 +377,8 @@ const frameExtractorSlice = createSlice({
         // 表格数据管理
         clearExtractedData: (state) => {
             state.extractedData = [];
+            state.ui.selectedRows = [];
+            state.ui.lastSelectedRow = null;
         },
         toggleRowExpand: (state, action: PayloadAction<string>) => {
             const index = state.extractedData.findIndex(item => item.uniqueId === action.payload);
@@ -430,7 +432,29 @@ const frameExtractorSlice = createSlice({
         // Excel导出
         setExportLoading: (state, action: PayloadAction<boolean>) => {
             state.ui.exportLoading = action.payload;
-        }
+        },
+
+        // 选择报文
+        selectMessage: (state, action: PayloadAction<{ id: string; selected: boolean; clearOthers?: boolean }>) => {
+            const { id, selected, clearOthers } = action.payload;
+            if (clearOthers) {
+                state.messages.forEach(msg => msg.selected = false);
+            }
+            const message = state.messages.find(msg => msg.id === id);
+            if (message) {
+                message.selected = selected;
+            }
+        },
+
+        // 删除选中的报文
+        deleteSelectedMessages: (state) => {
+            state.messages = state.messages.filter(msg => !msg.selected);
+        },
+
+        // 清除所有选中状态
+        clearSelectedMessages: (state) => {
+            state.messages.forEach(msg => msg.selected = false);
+        },
     },
     extraReducers: (builder) => {
         // 处理单条报文解析
@@ -440,8 +464,13 @@ const frameExtractorSlice = createSlice({
                 state.error = null;
             })
             .addCase(parseFrameMessage.fulfilled, (state, action) => {
-                // 这里我们不直接设置extractedData，因为这个是中间结果
                 state.isLoading = false;
+                // 解析并更新 extractedData，同时清空选中的行和过滤条件
+                const extracted = extractData(action.payload);
+                state.extractedData = extracted;
+                state.ui.selectedRows = [];
+                state.ui.lastSelectedRow = null;
+                state.ui.columnFilters = [];
             })
             .addCase(parseFrameMessage.rejected, (state, action) => {
                 state.isLoading = false;
@@ -465,6 +494,9 @@ const frameExtractorSlice = createSlice({
                 }
                 
                 state.extractedData = allExtractedData;
+                state.ui.selectedRows = [];
+                state.ui.lastSelectedRow = null;
+                state.ui.columnFilters = [];
                 state.ui.isDialogOpen = false;
             })
             .addCase(parseSelectedMessages.rejected, (state, action) => {
@@ -489,6 +521,9 @@ const frameExtractorSlice = createSlice({
                 }
                 
                 state.extractedData = allExtractedData;
+                state.ui.selectedRows = [];
+                state.ui.lastSelectedRow = null;
+                state.ui.columnFilters = [];
                 state.ui.isDialogOpen = false;
             })
             .addCase(parseAllMessages.rejected, (state, action) => {
@@ -522,7 +557,10 @@ export const {
     setActiveFilterPanel,
     setFilterSettings,
     setShouldAlignRight,
-    setExportLoading
+    setExportLoading,
+    selectMessage,
+    deleteSelectedMessages,
+    clearSelectedMessages
 } = frameExtractorSlice.actions;
 
 // 导出reducer

@@ -1,5 +1,5 @@
 // src/components/frameExtractor/MessageDialog.tsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     setDialogOpen,
@@ -11,11 +11,16 @@ import {
     deleteMessage,
     resetEditingState,
     parseSelectedMessages,
-    parseAllMessages
+    parseAllMessages,
+    deleteSelectedMessages,
+    selectMessage,
+    clearSelectedMessages,
+    parseFrameMessage
 } from '../../store/slices/frameExtractorSlice';
-import { X, PlusIcon, Edit, Trash2, ArrowRight, Copy } from 'lucide-react';
+import { X, PlusIcon, Edit, Trash2, ArrowRight, Copy, PlayCircle } from 'lucide-react';
 import { toast } from '../../context/ToastProvider';
 import AddEditMessageDialog from './AddEditMessageDialog';
+import ConfirmDialog from '../ConfirmDialog';
 
 const MessageDialog: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -25,6 +30,17 @@ const MessageDialog: React.FC = () => {
         ui: { isDialogOpen, isAddDialogOpen },
         currentEditingMessage: { id: editingMessageId }
     } = useAppSelector(state => state.frameExtractor);
+
+    // 删除确认对话框状态
+    const [deleteConfirm, setDeleteConfirm] = useState<{
+        isOpen: boolean;
+        messageId?: string;
+        isMultiple?: boolean;
+    }>({
+        isOpen: false,
+        messageId: undefined,
+        isMultiple: false
+    });
 
     // 获取选中状态
     // 0: 未选中, 1: 部分选中, 2: 全部选中
@@ -39,7 +55,7 @@ const MessageDialog: React.FC = () => {
     };
 
     // 关闭对话框时重置状态
-    const closeMessageDialog = () => {
+    const closeDialog = () => {
         dispatch(setDialogOpen(false));
     };
 
@@ -52,14 +68,26 @@ const MessageDialog: React.FC = () => {
 
     // 处理删除消息
     const handleDeleteMessage = (id: string) => {
-        dispatch(deleteMessage(id));
+        setDeleteConfirm({
+            isOpen: true,
+            messageId: id,
+            isMultiple: false
+        });
+    };
 
-        // 如果删除的是正在编辑的消息，清空编辑状态
-        if (editingMessageId === id) {
-            dispatch(resetEditingState());
+    // 执行删除操作
+    const confirmDelete = () => {
+        if (deleteConfirm.isMultiple) {
+            dispatch(deleteSelectedMessages());
+            toast.success('删除成功');
+        } else if (deleteConfirm.messageId) {
+            dispatch(deleteMessage(deleteConfirm.messageId));
+            // 如果删除的是正在编辑的消息，清空编辑状态
+            if (editingMessageId === deleteConfirm.messageId) {
+                dispatch(resetEditingState());
+            }
+            toast.success("报文已删除");
         }
-
-        toast.success("报文已删除");
     };
 
     // 复制消息内容到剪贴板
@@ -75,30 +103,43 @@ const MessageDialog: React.FC = () => {
     };
 
     // 解析单条消息
-    const handleParseMessage = (message: string) => {
-        if (!message.trim()) {
-            toast.error("报文内容为空");
+    const handleParseMessage = async (message: string) => {
+        try {
+            await dispatch(parseFrameMessage(message)).unwrap();
+            toast.success('解析成功');
+        } catch (error) {
+            toast.error(error as string);
+        }
+    };
+
+    // 处理报文点击
+    const handleMessageClick = (id: string, event: React.MouseEvent) => {
+        if (event.ctrlKey || event.metaKey) {
+            dispatch(selectMessage({ id, selected: !messages.find(m => m.id === id)?.selected }));
+        } else {
+            dispatch(selectMessage({ id, selected: true, clearOthers: true }));
+        }
+    };
+
+    // 删除选中的报文
+    const handleDeleteSelected = () => {
+        const selectedCount = messages.filter(m => m.selected).length;
+        if (selectedCount === 0) {
+            toast.error('请先选择要删除的报文');
             return;
         }
 
-        // 添加临时消息并选中它
-        const tempId = `temp-${Date.now()}`;
-        const tempMessage = {
-            id: tempId,
-            message,
-            createdAt: new Date(),
-            selected: true
-        };
-
-        // 清除其他选择并解析
-        dispatch(parseSelectedMessages());
+        setDeleteConfirm({
+            isOpen: true,
+            isMultiple: true
+        });
     };
 
     // 清除对话框如果点击ESC或backdrop
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isDialogOpen) {
-                closeMessageDialog();
+                closeDialog();
             }
         };
 
@@ -110,7 +151,7 @@ const MessageDialog: React.FC = () => {
 
     return (
         <>
-            <dialog className={`modal z-40 ${isDialogOpen ? 'modal-open' : ''}`}>
+            <dialog className={`modal z-[2000] ${isDialogOpen ? 'modal-open' : ''}`}>
                 <div className="modal-box w-11/12 max-w-3xl bg-base-100">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
@@ -124,7 +165,7 @@ const MessageDialog: React.FC = () => {
                         </div>
                         <button
                             className="btn btn-sm btn-circle btn-ghost"
-                            onClick={closeMessageDialog}
+                            onClick={closeDialog}
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -146,18 +187,35 @@ const MessageDialog: React.FC = () => {
                                         <PlusIcon className="w-4 h-4" />
                                     </button>
                                     {messages.some(msg => msg.selected) && (
-                                        <button
-                                            className="btn btn-circle btn-sm btn-primary"
-                                            onClick={() => dispatch(parseSelectedMessages())}
-                                            disabled={isLoading}
-                                            title="解析选中的报文"
-                                        >
-                                            {isLoading ? (
-                                                <span className="loading loading-spinner loading-xs"></span>
-                                            ) : (
-                                                <ArrowRight className="w-4 h-4" />
-                                            )}
-                                        </button>
+                                        <>
+                                            <button
+                                                className="btn btn-circle btn-sm btn-success"
+                                                onClick={() => {
+                                                    dispatch(parseSelectedMessages());
+                                                    closeDialog();
+                                                }}
+                                                disabled={isLoading}
+                                                title="解析选中"
+                                            >
+                                                {isLoading ? (
+                                                    <span className="loading loading-spinner loading-xs"></span>
+                                                ) : (
+                                                    <PlayCircle className="w-4 h-4" />
+                                                )}
+                                            </button>
+                                            <button
+                                                className="btn btn-circle btn-sm btn-primary"
+                                                onClick={handleDeleteSelected}
+                                                disabled={isLoading}
+                                                title="删除选中"
+                                            >
+                                                {isLoading ? (
+                                                    <span className="loading loading-spinner loading-xs"></span>
+                                                ) : (
+                                                    <Trash2 className="w-4 h-4" />
+                                                )}
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -210,7 +268,10 @@ const MessageDialog: React.FC = () => {
                                                                 type="checkbox"
                                                                 className="checkbox checkbox-xs checkbox-primary"
                                                                 checked={msg.selected || false}
-                                                                onChange={() => dispatch(toggleMessageSelection(msg.id))}
+                                                                onChange={(e) => {
+                                                                    e.stopPropagation();
+                                                                    dispatch(toggleMessageSelection(msg.id));
+                                                                }}
                                                             />
                                                         </label>
                                                     </td>
@@ -267,7 +328,7 @@ const MessageDialog: React.FC = () => {
                                                             >
                                                                 {isLoading ? (
                                                                     <span className="loading loading-spinner loading-xs"></span>
-                                                                ) : <ArrowRight className="w-3 h-3" />}
+                                                                ) : <PlayCircle className="w-3 h-3" />}
                                                             </button>
                                                         </div>
                                                     </td>
@@ -281,12 +342,25 @@ const MessageDialog: React.FC = () => {
                     </div>
                 </div>
                 <form method="dialog" className="modal-backdrop">
-                    <button onClick={closeMessageDialog}>关闭</button>
+                    <button onClick={closeDialog}>关闭</button>
                 </form>
             </dialog>
 
             {/* 添加/编辑报文对话框 */}
             {isAddDialogOpen && <AddEditMessageDialog />}
+
+            {/* 删除确认对话框 */}
+            <ConfirmDialog
+                type="warning"
+                title={deleteConfirm.isMultiple 
+                    ? `确定要删除选中的 ${messages.filter(m => m.selected).length} 条报文吗？`
+                    : "确定要删除这条报文吗？"
+                }
+                isOpen={deleteConfirm.isOpen}
+                onClose={() => setDeleteConfirm({ isOpen: false })}
+                onConfirm={confirmDelete}
+                confirmText="删除"
+            />
         </>
     );
 };

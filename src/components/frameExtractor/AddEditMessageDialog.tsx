@@ -56,7 +56,7 @@ const AddEditMessageDialog: React.FC = () => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]"
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[3000]"
             onClick={(e) => {
                 if (e.target === e.currentTarget) {
                     closeAddDialog();
