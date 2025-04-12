@@ -38,18 +38,28 @@ export const TimeConverterTool: React.FC = () => {
         const value = e.target.value.trim();
         setTimestamp(value);
         
-        if (/^\d+$/.test(value)) {
-            try {
-                // 判断是毫秒还是秒
-                const ts = value.length > 10 ? Number(value) : Number(value) * 1000;
-                const date = new Date(ts);
-                if (!isNaN(date.getTime())) {
-                    setUtcDateTime(date.toISOString().slice(0, 19));
-                    setLocalDateTime(formatLocalDateTime(date));
-                }
-            } catch (error) {
-                // 转换失败时不更新日期时间
+        if (!value) return;
+        
+        if (!/^\d+$/.test(value)) {
+            return;
+        }
+
+        try {
+            // 判断是毫秒还是秒
+            const ts = value.length > 10 ? Number(value) : Number(value) * 1000;
+            if (isNaN(ts)) {
+                return;
             }
+
+            const date = new Date(ts);
+            if (isNaN(date.getTime())) {
+                return;
+            }
+
+            setUtcDateTime(date.toISOString().slice(0, 19));
+            setLocalDateTime(formatLocalDateTime(date));
+        } catch (error) {
+            console.error('时间戳转换失败:', error);
         }
     };
 
@@ -57,14 +67,44 @@ export const TimeConverterTool: React.FC = () => {
         const value = e.target.value;
         setUtcDateTime(value);
         
+        if (!value) return;
+
         try {
-            const date = new Date(value);
-            if (!isNaN(date.getTime())) {
-                setTimestamp(Math.floor(date.getTime() / 1000).toString());
-                setLocalDateTime(formatLocalDateTime(date));
+            // 验证输入格式（支持可选的秒）
+            if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(value)) {
+                return;
+            }
+
+            // 将 UTC 时间字符串转换为时间戳
+            let [datePart, timePart] = value.split('T');
+            const [year, month, day] = datePart.split('-').map(Number);
+            let [hours, minutes, seconds] = timePart.split(':').map(Number);
+            
+            // 如果没有提供秒，则默认为0
+            seconds = seconds || 0;
+            
+            // 验证日期值的有效性
+            if (month < 1 || month > 12 || day < 1 || day > 31 ||
+                hours < 0 || hours > 23 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
+                return;
+            }
+
+            // 使用 UTC 方法创建时间戳
+            const utcTimestamp = Date.UTC(year, month - 1, day, hours, minutes, seconds);
+            if (isNaN(utcTimestamp)) {
+                return;
+            }
+
+            const timestamp = Math.floor(utcTimestamp / 1000);
+            setTimestamp(timestamp.toString());
+
+            // 更新本地时间
+            const localDate = new Date(timestamp * 1000);
+            if (!isNaN(localDate.getTime())) {
+                setLocalDateTime(formatLocalDateTime(localDate));
             }
         } catch (error) {
-            // 转换失败时不更新时间戳
+            console.error('UTC 时间转换失败:', error);
         }
     };
 
@@ -72,20 +112,42 @@ export const TimeConverterTool: React.FC = () => {
         const value = e.target.value;
         setLocalDateTime(value);
         
+        if (!value) return;
+
         try {
-            // 将本地时间转换为UTC时间戳
+            // 验证输入格式
+            if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)) {
+                return;
+            }
+
+            // 将本地时间字符串转换为 Date 对象
             const [datePart, timePart] = value.split('T');
             const [year, month, day] = datePart.split('-').map(Number);
             const [hours, minutes, seconds] = timePart.split(':').map(Number);
             
+            // 验证日期值的有效性
+            if (month < 1 || month > 12 || day < 1 || day > 31 ||
+                hours < 0 || hours > 23 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
+                return;
+            }
+
+            // 创建本地时间的 Date 对象
             const localDate = new Date(year, month - 1, day, hours, minutes, seconds);
+            if (isNaN(localDate.getTime())) {
+                return;
+            }
+
             const timestamp = Math.floor(localDate.getTime() / 1000);
-            
             setTimestamp(timestamp.toString());
+            
+            // 设置 UTC 时间
             const utcDate = new Date(timestamp * 1000);
+            if (isNaN(utcDate.getTime())) {
+                return;
+            }
             setUtcDateTime(utcDate.toISOString().slice(0, 19));
         } catch (error) {
-            // 转换失败时不更新其他值
+            console.error('本地时间转换失败:', error);
         }
     };
 
@@ -181,6 +243,13 @@ export const TimeConverterTool: React.FC = () => {
                             className="input input-bordered flex-1 font-mono"
                             value={utcDateTime}
                             onChange={handleUtcDateTimeChange}
+                            onKeyDown={(e) => {
+                                // 允许数字、退格、删除、方向键和Tab键
+                                if (!/^\d$/.test(e.key) && 
+                                    !['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
                         />
                         <button
                             className="btn btn-ghost !p-0 flex items-center justify-center h-[40px] w-[40px] min-h-0 tooltip tooltip-left"
@@ -216,24 +285,51 @@ export const TimeConverterTool: React.FC = () => {
                     <div className="space-y-2">
                         <div className="flex justify-between items-center p-2 bg-base-300 rounded">
                             <span className="text-sm opacity-70">毫秒时间戳</span>
-                            <span className="font-mono">{Number(timestamp) * 1000}</span>
+                            <span className="font-mono">
+                                {timestamp && !isNaN(Number(timestamp)) ? (Number(timestamp) * 1000).toString() : '-'}
+                            </span>
                         </div>
                         <div className="flex justify-between items-center p-2 bg-base-300 rounded">
                             <span className="text-sm opacity-70">UTC 时间</span>
                             <span className="font-mono">
-                                {new Date(Number(timestamp) * 1000).toUTCString()}
+                                {(() => {
+                                    try {
+                                        if (!timestamp || isNaN(Number(timestamp))) return '-';
+                                        const date = new Date(Number(timestamp) * 1000);
+                                        if (isNaN(date.getTime())) return '-';
+                                        return date.toUTCString();
+                                    } catch {
+                                        return '-';
+                                    }
+                                })()}
                             </span>
                         </div>
                         <div className="flex justify-between items-center p-2 bg-base-300 rounded">
                             <span className="text-sm opacity-70">本地时间</span>
                             <span className="font-mono">
-                                {formatDate(Number(timestamp))}
+                                {(() => {
+                                    try {
+                                        if (!timestamp || isNaN(Number(timestamp))) return '-';
+                                        return formatDate(Number(timestamp));
+                                    } catch {
+                                        return '-';
+                                    }
+                                })()}
                             </span>
                         </div>
                         <div className="flex justify-between items-center p-2 bg-base-300 rounded">
                             <span className="text-sm opacity-70">ISO 8601</span>
                             <span className="font-mono">
-                                {new Date(Number(timestamp) * 1000).toISOString()}
+                                {(() => {
+                                    try {
+                                        if (!timestamp || isNaN(Number(timestamp))) return '-';
+                                        const date = new Date(Number(timestamp) * 1000);
+                                        if (isNaN(date.getTime())) return '-';
+                                        return date.toISOString();
+                                    } catch {
+                                        return '-';
+                                    }
+                                })()}
                             </span>
                         </div>
                     </div>
