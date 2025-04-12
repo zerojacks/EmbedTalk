@@ -60,6 +60,7 @@ windows = { version = "0.48", features = ["Win32_Foundation", "Win32_UI_WindowsA
 objc = "0.2.7"
 tauri-plugin-process = "2"
 chrono = { version = "0.4", features = ["serde"] }
+tauri-plugin-log = "2"
 
 [dependencies.tauri-plugin-sql]
 features = ["sqlite"] # or "postgres", or "mysql"
