@@ -6,7 +6,7 @@ import FrameExtractorPage from './frameExtractor/FrameExtractorPage';
 const FrameExtractor: React.FC = () => {
     return (
         <Provider store={store}>
-            <div className="flex-1 min-w-0 flex">
+            <div className="flex-1 min-w-0 flex w-full h-full">
                 <FrameExtractorPage />
             </div>
         </Provider>

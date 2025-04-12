@@ -82,9 +82,9 @@ const FrameExtractorPage: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col h-full p-4 bg-base-100">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 p-4 bg-base-100 w-full h-full">
             {/* 顶部工具栏 */}
-            <div className="flex justify-between items-center mb-6 bg-base-100 rounded-lg p-3 shadow-sm border border-base-200">
+            <div className="flex-none flex justify-between items-center mb-6 bg-base-100 rounded-lg p-3 shadow-sm border border-base-200">
                 <h1 className="text-xl font-semibold">报文数据提取</h1>
                 <div className="flex gap-2">
                     <button
@@ -127,7 +127,7 @@ const FrameExtractorPage: React.FC = () => {
             </div>
 
             {/* 表格部分 */}
-            <div className="flex-1 min-h-0 min-w-0">
+            <div className="flex-1 min-h-0 min-w-0 w-full">
                 <FrameTable />
             </div>
 
