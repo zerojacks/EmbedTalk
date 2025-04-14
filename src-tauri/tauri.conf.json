@@ -27,10 +27,7 @@
     "security": {
       "csp": null
     },
-    "trayIcon": {
-      "iconPath": "icons/icon.ico",
-      "iconAsTemplate": true
-    },
+    "trayIcon": null,
     "windows": [
       {
         "label": "main",

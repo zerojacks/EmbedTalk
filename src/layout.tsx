@@ -6,9 +6,24 @@ import { TbDeviceAnalytics } from "react-icons/tb";
 import { BiSolidFileArchive } from "react-icons/bi";
 import { FiTool,FiDatabase } from "react-icons/fi";
 import clsx from "clsx";
+import { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
+import AboutDialog from "./components/AboutDialog";
 
 export default function Layout() {
   const location = useLocation();
+  const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
+
+  useEffect(() => {
+    // 监听来自托盘的关于对话框显示事件
+    const unlisten = listen("show-about-dialog", () => {
+      setIsAboutDialogOpen(true);
+    });
+
+    return () => {
+      unlisten.then(unlistenFn => unlistenFn());
+    };
+  }, []);
 
   const selectedClass = "text-accent";
   const defaultClass = "w-5 h-5";
@@ -88,6 +103,12 @@ export default function Layout() {
           <Outlet />
         </div>
       </div>
+
+      {/* 关于对话框 */}
+      <AboutDialog 
+        isOpen={isAboutDialogOpen} 
+        onClose={() => setIsAboutDialogOpen(false)} 
+      />
     </div>
   );
 }

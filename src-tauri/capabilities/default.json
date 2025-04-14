@@ -77,6 +77,8 @@
     "core:window:allow-inner-position",
     "core:window:allow-inner-size",
     "core:window:deny-is-resizable",
+    "core:window:allow-is-minimized",
+    "core:window:allow-is-maximized",
     "core:app:allow-set-app-theme",
     "global-shortcut:allow-is-registered",
     "global-shortcut:allow-register",
@@ -113,6 +115,19 @@
     "sql:allow-load",
     "sql:allow-select",
     "log:allow-log",
-    "log:default"
+    "log:default",
+    "core:app:allow-app-hide",
+    "core:app:allow-default-window-icon",
+    "core:app:allow-app-show",
+    "core:app:allow-version",
+    "core:app:default",
+    "core:tray:allow-new",
+    "core:tray:allow-set-icon",
+    "core:tray:allow-set-menu",
+    "core:tray:allow-set-show-menu-on-left-click",
+    "core:tray:allow-set-title",
+    "core:tray:allow-set-tooltip",
+    "core:tray:allow-set-visible",
+    "core:tray:default"
   ]
 }

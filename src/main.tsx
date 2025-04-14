@@ -13,7 +13,7 @@ import "./styles.css";
 import { SettingsProvider } from "./context/SettingsProvider";
 import { ToastProvider, initializeToast  } from './context/ToastProvider';
 import { ShortcutProvider } from './context/ShortcutProvider';
-import { Menu, MenuItem } from "@tauri-apps/api/menu";
+import { TrayProvider } from './context/TrayProvider';
 import Itemconfig from "./routes/itemconfig"
 import ChannelMonitorRedux from "./routes/ChannelMonitorRedux";
 import QuickParse from "./routes/quick-parse";
@@ -68,20 +68,6 @@ const router = createBrowserRouter([
   }
 ]);
 
-// async function creatmen() {
-//   const file = await MenuItem.new({
-//     text: "file",
-//     id: "file",
-//     action: async () => {
-//       console.log("file clicked");
-//     },
-//   });
-//   const appmenu = await Menu.new({items: [file]});
-//   await appmenu.setAsWindowMenu();
-// }
-
-// creatmen();
-
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <Provider store={store}>
@@ -90,7 +76,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
           <SettingsProvider>
             <ToastProvider>
               <ShortcutProvider>
-                <RouterProvider router={router} />
+                <TrayProvider>
+                  <RouterProvider router={router} />
+                </TrayProvider>
               </ShortcutProvider>
             </ToastProvider>
           </SettingsProvider>
