@@ -253,6 +253,10 @@ const FrameTable: React.FC = () => {
         // 阻止事件传播，防止影响其他事件处理
         event.stopPropagation();
 
+        // 查找当前行的数据
+        const currentRow = extractedData.find(row => row.uniqueId === uniqueId);
+        if (!currentRow) return;
+
         if (event.shiftKey && lastSelectedRow) {
             // Shift + 点击进行范围选择
             // 获取表格中所有主行（不包括展开的子项行）
@@ -648,7 +652,11 @@ const FrameTable: React.FC = () => {
                                                     isSelected ? 'bg-primary/5 border-l-4 border-l-primary' : 'border-l-4 border-l-transparent bg-base-100/50'
                                                 )}
                                                 style={{ gridTemplateColumns: '15% 20% minmax(45%, 1fr) 20%' }}
-                                                onClick={(e) => e.stopPropagation()}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    // 点击子项时选中父节点
+                                                    handleRowSelect(row.uniqueId, e);
+                                                }}
                                             >
                                                 <div className="px-3 py-1 flex items-center select-none truncate">
                                                     <div className="w-3 h-3 ml-4 border-l-2 border-b-2 border-base-300 rounded-bl-lg flex-shrink-0"></div>
