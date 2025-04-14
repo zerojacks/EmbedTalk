@@ -672,7 +672,7 @@ const FrameTable: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <div>
                             显示 <span className="font-semibold">{table.getFilteredRowModel().rows.length}</span> 条结果
-                            {selectedRows.length > 0 && <span>，已选择 <span className="font-semibold text-primary">{selectedRows.length}</span> 条</span>}
+                        {selectedRows.length > 0 && <span>，已选择 <span className="font-semibold text-primary">{selectedRows.length}</span> 条</span>}
                         </div>
                         {columnFilters.length > 0 && (
                             <div className="flex items-center gap-2">
@@ -712,7 +712,7 @@ const FrameTable: React.FC = () => {
                         )}
                     </div>
                 </div>
-            </div>
+                                                </div>
 
             {/* 过滤面板 */}
             {activeFilterPanel && filterSettings && filterPanelPosition && (
