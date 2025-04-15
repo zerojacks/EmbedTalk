@@ -1355,7 +1355,7 @@ impl FrameAnalisyic {
                 FrameFun::add_data(
                     &mut result_vec,
                     item_name,
-                    FrameFun::get_data_str(&data_segment, false, false, true),
+                    FrameFun::get_data_str(&sub_data, false, false, true),
                     item_value,
                     vec![index + pos, index + pos + length],
                     None,
@@ -1438,7 +1438,7 @@ impl FrameAnalisyic {
                 FrameFun::add_data(
                     &mut result_vec,
                     item_name,
-                    FrameFun::get_data_str(&data_segment, false, false, true),
+                    FrameFun::get_data_str(&sub_data, false, false, true),
                     item_description,
                     vec![index + pos, index + pos + length],
                     None,
@@ -1606,7 +1606,7 @@ impl FrameAnalisyic {
                     FrameFun::add_data(
                         &mut result_vec,
                         item_name,
-                        FrameFun::get_data_str(&data_segment, false, false, true),
+                        FrameFun::get_data_str(&sub_data, false, false, true),
                         item_description,
                         vec![index + pos, index + pos + subitem_length],
                         Some(item_value),
