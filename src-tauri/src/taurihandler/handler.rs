@@ -495,24 +495,36 @@ fn try_convert_da_to_point(input: &str) -> Result<String, String> {
         // 移除可能的0x前缀
         let da_value = da_value.trim_start_matches("0x");
         
+        let da_cleaned = da_value.replace(' ', "").replace('\n', "");
+
         // 验证16进制格式
-        if !da_value.chars().all(|c| c.is_ascii_hexdigit()) {
-            return Err(format!("无效的16进制DA值: {}", da_value));
+        if !da_cleaned.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(format!("无效的16进制DA值: {}", da_cleaned));
         }
         
         // 将16进制字符串转换为字节数组
-        let da = FrameFun::get_frame_list_from_str(da_value);
-        let (size, points) = FrameFun::calculate_measurement_points(&da);
-        
-        if size == 1 && points[0] == 0xFFFF {
-            all_results.push("0xFFFF".to_string());
-        } else {
-            let points_str = points.iter()
-                .map(|&x| x.to_string())
-                .collect::<Vec<String>>()
-                .join(",");
-            all_results.push(points_str);
+        let da = FrameFun::get_frame_list_from_str(&da_cleaned);
+
+        if da.len() % 2 != 0 {
+            return Err(format!("DA长度错误: {}", da.len()));
         }
+        let mut pos:usize = 0;
+        while pos < da.len() {
+            let da_data = &da[pos..pos+2];
+            let (size, points) = FrameFun::calculate_measurement_points(&da_data);
+            
+            if size == 1 && points[0] == 0xFFFF {
+                all_results.push("0xFFFF".to_string());
+            } else {
+                let points_str = points.iter()
+                    .map(|&x| x.to_string())
+                    .collect::<Vec<String>>()
+                    .join(",");
+                all_results.push(points_str);
+            }
+            pos += 2;
+        }
+
     }
     
     if all_results.is_empty() {
@@ -631,4 +643,10 @@ pub fn parse_item_data(item: String, input: String, protocol: String, region: St
     );
 
     Ok(sub_result)
+}
+
+#[tauri::command]
+pub fn open_devtools(app_handle: tauri::AppHandle) {
+    let window = app_handle.get_webview_window("main").unwrap();
+    window.open_devtools();
 }

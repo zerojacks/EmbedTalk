@@ -139,6 +139,7 @@ fn main() {
             taurihandler::protocol_handler::handle_protocol_message,
             taurihandler::handler::caculate_pppfcs16,
             taurihandler::handler::da_and_measure_point_exchange,
+            taurihandler::handler::open_devtools,
             parse_item_data
         ])
         .run(tauri::generate_context!())
