@@ -6,6 +6,7 @@ import themeReducer, { initTheme } from './slices/themeSlice';
 import splitSizeReducer from './slices/splitSizeSlice';
 import fileParseReducer from './slices/fileParseSlice';
 import frameExtractorReducer from './slices/frameExtractorSlice';
+import TaskAnalysisReducer, { taskAnalysisSlice } from './slices/taskAnalysisSlice';
 // 合并所有 reducer
 const rootReducer = combineReducers({
   channel: channelReducer,
@@ -13,6 +14,7 @@ const rootReducer = combineReducers({
   splitSize: splitSizeReducer,
   fileParse: fileParseReducer,
   frameExtractor: frameExtractorReducer,
+  taskAnalysis: TaskAnalysisReducer,
   // 可以在这里添加其他 reducer
 });
 

@@ -21,6 +21,7 @@ import DLT645Test from "./routes/dlt645-test";
 import FileParse from "./routes/file-parse";
 import Tools from "./routes/tools";
 import FrameExtractorPage from './routes/frame-extractor';
+import TaskAnalysis from './routes/task-analysis';
 
 const router = createBrowserRouter([
   {
@@ -59,6 +60,10 @@ const router = createBrowserRouter([
       {
         path:"/frame-extractor",
         element: <FrameExtractorPage />
+      },
+      {
+        path: "/task-analysis",
+        element: <TaskAnalysis />
       }
     ],
   },
@@ -67,7 +72,16 @@ const router = createBrowserRouter([
     element: <QuickParse />,
   }
 ]);
+(window as any).MonacoEnvironment = {
+  getWorkerUrl: function (_: any, _label: string) {
+    return './vs/base/worker/workerMain.js';
+  }
+};
 
+// 2. 设置 requirejs 路径（全局，优先于 onMount）
+if ((window as any).require) {
+  (window as any).require.config({ paths: { vs: "./vs" } });
+}
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <Provider store={store}>

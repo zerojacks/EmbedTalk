@@ -1,11 +1,24 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import monacoEditorPlugin from 'vite-plugin-monaco-editor';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
+
 // https://vitejs.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig({
   plugins: [
     react(),
+    viteStaticCopy({
+      targets: [
+        {
+          src: 'node_modules/monaco-editor/min/vs',
+          dest: '' // 拷贝到 dist 根目录
+        }
+      ]
+    })
   ],
+
+  worker: {
+    format: 'es',
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   // prevent vite from obscuring rust errors
@@ -26,4 +39,4 @@ export default defineConfig(async () => ({
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
   },
-}));
+});

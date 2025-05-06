@@ -26,8 +26,9 @@ import {
     clearOldChunks,
     setViewMode
 } from '../store/slices/fileParseSlice';
-import Editor, { Monaco, OnMount, Theme } from '@monaco-editor/react';
+import Editor, { Monaco, OnMount, Theme, loader  } from '@monaco-editor/react';
 import { editor } from 'monaco-editor';
+import * as monaco from 'monaco-editor';
 import { open } from '@tauri-apps/plugin-dialog';
 import { lstat, readFile, readTextFile } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
@@ -799,6 +800,13 @@ export default function FileParse() {
                                         }}
                                         onMount={(editor) => {
                                             editorRef.current = editor;
+                                            loader.config({
+                                                paths: { vs: "./vs" },
+                                                monaco: monaco
+                                            });
+                                            if ((window as any).require) {
+                                                (window as any).require.config({ paths: { vs: "./vs" } });
+                                            }
                                             editor.onMouseUp(() => handleEditorMouseUp());
                                             
                                             // 给编辑器添加拖放事件支持

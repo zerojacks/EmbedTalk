@@ -89,6 +89,14 @@ export default function Layout() {
               title="数据提取"
             />
           </Link>
+          <Link className={linkClass} to="/task-analysis">
+            <FiDatabase
+              className={clsx(defaultClass, {
+                [selectedClass]: location.pathname === "/task-analysis",
+              })}
+              title="任务分析"
+            />
+          </Link>
           <div className="flex-grow" />
           <Link className={linkClass} to="/settings">
             <AiOutlineSetting

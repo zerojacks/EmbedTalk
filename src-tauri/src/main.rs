@@ -140,7 +140,7 @@ fn main() {
             taurihandler::handler::caculate_pppfcs16,
             taurihandler::handler::da_and_measure_point_exchange,
             taurihandler::handler::open_devtools,
-            parse_item_data
+            parse_item_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

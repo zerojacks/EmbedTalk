@@ -34,7 +34,7 @@ export default function Tools() {
     };
 
     const selectedToolConfig = activeDialog ? tools.find(t => t.id === activeDialog) : null;
-
+    
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="mb-8">
@@ -53,7 +53,7 @@ export default function Tools() {
                     />
                 ))}
             </div>
-
+            
             {activeDialog && selectedToolConfig && (
                 <ToolDialog
                     title={selectedToolConfig.name}

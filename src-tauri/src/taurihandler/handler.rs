@@ -12,7 +12,6 @@ use std::time::Instant;
 use tracing::{error, info};
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, LogicalPosition, State};
 use serde::{Deserialize, Serialize};
-
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct WindowPosition {
     pub x: f64,

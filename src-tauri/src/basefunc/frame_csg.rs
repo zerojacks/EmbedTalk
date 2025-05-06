@@ -10,6 +10,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Mutex;
+use tracing::{error, info};
 
 const ITEM_ACK_NAK: u32 = 0xE0000000;
 const MASK_FIR: u8 = 0x40;
@@ -2185,6 +2186,7 @@ impl FrameCsg {
         let mut tpv_data: &[u8] = &[];
         let pw_data: &[u8] = &[];
         let empty_data: &[u8] = &[];
+        info!("dir {} prm {}", dir, prm);
         let (pw_data, pw_pos) = if tpv {
             length -= 5;
             tpv_data = &frame[frame.len() - 7..frame.len() - 2];
@@ -2256,14 +2258,16 @@ impl FrameCsg {
                 };
                 data_item_elem.update_value("length", sub_length.to_string());
                 // println!("sub_datament: {:?}", data_item_elem);
-                item_data = FrameAnalisyic::prase_data(
-                    &mut data_item_elem,
-                    protocol,
-                    region,
-                    sub_datament,
-                    index + pos + 4,
-                    Some(dir),
-                );
+                if dir == 0 || prm == 1 {
+                    item_data = FrameAnalisyic::prase_data(
+                        &mut data_item_elem,
+                        protocol,
+                        region,
+                        sub_datament,
+                        index + pos + 4,
+                        Some(dir),
+                    );
+                }
                 let name = data_item_elem.get_child_text("name").unwrap();
                 dis_data_identifier = format!("数据标识编码：[{}]-{}", data_item, name);
             } else {
