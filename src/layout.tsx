@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 import { AiOutlineSetting, AiOutlineHome } from "react-icons/ai";
 import { MdOutlineMonitor, MdOutlineDevices } from "react-icons/md";
 import { BiNetworkChart } from "react-icons/bi";
-import { TbDeviceAnalytics } from "react-icons/tb";
+import { TbDeviceAnalytics, TbReportAnalytics } from "react-icons/tb";
 import { BiSolidFileArchive } from "react-icons/bi";
 import { FiTool,FiDatabase } from "react-icons/fi";
 import clsx from "clsx";
@@ -90,7 +90,7 @@ export default function Layout() {
             />
           </Link>
           <Link className={linkClass} to="/task-analysis">
-            <FiDatabase
+            <TbReportAnalytics
               className={clsx(defaultClass, {
                 [selectedClass]: location.pathname === "/task-analysis",
               })}

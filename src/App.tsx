@@ -1,6 +1,8 @@
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { FiLayers } from 'react-icons/fi';
 import { DataItemParserTool } from './components/tools/DataItemParserTool';
 import FrameExtractorPage from './routes/frame-extractor';
+import TaskAnalysisPage from './routes/task-analysis';
 import { Toaster } from 'react-hot-toast';
 
 const tools = [
