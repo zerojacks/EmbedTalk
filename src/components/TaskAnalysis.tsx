@@ -52,6 +52,7 @@ const TaskAnalysis: React.FC = () => {
     const dragOverItem = useRef<number | null>(null);
     const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
     const [dropIndex, setDropIndex] = React.useState<number | null>(null);
+    const [selectorPosition, setSelectorPosition] = React.useState({ top: 0, left: 0, maxHeight: 0 });
 
     // 三态checkbox逻辑
     useEffect(() => {
@@ -80,6 +81,22 @@ const TaskAnalysis: React.FC = () => {
 
         if (isColumnSelectorOpen) {
             document.addEventListener('mousedown', handleClickOutside);
+            // 计算选择器位置
+            if (columnSelectorRef.current) {
+                const rect = columnSelectorRef.current.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                const selectorWidth = 256;
+                const margin = 16;
+                
+                let left = rect.right - selectorWidth;
+                left = Math.max(margin, left);
+                left = Math.min(left, viewportWidth - selectorWidth - margin);
+                
+                const top = rect.bottom + 8;
+                const maxHeight = window.innerHeight - top - margin;
+                
+                setSelectorPosition({ top, left, maxHeight });
+            }
         }
 
         return () => {
@@ -362,18 +379,18 @@ const TaskAnalysis: React.FC = () => {
     const renderColumnSelector = () => {
         if (!isColumnSelectorOpen || !columnSelectorRef.current) return null;
         
-        const rect = columnSelectorRef.current.getBoundingClientRect();
-        
         return createPortal(
             <div 
                 className="fixed w-64 bg-base-100 rounded-lg shadow-xl z-[9999] border border-base-300 column-selector-portal"
                 style={{
-                    top: `${rect.bottom + 8}px`,
-                    left: `${rect.right - 256}px`
+                    top: `${selectorPosition.top}px`,
+                    left: `${selectorPosition.left}px`,
+                    maxHeight: `${selectorPosition.maxHeight}px`,
+                    overflowY: 'auto'
                 }}
                 onClick={e => e.stopPropagation()}
             >
-                <div className="p-2 border-b">
+                <div className="p-2 border-b sticky top-0 bg-base-100 z-10">
                     <button
                         type="button"
                         className="btn btn-sm btn-outline w-full mb-2"
@@ -395,61 +412,58 @@ const TaskAnalysis: React.FC = () => {
                         取消全选
                     </button>
                 </div>
-                <div className="max-h-[300px] overflow-y-auto p-2">
-                    {columnConfigs.map((column, index) => {
-                        console.log(`渲染列项 ${column.key} - 索引:${index}, 拖动:${draggedIndex === index}, 目标:${dropIndex === index}`);
-                        return (
-                            <div
-                                key={column.key}
-                                className={`flex items-center p-2 rounded group relative select-none column-item
-                                    ${draggedIndex === index ? 'opacity-50 bg-base-200' : ''}
-                                    ${dropIndex === index ? 'bg-base-100' : ''}
-                                    ${draggedIndex !== index && dropIndex !== index ? 'hover:bg-base-200' : ''}`}
-                                draggable="true"
-                                data-index={index}
-                                onDragStart={(e) => {
+                <div className="p-2">
+                    {columnConfigs.map((column, index) => (
+                        <div
+                            key={column.key}
+                            className={`flex items-center p-2 rounded group relative select-none column-item
+                                ${draggedIndex === index ? 'opacity-50 bg-base-200' : ''}
+                                ${dropIndex === index ? 'bg-base-100' : ''}
+                                ${draggedIndex !== index && dropIndex !== index ? 'hover:bg-base-200' : ''}`}
+                            draggable="true"
+                            data-index={index}
+                            onDragStart={(e) => {
+                                e.stopPropagation();
+                                console.log('开始拖动元素:', column.key);
+                                handleDragStart(index);
+                            }}
+                            onDragOver={(e) => handleDragOver(e, index)}
+                            onDrop={(e) => handleDrop(e, index)}
+                            onDragEnd={handleDragEnd}
+                            onDragEnter={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDragOver(e, index);
+                            }}
+                            onDragLeave={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const target = e.currentTarget as HTMLElement;
+                                target.style.borderTop = 'none';
+                                target.style.borderBottom = 'none';
+                            }}
+                        >
+                            <input
+                                type="checkbox"
+                                className="checkbox checkbox-sm mr-2"
+                                checked={column.visible}
+                                onChange={(e) => {
                                     e.stopPropagation();
-                                    console.log('开始拖动元素:', column.key);
-                                    handleDragStart(index);
+                                    dispatch(toggleColumnVisibility(column.key));
                                 }}
-                                onDragOver={(e) => handleDragOver(e, index)}
-                                onDrop={(e) => handleDrop(e, index)}
-                                onDragEnd={handleDragEnd}
-                                onDragEnter={(e) => {
-                                    e.preventDefault();
+                            />
+                            <span className="flex-grow text-sm">{column.name}</span>
+                            <div 
+                                className="opacity-0 group-hover:opacity-100 cursor-move px-2"
+                                onMouseDown={(e) => {
+                                    console.log('鼠标按下拖动手柄:', column.key);
                                     e.stopPropagation();
-                                    handleDragOver(e, index);
-                                }}
-                                onDragLeave={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    const target = e.currentTarget as HTMLElement;
-                                    target.style.borderTop = 'none';
-                                    target.style.borderBottom = 'none';
                                 }}
                             >
-                                <input
-                                    type="checkbox"
-                                    className="checkbox checkbox-sm mr-2"
-                                    checked={column.visible}
-                                    onChange={(e) => {
-                                        e.stopPropagation();
-                                        dispatch(toggleColumnVisibility(column.key));
-                                    }}
-                                />
-                                <span className="flex-grow text-sm">{column.name}</span>
-                                <div 
-                                    className="opacity-0 group-hover:opacity-100 cursor-move px-2"
-                                    onMouseDown={(e) => {
-                                        console.log('鼠标按下拖动手柄:', column.key);
-                                        e.stopPropagation();
-                                    }}
-                                >
-                                    <FaGripVertical className="text-base-content/50" />
-                                </div>
+                                <FaGripVertical className="text-base-content/50" />
                             </div>
-                        );
-                    })}
+                        </div>
+                    ))}
                 </div>
             </div>,
             document.body

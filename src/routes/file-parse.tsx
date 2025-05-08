@@ -132,6 +132,16 @@ export default function FileParse() {
         dispatch(setSplitSize(sizes));
     };
 
+    useEffect(()=>{
+        loader.config({
+            paths: {
+                vs: "./vs",
+            },
+            'vs/nls': {
+                availableLanguages: ["css", "html", "json", "typescript"],
+              },
+        })
+    },[])
     const getFileContent = (file: FileTab): string => {
         if (!activeFileContents) return '';
 
