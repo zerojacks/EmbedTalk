@@ -1,29 +1,5 @@
 /// <reference lib="webworker" />
-
-interface TaskData {
-    task_id: number;
-    project_id: number;
-    project_type: number;
-    exec_cycle_unit: number;
-    exec_cycle: number;
-    begin_time: number;
-    end_time: number;
-    delay_unit: number;
-    delay_time: number;
-    priority: number;
-    status: number;
-    before_script_id: number;
-    after_script_id: number;
-    exec_period: number[];
-    task_cs: number;
-    op_time: number;
-    depth: number;
-    acq_type: number;
-    acq_content: number[];
-    acq_set: number[];
-    td_option: number;
-    project_cs: number;
-}
+import { TaskData } from '../store/slices/taskAnalysisSlice';
 
 self.onmessage = async (e: MessageEvent) => {
     const { type, payload } = e.data;
