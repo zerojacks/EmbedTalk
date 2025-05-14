@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Mutex;
 use tracing::{error, info};
-
+use std::backtrace::Backtrace;
 const ITEM_ACK_NAK: u32 = 0xE0000000;
 const MASK_FIR: u8 = 0x40;
 const MASK_FIN: u8 = 0x20;
@@ -1177,7 +1177,7 @@ impl FrameCsg {
             Some(i) => i.to_vec(),
             None => element.get_items("splitByLength"),
         };
-        println!("all_items:{:?} {:?}", all_items, element);
+        info!("all_items:{:?} {:?}", all_items, element);
         let template_element = element.get_child("type");
         let rules = element.get_child_text("lengthrule");
         if all_items.is_empty() {
@@ -1233,7 +1233,7 @@ impl FrameCsg {
                 } else {
                     format!("splitByLength{}", i)
                 };
-                println!("sub_length_content:{:?}", sub_length_content);
+                info!("sub_length_content:{:?}", sub_length_content);
                 let subitem_length = if let Some(sub_length_content) = sub_length_content {
                     if sub_length_content.to_uppercase() == "UNKNOWN" {
                         let length = Self::calculate_unknown_length(
@@ -1247,7 +1247,7 @@ impl FrameCsg {
                         let mut newchild = data_subitem_elem.clone();
                         newchild.update_value("length", length.to_string());
                         element.update_child( &newchild);
-                        println!("newchild:{:?} {:?}------", newchild.clone(), element);
+                        info!("newchild:{:?} {:?}------", newchild.clone(), element);
                         length
                     } else {
                         sub_length_content.parse::<usize>().unwrap_or(0)
@@ -1261,11 +1261,11 @@ impl FrameCsg {
                 };
                 
                 length += subitem_length;
-                println!("subitem_name:{} {}", subitem_name, subitem_length);
+                info!("subitem_name:{} {}", subitem_name, subitem_length);
                 length_map.insert(subitem_name, (length, subitem_length, data_subitem_elem));
             }
         }
-        println!("length:{}", length);
+        info!("length:{}", length);
         length
     }
 
@@ -1445,7 +1445,9 @@ impl FrameCsg {
     ) -> (usize, &'a [u8]) {
         let sub_length_cont = data_item_elem.get_child_text("length").unwrap_or_default();
         let mut sub_length: usize;
-
+        info!("recalculate_sub_length {:?} {:?}", data_item_elem, sub_length_cont);
+        let bt = Backtrace::capture();
+        info!("bt:{:?}", bt);
         if sub_length_cont.to_uppercase() == "UNKNOWN" {
             sub_length = Self::calculate_item_length(
                 data_item_elem,
@@ -1461,15 +1463,23 @@ impl FrameCsg {
                 && data_item_elem.get_attribute("region").is_some()
             {
                 // Handle block data
-                if data_item_elem.get_attribute("费率数").is_some()
-                    || data_item_elem.get_attribute("组数").is_some()
-                {
+                info!("check is 费率或者组数");
+                let check_type = if data_item_elem.get_attribute("id").is_some_and(|value| value=="组数" ) {
+                    1
+                } else if data_item_elem.get_attribute("id").is_some_and(|attr| attr=="费率数") || Self::get_data_item_is_with_group(data_item_elem) {
+                    2
+                } else {
+                    0
+                };
+                info!("check type {:?} data_segment[0]:{:?}", check_type, data_segment[0]);
+                if check_type > 0 {
                     if data_segment.is_empty() || data_segment[0] == 0 {
                         sub_length = 1;
                     } else {
                         let data_item_count = data_item_elem.get_items("dataItem").len() as u64;
                         let length = (sub_length as f64 - 1.0) / (data_item_count as f64 - 1.0);
-                        if data_item_elem.get_attribute("费率数").is_some() {
+                        info!("sub_length {:?} data_items count {:?}", sub_length, data_item_count);
+                        if check_type == 2 {
                             sub_length = ((data_segment[0] as f64 + 1.0) * length + 1.0) as usize;
                         } else {
                             sub_length = (data_segment[0] as f64 * length + 1.0) as usize;
@@ -1481,9 +1491,22 @@ impl FrameCsg {
 
         // Ensure sub_length does not exceed data_segment length
         let sub_length = sub_length.min(data_segment.len());
+        info!("caculate length {:?}", sub_length);
         (sub_length, &data_segment[..sub_length])
     }
 
+    pub fn get_data_item_is_with_group(data_item_element: &XmlElement) -> bool {
+        if data_item_element.children.len() > 0 {
+            for child in &data_item_element.children {
+                info!("检查 {:?}", child);
+                if child.get_attribute("id").is_some_and(|value| value=="费率数" ) {
+                    return true;
+                }
+            }
+        }
+        info!("没有子项");
+        return false;
+    }
     pub fn get_sub_length(
         data_item_element: &XmlElement,
         tar_get_item: &str,
@@ -3592,7 +3615,7 @@ impl FrameCsg {
                     let (data_item_elem_opt, cur_data_item) =
                         Self::try_get_item_and_point(item, protocol, region, Some(dir));
 
-                    println!(
+                    info!(
                         "data_item:{:?} {:?} {:?}",
                         data_item_elem_opt, data_segment, item
                     );
@@ -3629,7 +3652,7 @@ impl FrameCsg {
                 let mut item_data: Vec<Value> = Vec::new();
                 let mut sub_length = 0;
                 let mut sub_datament: &[u8] = &[];
-
+                info!("dir {:} item{:?}", dir, data_item_elem);
                 if let Some(mut item_elem) = data_item_elem.clone() {
                     if dir == 1 {
                         let sub_length_cont = item_elem.get_child_text("length").unwrap();
@@ -3646,7 +3669,11 @@ impl FrameCsg {
                             let sub_datament = &data_segment[pos..pos + sub_length];
                             (sub_length, sub_datament)
                         } else {
-                            let sub_length = sub_length_cont.parse::<usize>().unwrap();
+                            let mut sub_length = sub_length_cont.parse::<usize>().unwrap();
+                            info!("sub_length {:?} pos{:?} data_len {:?}", sub_length, pos, data_segment.len());
+                            if sub_length > data_segment[pos..].len() {
+                                sub_length = data_segment.len() - pos;
+                            }
                             let sub_datament = &data_segment[pos..pos + sub_length];
                             let (new_sub_length, new_datament) = Self::recalculate_sub_length(
                                 &mut item_elem,
@@ -3658,6 +3685,7 @@ impl FrameCsg {
                             (new_sub_length, new_datament)
                         };
                         item_elem.update_value("length", sub_length.to_string());
+                        info!("length {:?} data:{:?} item_elem:{:?}", sub_length, sub_datament, item_elem);
                         item_data = FrameAnalisyic::prase_data(
                             &mut item_elem,
                             protocol,

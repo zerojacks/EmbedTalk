@@ -53081,6 +53081,11 @@
 			<type>BCD</type>
 		</splitByLength>
 	</dataItem>
+	<dataItem id="E100806C" protocol="csg13" region="南网">
+		<name>日冻结时间</name>
+		<length>5</length>
+		<time>mmhhDDMMYY</time>
+	</dataItem>
 	<dataItem id="E1008070" protocol="csg13" region="南网">
 		<name>用电安全统计数据</name>
 		<length>90</length>

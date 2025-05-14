@@ -237,6 +237,10 @@ const extractData = (items: TreeItemType[]): ExtractedData[] => {
                     if (timeitem && timeitem.frameDomain.includes('数据时间')) {
                         time =  timeitem.data;
                     }
+
+                    if (timeitem.frameDomain.includes('任务数据时间')) {
+                        da=''
+                    }
                     
                     // 提取子项
                     const children: ExtractedDataChild[] = [];
