@@ -99,6 +99,15 @@ fn main() {
                 api.prevent_close();
                 std::process::exit(0);
             }
+            tauri::WindowEvent::Resized(_) => {
+                let main_window_clone = window.clone();
+                tauri::async_runtime::spawn(async move {
+                    // 检查当前是否最大化并保存状态
+                    let state_flags = tauri_plugin_window_state::StateFlags::all();
+                    let app = main_window_clone.app_handle();
+                    let _ = tauri_plugin_window_state::AppHandleExt::save_window_state(app, state_flags);
+                });
+            }
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![

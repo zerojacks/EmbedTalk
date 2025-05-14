@@ -6,6 +6,7 @@ import Report from "../settingcomplent/report";
 import ConnectBridgeRedux from "../settingcomplent/ConnectBridgeRedux";
 import ProtocolConfigPath from '../settingcomplent/protocolpath'
 import ShortcutSetting from '../settingcomplent/shortcut';
+import Devtools from "../settingcomplent/Devtools";
 
 export default function Settings() {
   return (
@@ -41,6 +42,9 @@ export default function Settings() {
         <label className="text-xl flex items-center mt-4 font-bold">基础设置</label>
         <div className="mt-4">
           <ThemeChange />
+        </div>
+        <div className="mt-4">
+          <Devtools />
         </div>
         <div className="mt-4">
           <AboutInfo />

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { InfoIcon } from '../components/Icons';
-import { useLocation } from 'react-router-dom'; // 如果你使用了 React Router
 
 interface AppInfo {
     name: string;
@@ -13,7 +12,6 @@ const AboutInfo = () => {
     const [appName, setAppName] = useState('EmbedTalk'); // 初始化应用名称
     const [isUpdate, setIsUpdate] = useState(false);
     const [NewVersion, setNewVersion] = useState({ haveNewVersion: false, newVersion: "0.1.2" });
-    const [opendev, setOpendev] = useState(false);
 
     // 获取应用信息
     useEffect(() => {
@@ -79,14 +77,6 @@ const AboutInfo = () => {
         checkUpdate();
     };
 
-    const handleOpenDevTools = async () => {
-        try {
-          await invoke('open_devtools');
-        } catch (error) {
-          console.error('Failed to open devtools:', error);
-        }
-      };
-
     return (
         <div className="join join-vertical collapse bg-base-200 shadow-md w-full">
             <div className="collapse-title text-base flex items-center w-full pr-0">
@@ -112,11 +102,6 @@ const AboutInfo = () => {
                         {isUpdate && <span className="text-sm loading loading-spinner"></span>}
                         {isUpdate ? '检查更新中...' : '检查更新'}
                     </button> {/* 按钮靠右对齐 */}
-                </div>
-                <div>
-                    <button onClick={handleOpenDevTools}>
-                        打开开发工具
-                    </button>
                 </div>
             </div>
         </div>
