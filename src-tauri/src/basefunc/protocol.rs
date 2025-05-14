@@ -206,7 +206,7 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
-            result_str = cur_result;
+            result_str = format!("[{}]: {}", item_name, cur_result);
             sub_item_result = sub_result;
             cur_length = length;
         } else if data_item_elem.get_child("splitbit").is_some() {
