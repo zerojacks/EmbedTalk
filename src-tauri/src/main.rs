@@ -10,6 +10,8 @@ use tauri::Emitter;
 use tracing::{error, info};
 use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::{self, fmt::time::FormatTime};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 pub mod basefunc;
 pub mod combridage;
@@ -41,6 +43,22 @@ impl FormatTime for LocalTimer {
         write!(w, "{}", Local::now().format("%FT%T%.3f"))
     }
 }
+// 在窗口的状态中添加一个记录最后保存时间的字段
+#[derive(Clone)]
+struct WindowStateManager {
+    last_save: Option<Instant>,
+    save_scheduled: bool,
+}
+
+impl WindowStateManager {
+    fn new() -> Self {
+        Self {
+            last_save: None,
+            save_scheduled: false,
+        }
+    }
+}
+// 在窗口事件处理中使用
 
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
@@ -50,6 +68,10 @@ fn main() {
         eprintln!("Panic occurred: {:?}", info);
         eprintln!("Backtrace: {:?}", backtrace);
     }));
+
+    // 在初始化应用程序前创建状态管理器
+    let state_manager = Arc::new(Mutex::new(WindowStateManager::new()));
+    let state_manager_clone = state_manager.clone();
 
     // let quit = CustomMenuItem::new("quit".to_string(), "退出");
     // let hide = CustomMenuItem::new("hide".to_string(), "隐藏窗口");
@@ -77,6 +99,7 @@ fn main() {
         .build()
         )
         .manage(WindowState::default()) // 添加窗口位置状态管理
+        .manage(state_manager) // 添加窗口状态管理器到 Tauri 状态中
         .setup(|app| {
             let handle = app.app_handle();
             global::set_app_handle(handle.clone()); // Set the global app handle
@@ -92,20 +115,46 @@ fn main() {
             
             Ok(())
         })
-        .on_window_event(|window, event| match event {
+        .on_window_event(move |window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 window.hide().unwrap();
                 window.emit("clear-local-storage", ()).unwrap();
                 api.prevent_close();
                 std::process::exit(0);
             }
-            tauri::WindowEvent::Resized(_) => {
-                let main_window_clone = window.clone();
+            tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Moved(_) => {
+                let window_clone = window.clone();
+                let manager_clone = state_manager_clone.clone();
+                
+                // 获取当前的状态
+                let mut manager = manager_clone.lock().unwrap();
+                let now = Instant::now();
+                
+                // 如果已经有计划的保存任务，或者距离上次保存不到500毫秒，则不再创建新任务
+                if manager.save_scheduled || manager.last_save.map_or(false, |last| now.duration_since(last) < Duration::from_millis(500)) {
+                    return;
+                }
+                
+                // 标记为已计划保存
+                manager.save_scheduled = true;
+                
+                // 释放锁
+                drop(manager);
+                
+                // 创建一个延迟执行的任务
                 tauri::async_runtime::spawn(async move {
-                    // 检查当前是否最大化并保存状态
+                    // 等待500毫秒
+                    tokio::time::sleep(Duration::from_millis(500)).await;
+                    
+                    // 执行保存
                     let state_flags = tauri_plugin_window_state::StateFlags::all();
-                    let app = main_window_clone.app_handle();
+                    let app = window_clone.app_handle();
                     let _ = tauri_plugin_window_state::AppHandleExt::save_window_state(app, state_flags);
+                    
+                    // 更新状态
+                    let mut manager = manager_clone.lock().unwrap();
+                    manager.last_save = Some(Instant::now());
+                    manager.save_scheduled = false;
                 });
             }
             _ => {}
