@@ -2,12 +2,8 @@ name: "publish"
 
 on:
   push:
-    branches:
-      - master
-
-# `tauri-action` can also upload app bundles to an existing GitHub release.
-# This workflow uses different actions to create and publish the release.
-# `tauri-action` will only build and upload the app bundles to the specified release.
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
   create-release:
@@ -19,14 +15,41 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
 
-      - name: get version
-        run: echo "PACKAGE_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+      - name: get version from tag
+        run: echo "PACKAGE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          # 获取当前tag和上一个tag
+          current_tag=${GITHUB_REF#refs/tags/}
+          previous_tag=$(git tag --sort=-v:refname | grep "^v" | grep -A1 "^${current_tag}$" | tail -n1)
+          
+          if [ -n "$previous_tag" ]; then
+            # 如果有上一个tag，获取两个tag之间的提交
+            changelog=$(git log ${previous_tag}..${current_tag} --pretty=format:"* %s (%h)" --no-merges)
+          else
+            # 如果是第一个tag，获取所有提交
+            changelog=$(git log ${current_tag} --pretty=format:"* %s (%h)" --no-merges)
+          fi
+          
+          # 如果changelog为空，添加一个默认消息
+          if [ -z "$changelog" ]; then
+            changelog="* 首次发布"
+          fi
+          
+          # 将更改日志保存到环境变量中，处理多行文本
+          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+          echo "$changelog" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: create release
         id: create-release
@@ -38,7 +61,7 @@ jobs:
               repo: context.repo.repo,
               tag_name: `v${process.env.PACKAGE_VERSION}`,
               name: `EmbedTalk v${process.env.PACKAGE_VERSION}`,
-              body: 'Take a look at the assets to download and install this app.',
+              body: `# 更新日志\n\n${process.env.CHANGELOG}\n\n---\n\n下载并安装以下对应系统的安装包：`,
               draft: true,
               prerelease: false
             })
