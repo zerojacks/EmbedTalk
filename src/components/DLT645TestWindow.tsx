@@ -97,7 +97,7 @@ const DLT645TestWindow: React.FC = () => {
         channelId,
         channeltype: channelType as ChannelType,
         name,
-        state: config.state,
+        state: config.state || "disconnected",
         messages: [],
         sentCount: stats.sent,
         receivedCount: stats.received,
