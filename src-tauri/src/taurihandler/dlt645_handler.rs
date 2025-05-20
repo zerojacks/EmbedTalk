@@ -111,7 +111,7 @@ pub async fn send_dlt645_frame(
     };
     
     // 发送消息
-    match channel_handler::send_message(channel_id, bytes).await {
+    match channel_handler::send_message(channel_id, bytes, None).await {
         Ok(_) => {
             // 发送成功，返回空响应
             // 注意：在实际应用中，这里应该等待并解析响应

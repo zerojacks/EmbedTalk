@@ -3,6 +3,7 @@ use crate::combridage::{ChannelState, Message};
 use async_trait::async_trait;
 use serde_json;
 use socket2::{Socket, TcpKeepalive};
+use uuid::Uuid;
 use std::error::Error;
 use std::io;
 use std::io::Error as IoError;
@@ -20,6 +21,9 @@ use bincode;
 
 #[derive(Clone, Debug)]
 pub struct TcpClientChannel {
+    channeltype: String,
+    channelid: String,
+    channel_name: String,
     adress: String,
     stream: Arc<Mutex<TcpStream>>,
     shutdown_signal: broadcast::Sender<()>,
@@ -49,6 +53,9 @@ impl TcpClientChannel {
         let mut_stream = Arc::new(Mutex::new(TcpStream::from_std(arc_stream)?));
 
         let channel = Self {
+            channeltype: "tcpclient".to_string(),
+            channelid: "tcpclient".to_string() + &Uuid::new_v4().to_string(),
+            channel_name: "TCP".to_string() + &address.clone(),
             adress: address.clone(),
             stream: mut_stream.clone(),
             shutdown_signal: shutdown_signal.clone(),
@@ -195,8 +202,9 @@ impl TcpClientChannel {
             let message = Message::new(payload);
             let _ = message_manager
                 .record_message(
-                    "tcpclient",
-                    &self.adress.clone(),
+                    &self.channeltype.clone(),
+                    &self.channelid.clone(),
+                    &self.channel_name.clone(),
                     &message,
                     MessageDirection::Sent,
                     None,
@@ -239,8 +247,9 @@ impl TcpClientChannel {
                             
                             // 使用 timeout 包装 record_message 调用，防止长时间阻塞
                             match timeout(Duration::from_secs(1), message_manager.record_message(
-                                "tcpclient",
-                                &self.adress.clone(),
+                                &self.channeltype.clone(),
+                                &self.channelid.clone(),
+                                &self.channel_name.clone(),
                                 &message,
                                 MessageDirection::Received,
                                 None
@@ -323,7 +332,7 @@ impl TcpClientChannel {
 
 #[async_trait]
 impl CommunicationChannel for TcpClientChannel {
-    async fn send(&self, message: &Message) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn send(&self, message: &Message, clientid: Option<String>) -> Result<(), Box<dyn Error + Send + Sync>> {
         // 获取消息内容
         let content = message.get_content();
         
@@ -416,5 +425,9 @@ impl CommunicationChannel for TcpClientChannel {
             .unwrap();
 
         Ok(())
+    }
+
+    fn get_channel_id(&self) -> String {
+        self.channelid.clone()
     }
 }

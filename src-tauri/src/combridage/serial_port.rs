@@ -3,6 +3,7 @@ use crate::combridage::{ChannelState, CommunicationChannel, Message};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
 use serde_json;
+use uuid::Uuid;
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
@@ -11,16 +12,22 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::broadcast;
 use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
-use tokio::time::timeout;
+use tokio::time::{timeout, sleep};
 use tokio_serial::SerialStream;
+
 pub struct SerialPortChannel {
+    channeltype: String,
+    channelid: String,
+    channel_name: String,
     port_name: String,
-    port: Arc<Mutex<Option<SerialStream>>>,
+    writer: Arc<Mutex<Option<tokio::io::WriteHalf<SerialStream>>>>,
+    reader: Arc<Mutex<Option<tokio::io::ReadHalf<SerialStream>>>>,
     sender: broadcast::Sender<Vec<u8>>,
-    receiver: mpsc::Receiver<Message>,
+    data_tx: mpsc::Sender<Vec<u8>>,
+    data_rx: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>,
     send_task_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
     receive_task_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
-    msg_sender: mpsc::Sender<Message>, // 添加msg_sender字段来存储发送端
+    process_task_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
 }
 
 impl SerialPortChannel {
@@ -32,31 +39,34 @@ impl SerialPortChannel {
         parity: tokio_serial::Parity,
         stopbit: tokio_serial::StopBits,
     ) -> Result<Self, Box<dyn Error + Send + Sync>> {
-        // Change to broadcast channel instead of mpsc
         let (tx, _) = broadcast::channel::<Vec<u8>>(100);
-        let (msg_tx, msg_rx) = mpsc::channel::<Message>(100);
+        let (data_tx, data_rx) = mpsc::channel::<Vec<u8>>(100);
 
-        let port = Arc::new(Mutex::new(None));
+        let writer = Arc::new(Mutex::new(None));
+        let reader = Arc::new(Mutex::new(None));
         let send_task_handle = Arc::new(Mutex::new(None));
         let receive_task_handle = Arc::new(Mutex::new(None));
+        let process_task_handle = Arc::new(Mutex::new(None));
 
         let channel = Self {
-            port_name: port_name.to_string().clone(),
-            port,
+            channeltype: "serial".to_string(),
+            channelid: "serial".to_string() + &Uuid::new_v4().to_string(),
+            channel_name: "Serial".to_string() + &port_name.to_string(),
+            port_name: port_name.to_string(),
+            writer,
+            reader,
             sender: tx,
-            receiver: msg_rx,
+            data_tx,
+            data_rx: Arc::new(Mutex::new(data_rx)),
             send_task_handle,
             receive_task_handle,
-            msg_sender: msg_tx, // 保存msg_sender
+            process_task_handle,
         };
 
-        // Connect immediately
-        channel
-            .connect(port_name, baud_rate, databit, fowctrl, parity, stopbit)
-            .await?;
+        channel.connect(port_name, baud_rate, databit, fowctrl, parity, stopbit).await?;
         if let Err(e) = channel.on_statechange(ChannelState::Connected).await {
-            eprintln!("Failed to send disconnect event: {:?}", e);
-            return Err(e); // 返回 on_statechange 的错误
+            eprintln!("Failed to send connect event: {:?}", e);
+            return Err(e);
         }
         Ok(channel)
     }
@@ -70,72 +80,71 @@ impl SerialPortChannel {
         parity: tokio_serial::Parity,
         stopbit: tokio_serial::StopBits,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let serialbuilder = tokio_serial::new(port_name, baud_rate);
-        let port = SerialStream::open(
-            &serialbuilder
+        const MAX_RETRIES: u32 = 3;
+        const RETRY_DELAY: Duration = Duration::from_secs(1);
+
+        let mut last_error = None;
+        for retry in 0..MAX_RETRIES {
+            if retry > 0 {
+                println!("重试串口连接，第 {} 次尝试", retry + 1);
+                sleep(RETRY_DELAY).await;
+            }
+
+            let builder = tokio_serial::new(port_name, baud_rate)
                 .data_bits(databit)
                 .flow_control(fowctrl)
                 .parity(parity)
-                .stop_bits(stopbit),
-        )?;
+                .stop_bits(stopbit);
 
-        // Store the serial port instance
-        *self.port.lock().await = Some(port);
+            match SerialStream::open(&builder) {
+                Ok(port) => {
+                    println!("串口连接成功: {}", port_name);
+                    let (reader, writer) = tokio::io::split(port);
+                    
+                    *self.reader.lock().await = Some(reader);
+                    *self.writer.lock().await = Some(writer);
 
-        // Start send and receive tasks
-        let app_handle = get_app_handle();
-        let message_manager = MessageManager::new(app_handle)?;
-        let _ = message_manager.register_channel(&port_name).await;
-        let subscriber = message_manager.subscribe_to_messages();
+                    let app_handle = get_app_handle();
+                    let message_manager = MessageManager::new(app_handle)?;
+                    let _ = message_manager.register_channel(&port_name).await;
 
-        let message_send = message_manager.clone();
-        let message_rec = message_manager.clone();
-        self.start_send_task(message_send).await?;
-        self.start_receive_task(message_rec).await?;
+                    let message_send = message_manager.clone();
+                    let message_rec = message_manager.clone();
+                    self.start_send_task(message_send).await?;
+                    self.start_receive_task(message_rec).await?;
 
-        Ok(())
+                    return Ok(());
+                }
+                Err(e) => {
+                    last_error = Some(e);
+                    eprintln!("串口连接失败 (尝试 {}/{}): {:?}", retry + 1, MAX_RETRIES, last_error);
+                }
+            }
+        }
+
+        Err(format!("串口连接失败，已重试 {} 次: {:?}", MAX_RETRIES, last_error.unwrap()).into())
     }
 
     async fn start_send_task(
         &self,
         message_manager: MessageManager,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let port = self.port.clone();
+        let writer = self.writer.clone();
         let mut rx = self.sender.subscribe();
-        let port_name = self.port_name.clone();
-
+        let channeltype = self.channeltype.clone();
+        let channelid = self.channelid.clone();
+        
         let handle = tokio::spawn(async move {
             while let Ok(data) = rx.recv().await {
-                if let Some(port) = port.lock().await.as_mut() {
-                    // Handle port write errors
-                    if let Err(e) = port.write_all(&data).await {
-                        eprintln!("Error sending data: {:?}", e);
+                if let Some(mut writer) = writer.lock().await.as_mut() {
+                    if let Err(e) = writer.write_all(&data).await {
+                        eprintln!("发送数据时发生错误: {:?}", e);
                         break;
-                    }
-
-                    let payload = serde_json::json!({
-                        "data": data
-                    });
-                    let message = Message::new(payload);
-
-                    // Record the message
-                    if let Err(e) = message_manager
-                        .record_message(
-                            "serial",
-                            &port_name,
-                            &message,
-                            MessageDirection::Sent,
-                            None,
-                        )
-                        .await
-                    {
-                        eprintln!("Error recording message: {:?}", e);
                     }
                 }
             }
         });
 
-        // Store the handle
         *self.send_task_handle.lock().await = Some(handle);
         Ok(())
     }
@@ -144,120 +153,149 @@ impl SerialPortChannel {
         &self,
         message_manager: MessageManager,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let port = self.port.clone();
-        let msg_tx = self.msg_sender.clone();
-        let port_name = self.port_name.clone();
+        let reader = self.reader.clone();
+        let data_sender = self.data_tx.clone();
+        let channeltype = self.channeltype.clone();
+        let channelid = self.channelid.clone();
 
-        let handle = tokio::spawn(async move {
+        // 启动数据接收任务
+        let receive_handle = tokio::spawn(async move {
             let mut buffer = vec![0; 1024];
-            while let Some(port) = port.lock().await.as_mut() {
-                match port.read(&mut buffer).await {
+            while let Some(mut reader) = reader.lock().await.as_mut() {
+                match reader.read(&mut buffer).await {
                     Ok(n) if n > 0 => {
                         let received_data = buffer[..n].to_vec();
-                        println!("Received {} bytes: {:?}", n, received_data);
-
-                        let payload = serde_json::json!({
-                            "data": received_data
-                        });
-                        let message = Message::new(payload);
-
-                        // Send Message object using mpsc sender
-                        if msg_tx.send(message.clone()).await.is_err() {
-                            eprintln!("Receiver dropped");
-                            break;
-                        }
-
-                        if let Err(e) = message_manager
-                            .record_message(
-                                "tcpclient",
-                                &port_name,
-                                &message,
-                                MessageDirection::Received,
-                                None,
-                            )
-                            .await
-                        {
-                            eprintln!("Error recording message: {:?}", e);
+                        println!("接收到 {} 字节的数据", n);
+                        
+                        // 将数据放入队列
+                        if let Err(e) = data_sender.send(received_data).await {
+                            eprintln!("发送数据到队列失败: {:?}", e);
+                            continue;
                         }
                     }
-                    Ok(n) => {
-                        println!("Read {} bytes (zero bytes read)", n);
-                    }
+                    Ok(_) => {}
                     Err(e) => {
-                        eprintln!("Error receiving data: {:?}", e);
+                        eprintln!("读取数据时发生错误: {:?}", e);
                         break;
                     }
                 }
             }
         });
 
-        *self.receive_task_handle.lock().await = Some(handle);
-        Ok(())
-    }
-    async fn receive(&mut self) -> Result<Message, Box<dyn Error + Send + Sync>> {
-        if !self.is_connected().await {
-            return Err("Serial port not connected".into());
-        }
+        *self.receive_task_handle.lock().await = Some(receive_handle);
 
-        if let Some(message) = self.receiver.recv().await {
-            println!("SerialPortChannel Received: {:?}", message);
-            Ok(message)
-        } else {
-            Err("Failed to receive message".into())
-        }
+        // 启动数据处理任务
+        let process_handle = tokio::spawn({
+            let data_rx = self.data_rx.clone();
+            let channeltype = self.channeltype.clone();
+            let channelid = self.channelid.clone();
+            let channel_name = self.channel_name.clone();
+            let message_manager = message_manager.clone();
+
+            async move {
+                while let Some(data) = data_rx.lock().await.recv().await {
+                    let message = Message::new(serde_json::json!({
+                        "data": data
+                    }));
+
+                    // 记录消息
+                    if let Err(e) = message_manager
+                        .record_message(
+                            &channeltype,
+                            &channelid,
+                            &channel_name,
+                            &message,
+                            MessageDirection::Received,
+                            None,
+                        )
+                        .await
+                    {
+                        eprintln!("记录消息失败: {:?}", e);
+                    }
+                }
+            }
+        });
+
+        *self.process_task_handle.lock().await = Some(process_handle);
+        Ok(())
     }
 
     pub async fn is_connected(&self) -> bool {
-        self.port.lock().await.is_some()
+        self.writer.lock().await.is_some() && self.reader.lock().await.is_some()
     }
 }
+
 #[async_trait]
 impl CommunicationChannel for SerialPortChannel {
-    async fn send(&self, message: &Message) -> Result<(), Box<dyn Error + Send + Sync>> {
-        if !self.is_connected().await {
-            return Err("Serial port not connected".into());
+    async fn send(&self, message: &Message, _clientid: Option<String>) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let content = message.get_content();
+        let data = if let Some(arr) = content["data"].as_array() {
+            arr.iter()
+                .filter_map(|v| v.as_u64())
+                .map(|v| v as u8)
+                .collect::<Vec<u8>>()
+        } else {
+            return Err("Invalid data format".into());
+        };
+        
+        self.sender.send(data)?;
+        
+        let app_handle = get_app_handle();
+        let message_manager = MessageManager::new(app_handle.clone())?;
+        
+        let mut message_clone = message.clone();
+        message_clone.update_timestamp();
+        if let Err(e) = message_manager.record_message(
+            &self.channeltype,
+            &self.channelid,
+            &self.channel_name,
+            &message_clone,
+            MessageDirection::Sent,
+            None,
+        ).await {
+            eprintln!("记录发送消息失败: {:?}", e);
         }
-
-        let serialized = serde_json::to_vec(&message.content)?;
-        self.sender.send(serialized)?;
-        println!("SerialPortChannel Sent: {:?}", message);
         Ok(())
     }
 
-    async fn send_and_wait(
-        &self,
-        message: &Message,
-        timeout_secs: u64,
-    ) -> Result<Message, Box<dyn Error + Send + Sync>> {
-        if !self.is_connected().await {
-            return Err("Serial port not connected".into());
+    async fn receive(&self) -> Result<Message, Box<dyn Error + Send + Sync>> {
+        if let Some(message) = self.data_rx.lock().await.recv().await {
+            let payload = serde_json::json!({
+                "data": message
+            });
+            Ok(Message::new(payload))
+        } else {
+            Err("接收消息失败".into())
         }
+    }
 
-        self.send(message).await?;
+    async fn send_and_wait(&self, message: &Message, timeout_secs: u64) -> Result<Message, Box<dyn Error + Send + Sync>> {
+        self.send(message, None).await?;
         match timeout(Duration::from_secs(timeout_secs), self.receive()).await {
             Ok(result) => result,
-            Err(_) => Err("Timeout waiting for response".into()),
+            Err(_) => Err("等待响应超时".into())
         }
     }
-    async fn receive(&self) -> Result<Message, Box<dyn Error + Send + Sync>> {
-        self.receive().await
-    }
+
     async fn close(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        // 停止发送和接收任务
+        // 中止所有任务
         if let Some(handle) = self.send_task_handle.lock().await.take() {
             handle.abort();
         }
         if let Some(handle) = self.receive_task_handle.lock().await.take() {
             handle.abort();
         }
-
-        // 关闭串口
-        if let Some(mut port) = self.port.lock().await.take() {
-            port.shutdown().await?;
+        if let Some(handle) = self.process_task_handle.lock().await.take() {
+            handle.abort();
         }
+
+        // 关闭读写流
+        *self.reader.lock().await = None;
+        *self.writer.lock().await = None;
+
         if let Err(e) = self.on_statechange(ChannelState::Disconnected).await {
-            eprintln!("Failed to send disconnect event: {:?}", e);
-            return Err(e); // 返回 on_statechange 的错误
+            eprintln!("发送断开连接事件失败: {:?}", e);
+            return Err(e);
         }
         Ok(())
     }
@@ -272,12 +310,16 @@ impl CommunicationChannel for SerialPortChannel {
             "channelId": self.port_name.clone(),
             "state": state,
             "data": serde_json::Value::Null,
-            "reason": "The TCP Client has disconnected",
+            "reason": "串口已断开连接",
         });
         app_handle
             .emit("channel-state", serde_json::to_string(&payload)?)
             .unwrap();
 
         Ok(())
+    }
+
+    fn get_channel_id(&self) -> String {
+        self.channelid.clone()
     }
 }

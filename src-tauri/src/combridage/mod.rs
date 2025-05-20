@@ -41,7 +41,7 @@ impl Message {
             timestamp: chrono::Utc::now().timestamp_millis(), // 使用 timestamp_millis 获取毫秒级时间戳
         }
     }
-    
+
     // 添加 getter 方法，获取 content 字段
     pub fn get_content(&self) -> &Value {
         &self.content
@@ -51,9 +51,12 @@ impl Message {
     pub fn get_payload(&self) -> &Value {
         &self.content
     }
+    pub fn update_timestamp(&mut self) {
+        self.timestamp = chrono::Utc::now().timestamp_millis();
+    }
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
 pub enum ChannelType {
     TcpClient(String, u16),                                // Address, port
     TcpServer(String, u16),                                // Address, port
@@ -64,7 +67,8 @@ pub enum ChannelType {
 
 #[async_trait]
 pub trait CommunicationChannel: Send + Sync {
-    async fn send(&self, message: &Message) -> Result<(), Box<dyn Error + Send + Sync>>;
+    fn get_channel_id(&self) -> String;
+    async fn send(&self, message: &Message, clientid: Option<String>) -> Result<(), Box<dyn Error + Send + Sync>>;
     async fn receive(&self) -> Result<Message, Box<dyn Error + Send + Sync>>;
     async fn send_and_wait(
         &self,

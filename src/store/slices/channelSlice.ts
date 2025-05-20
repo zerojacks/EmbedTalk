@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@reduxjs/toolkit';
 import { ChannelService } from '../../services/channelService';
 import { 
   ChannelType, 
@@ -12,13 +12,17 @@ import {
   TcpServerConfig,
   SerialConfig,
   MqttConfig,
-  BluetoothConfig
+  BluetoothConfig,
+  ChannelConfig,
+  BaseChannelConfig,
+  TcpServerClient
 } from '../../types/channel';
 import { RootState } from '../index';
 import { toast } from '../../context/ToastProvider';
 import { invoke } from '@tauri-apps/api/core';
 import { ThunkDispatch } from '@reduxjs/toolkit';
 import { AnyAction } from 'redux';
+import { AppDispatch } from '../index';
 
 // 辅助函数 - 获取通道名称
 const getChannelName = (channel: ChannelType): string => {
@@ -62,36 +66,73 @@ const getToastMessage = (channel: ChannelType, payload: any, action: ConnectionS
   }
 };
 
-// 状态接口
-interface ChannelState {
-  channels: {
-    tcpclient?: TcpClientConfig & { state: ConnectionState; channelId?: string };
-    tcpserver?: TcpServerConfig & { state: ConnectionState; channelId?: string };
-    serial?: SerialConfig & { state: ConnectionState; channelId?: string };
-    mqtt?: MqttConfig & { state: ConnectionState; channelId?: string };
-    bluetooth?: BluetoothConfig & { state: ConnectionState; channelId?: string };
-  };
-  loading: boolean;
-  error: string | null;
-  serviceInitialized: boolean;
-  messageStats: Record<string, MessageStats>;
-  messageHistory: Record<string, ChannelMessage[]>;
+interface LocalMessageStats {
+    sent: number;
+    received: number;
+    lastMessageTime?: string | number;
 }
 
-// 初始状态
+interface ChannelState {
+    channels: Partial<{
+        tcpclient: TcpClientConfig;
+        tcpserver: TcpServerConfig;
+        serial: SerialConfig;
+        mqtt: MqttConfig;
+        bluetooth: BluetoothConfig;
+    }>;
+    messageStats: { [key: string]: LocalMessageStats };
+    messageHistory: { [key: string]: ChannelMessage[] };
+    loading: boolean;
+    error: string | null;
+    serviceInitialized: boolean;
+}
+
 const initialState: ChannelState = {
-  channels: {
-    tcpclient: { state: 'disconnected' },
-    tcpserver: { state: 'disconnected' },
-    serial: { state: 'disconnected' },
-    mqtt: { state: 'disconnected' },
-    bluetooth: { state: 'disconnected' }
-  },
-  loading: false,
-  error: null,
-  serviceInitialized: false,
-  messageStats: {},
-  messageHistory: {}
+    channels: {
+        tcpclient: {
+            type: 'tcpclient',
+            ip: '',
+            port: 0,
+            state: 'disconnected',
+            channelId: undefined
+        },
+        tcpserver: {
+            type: 'tcpserver',
+            ip: '',
+            port: 0,
+            state: 'disconnected',
+            channelId: undefined,
+            children: []
+        },
+        serial: {
+            type: 'serial',
+            comname: '',
+            baurdate: 9600,
+            state: 'disconnected',
+            channelId: undefined
+        },
+        mqtt: {
+            type: 'mqtt',
+            ip: '127.0.0.1',
+            port: 1883,
+            state: 'disconnected',
+            channelId: undefined,
+            qos: 2,
+            version: '3.1.1',
+            topic: '#'
+        },
+        bluetooth: {
+            type: 'bluetooth',
+            bluetoothname: '',
+            state: 'disconnected',
+            channelId: undefined
+        }
+    },
+    messageStats: {},
+    messageHistory: {},
+    loading: false,
+    error: null,
+    serviceInitialized: false
 };
 
 // 异步 Thunk - 初始化通道服务
@@ -163,19 +204,54 @@ export const loadChannelConfig = createAsyncThunk<
         Object.keys(configWithDisconnectedState).forEach(key => {
           const channelType = key as ChannelType;
           if (configWithDisconnectedState[channelType]) {
-            configWithDisconnectedState[channelType] = {
-              ...configWithDisconnectedState[channelType],
-              state: 'disconnected'
-            };
+            const config = configWithDisconnectedState[channelType];
+            if (config) {
+              config.state = 'disconnected' as ConnectionState;
+            }
           }
         });
         
         // 设置默认信息
-        if (!configWithDisconnectedState.tcpclient) configWithDisconnectedState.tcpclient = { state: 'disconnected' };
-        if (!configWithDisconnectedState.tcpserver) configWithDisconnectedState.tcpserver = { state: 'disconnected' };
-        if (!configWithDisconnectedState.serial) configWithDisconnectedState.serial = { state: 'disconnected' };
-        if (!configWithDisconnectedState.mqtt) configWithDisconnectedState.mqtt = { state: 'disconnected' };
-        if (!configWithDisconnectedState.bluetooth) configWithDisconnectedState.bluetooth = { state: 'disconnected' };
+        if (!configWithDisconnectedState.tcpclient) {
+          configWithDisconnectedState.tcpclient = {
+            type: 'tcpclient' as const,
+            ip: '',
+            port: 0,
+            state: 'disconnected' as ConnectionState
+          };
+        }
+        if (!configWithDisconnectedState.tcpserver) {
+          configWithDisconnectedState.tcpserver = {
+            type: 'tcpserver' as const,
+            ip: '',
+            port: 0,
+            state: 'disconnected' as ConnectionState,
+            children: []
+          };
+        }
+        if (!configWithDisconnectedState.serial) {
+          configWithDisconnectedState.serial = {
+            type: 'serial' as const,
+            comname: '',
+            baurdate: 9600,
+            state: 'disconnected' as ConnectionState
+          };
+        }
+        if (!configWithDisconnectedState.mqtt) {
+          configWithDisconnectedState.mqtt = {
+            type: 'mqtt' as const,
+            ip: '',
+            port: 0,
+            state: 'disconnected' as ConnectionState
+          };
+        }
+        if (!configWithDisconnectedState.bluetooth) {
+          configWithDisconnectedState.bluetooth = {
+            type: 'bluetooth' as const,
+            bluetoothname: '',
+            state: 'disconnected' as ConnectionState
+          };
+        }
         
         return configWithDisconnectedState;
       } else {
@@ -362,56 +438,348 @@ const channelSlice = createSlice({
     },
     
     // 更新通道状态
-    updateChannelState: (state, action: PayloadAction<{ channelType: ChannelType; state: ConnectionState; channelId?: string }>) => {
-      const { channelType, state: newState, channelId } = action.payload;
-      if (state.channels[channelType]) {
-        state.channels[channelType] = {
-          ...state.channels[channelType],
-          state: newState,
-          ...(channelId && { channelId })
-        };
+    updateChannelState: (
+      state,
+      action: PayloadAction<{
+        channelType: ChannelType;
+        state: ConnectionState;
+        config?: Partial<ChannelConfig>;
+        channelId?: string;
+      }>
+    ) => {
+      const { channelType, state: channelState, config, channelId } = action.payload;
+      console.log(`更新通道状态: ${channelType}, 状态: ${channelState}, ID: ${channelId || '未设置'}`);
+
+      // 确保通道存在并且有正确的初始值
+      if (!state.channels[channelType]) {
+        const defaultConfig = initialState.channels[channelType];
+        if (defaultConfig) {
+            switch (channelType) {
+                case 'tcpclient':
+                    state.channels.tcpclient = {
+                        ...defaultConfig,
+                        state: channelState,
+                        channelId: channelId
+                    } as TcpClientConfig;
+                    break;
+                case 'tcpserver':
+                    state.channels.tcpserver = {
+                        ...defaultConfig,
+                        state: channelState,
+                        channelId: channelId
+                    } as TcpServerConfig;
+                    break;
+                case 'serial':
+                    state.channels.serial = {
+                        ...defaultConfig,
+                        state: channelState,
+                        channelId: channelId
+                    } as SerialConfig;
+                    break;
+                case 'mqtt':
+                    state.channels.mqtt = {
+                        ...defaultConfig,
+                        state: channelState,
+                        channelId: channelId
+                    } as MqttConfig;
+                    break;
+                case 'bluetooth':
+                    state.channels.bluetooth = {
+                        ...defaultConfig,
+                        state: channelState,
+                        channelId: channelId
+                    } as BluetoothConfig;
+                    break;
+            }
+        }
+      }
+
+      // 如果提供了配置，更新配置
+      if (config) {
+        const currentConfig = state.channels[channelType];
+        if (!currentConfig) return;
+        
+        switch (channelType) {
+            case 'tcpclient': {
+                const tcpConfig = currentConfig as TcpClientConfig;
+                state.channels.tcpclient = {
+                    ...tcpConfig,
+                    ...config,
+                    type: 'tcpclient',
+                    ip: (config as TcpClientConfig).ip || tcpConfig.ip || '',
+                    port: (config as TcpClientConfig).port || tcpConfig.port || 0,
+                    state: channelState,
+                    channelId: channelId || config.channelId || tcpConfig.channelId
+                } as TcpClientConfig;
+                break;
+            }
+            case 'tcpserver': {
+                const tcpConfig = currentConfig as TcpServerConfig;
+                state.channels.tcpserver = {
+                    ...tcpConfig,
+                    ...config,
+                    type: 'tcpserver',
+                    ip: (config as TcpServerConfig).ip || tcpConfig.ip || '',
+                    port: (config as TcpServerConfig).port || tcpConfig.port || 0,
+                    state: channelState,
+                    channelId: channelId || config.channelId || tcpConfig.channelId,
+                    children: (config as TcpServerConfig).children || tcpConfig.children || []
+                } as TcpServerConfig;
+                break;
+            }
+            case 'serial': {
+                const serialConfig = currentConfig as SerialConfig;
+                state.channels.serial = {
+                    ...serialConfig,
+                    ...config,
+                    type: 'serial',
+                    comname: (config as SerialConfig).comname || serialConfig.comname || '',
+                    baurdate: (config as SerialConfig).baurdate || serialConfig.baurdate || 9600,
+                    state: channelState,
+                    channelId: channelId || config.channelId || serialConfig.channelId
+                } as SerialConfig;
+                break;
+            }
+            case 'mqtt': {
+                const mqttConfig = currentConfig as MqttConfig;
+                state.channels.mqtt = {
+                    ...mqttConfig,
+                    ...config,
+                    type: 'mqtt',
+                    ip: (config as MqttConfig).ip || mqttConfig.ip || '',
+                    port: (config as MqttConfig).port || mqttConfig.port || 0,
+                    state: channelState,
+                    channelId: channelId || config.channelId || mqttConfig.channelId
+                } as MqttConfig;
+                break;
+            }
+            case 'bluetooth': {
+                const bluetoothConfig = currentConfig as BluetoothConfig;
+                state.channels.bluetooth = {
+                    ...bluetoothConfig,
+                    ...config,
+                    type: 'bluetooth',
+                    bluetoothname: (config as BluetoothConfig).bluetoothname || bluetoothConfig.bluetoothname || '',
+                    state: channelState,
+                    channelId: channelId || config.channelId || bluetoothConfig.channelId
+                } as BluetoothConfig;
+                break;
+            }
+        }
+      } else {
+        // 只更新状态和channelId，保持其他配置不变
+        const currentConfig = state.channels[channelType];
+        if (currentConfig) {
+            switch (channelType) {
+                case 'tcpclient':
+                    state.channels.tcpclient = {
+                        ...currentConfig,
+                        state: channelState,
+                        channelId: channelId || currentConfig.channelId
+                    } as TcpClientConfig;
+                    break;
+                case 'tcpserver':
+                    state.channels.tcpserver = {
+                        ...currentConfig,
+                        state: channelState,
+                        channelId: channelId || currentConfig.channelId
+                    } as TcpServerConfig;
+                    break;
+                case 'serial':
+                    state.channels.serial = {
+                        ...currentConfig,
+                        state: channelState,
+                        channelId: channelId || currentConfig.channelId
+                    } as SerialConfig;
+                    break;
+                case 'mqtt':
+                    state.channels.mqtt = {
+                        ...currentConfig,
+                        state: channelState,
+                        channelId: channelId || currentConfig.channelId
+                    } as MqttConfig;
+                    break;
+                case 'bluetooth':
+                    state.channels.bluetooth = {
+                        ...currentConfig,
+                        state: channelState,
+                        channelId: channelId || currentConfig.channelId
+                    } as BluetoothConfig;
+                    break;
+            }
+        }
+      }
+
+      console.log(`通道 ${channelType} 更新后的状态:`, state.channels[channelType]);
+    },
+    // 更新TCP服务器客户端状态
+    updateTcpServerClient: (state, action: PayloadAction<{ channelId: string; ip: string; port: number; state: ConnectionState }>) => {
+      const { channelId, ip, port, state: clientState } = action.payload;
+      console.log(`Updating TCP server client: ${ip}:${port}, state: ${clientState}`);
+
+      if (state.channels.tcpserver) {
+        const tcpServer = state.channels.tcpserver;
+        if (!tcpServer.children) {
+          tcpServer.children = [];
+        }
+
+        // 查找现有客户端
+        const existingClientIndex = tcpServer.children.findIndex(
+          client => client.ip === ip && client.port === port
+        );
+
+        if (existingClientIndex !== -1) {
+          // 更新现有客户端
+          tcpServer.children[existingClientIndex] = {
+            ...tcpServer.children[existingClientIndex],
+            state: clientState,
+            channelId: channelId
+          };
+        } else {
+          // 添加新客户端
+          tcpServer.children.push({
+            ip,
+            port,
+            state: clientState,
+            channelId
+          });
+        }
+
+        // 打印更新后的所有客户端列表
+        console.log(`当前TCP服务器客户端列表 (${tcpServer.children.length}个):`);
+        tcpServer.children.forEach((client, index) => {
+          console.log(`- [${index}] ${client.ip}:${client.port}, 状态: ${client.state}, ID: ${client.channelId || '未知'}`);
+        });
+      } else {
+        console.error('无法更新客户端: TCP服务器通道不存在');
       }
     },
-    // 添加新的 reducer 来处理消息统计更新
+    // 添加新的消息统计更新
     updateMessageStats: (state, action: PayloadAction<ChannelMessage>) => {
-      const { channelId, direction, timestamp, channeltype } = action.payload;
+      const { channelId, direction, timestamp, channeltype, content, metadata } = action.payload;
       
-      console.log(`updateMessageStats: 处理消息 - 通道ID: ${channelId}, 方向: ${direction}, 通道类型: ${channeltype}`);
+      console.log(`updateMessageStats: 处理消息 - 通道ID: ${channelId}, 方向: ${direction}, 通道类型: ${channeltype}, 元数据:`, metadata);
       
-      // 如果这个通道还没有统计数据，初始化它
-      if (!state.messageStats[channelId]) {
-        console.log(`updateMessageStats: 为通道 ${channelId} 初始化消息统计`);
-        state.messageStats[channelId] = {
-          sent: 0,
-          received: 0
-        };
+      // 获取实际的通道ID
+      let actualChannelId = channelId;
+      let isTcpServerClient = false;
+      let skipCount = false;
+
+      // 查找对应通道的实际 channelId
+      if (channeltype === 'tcpserver' && state.channels.tcpserver?.channelId) {
+        // 检查是否为TCP服务器的客户端消息
+          
+          // 同时更新服务器统计
+          const serverChannelId = state.channels.tcpserver.channelId;
+          if (!state.messageStats[serverChannelId]) {
+            state.messageStats[serverChannelId] = { sent: 0, received: 0 };
+          }
+          if (direction === 'Sent') {
+            state.messageStats[serverChannelId].sent += 1;
+          } else {
+            state.messageStats[serverChannelId].received += 1;
+          }
+          state.messageStats[serverChannelId].lastMessageTime = timestamp;
+
+          // 更新服务器通道配置中的统计
+          if (state.channels.tcpserver) {
+            state.channels.tcpserver = {
+              ...state.channels.tcpserver,
+              sentCount: state.messageStats[serverChannelId].sent,
+              receivedCount: state.messageStats[serverChannelId].received
+            };
+          }
+      }else if (channeltype === 'tcpclient' && state.channels.tcpclient?.channelId) {
+        actualChannelId = state.channels.tcpclient.channelId;
+      } else {
+        actualChannelId = channelId;
       }
 
-      // 更新统计数据
-      const stats = state.messageStats[channelId];
-      if (direction === 'Sent') {
-        stats.sent += 1;
-        console.log(`updateMessageStats: 通道 ${channelId} 发送消息数增加到 ${stats.sent}`);
-      } else {
-        stats.received += 1;
-        console.log(`updateMessageStats: 通道 ${channelId} 接收消息数增加到 ${stats.received}`);
+      console.log(`updateMessageStats: 使用实际通道ID: ${actualChannelId}, isTcpServerClient: ${isTcpServerClient}`);
+      
+      // 如果不需要跳过计数，则更新统计
+      if (!skipCount) {
+        // 如果这个通道还没有统计数据，初始化它
+        if (!state.messageStats[actualChannelId]) {
+          console.log(`updateMessageStats: 为通道 ${actualChannelId} 初始化消息统计`);
+          state.messageStats[actualChannelId] = {
+            sent: 0,
+            received: 0
+          };
+        }
+
+        // 更新统计数据
+        const stats = state.messageStats[actualChannelId];
+        if (direction === 'Sent') {
+          stats.sent += 1;
+          console.log(`updateMessageStats: 通道 ${actualChannelId} 发送消息数增加到 ${stats.sent}`);
+        } else {
+          stats.received += 1;
+          console.log(`updateMessageStats: 通道 ${actualChannelId} 接收消息数增加到 ${stats.received}`);
+        }
+        stats.lastMessageTime = timestamp;
+
+        // 同步消息统计到通道配置
+        if (channeltype === 'tcpserver') {
+          if (state.channels.tcpserver?.children) {
+            // 更新客户端统计
+            const clientIndex = state.channels.tcpserver.children.findIndex(
+              client => client.channelId === actualChannelId
+            );
+            
+            if (clientIndex !== -1) {
+              console.log(`updateMessageStats: 同步消息统计到TCP客户端 ${actualChannelId}`);
+              const client = state.channels.tcpserver.children[clientIndex];
+              state.channels.tcpserver.children[clientIndex] = {
+                ...client,
+                sentCount: stats.sent,
+                receivedCount: stats.received
+              };
+            }
+          }
+        } else if (channeltype === 'tcpclient' && state.channels.tcpclient) {
+          state.channels.tcpclient = {
+            ...state.channels.tcpclient,
+            sentCount: stats.sent,
+            receivedCount: stats.received
+          };
+        } else if (channeltype === 'serial' && state.channels.serial) {
+          state.channels.serial = {
+            ...state.channels.serial,
+            sentCount: stats.sent,
+            receivedCount: stats.received
+          };
+        } else if (channeltype === 'mqtt' && state.channels.mqtt) {
+          state.channels.mqtt = {
+            ...state.channels.mqtt,
+            sentCount: stats.sent,
+            receivedCount: stats.received
+          };
+        } else if (channeltype === 'bluetooth' && state.channels.bluetooth) {
+          state.channels.bluetooth = {
+            ...state.channels.bluetooth,
+            sentCount: stats.sent,
+            receivedCount: stats.received
+          };
+        }
       }
-      stats.lastMessageTime = timestamp;
 
       // 更新消息历史记录
-      if (!state.messageHistory[channelId]) {
-        console.log(`updateMessageStats: 为通道 ${channelId} 初始化消息历史记录`);
-        state.messageHistory[channelId] = [];
+      if (!state.messageHistory[actualChannelId]) {
+        console.log(`updateMessageStats: 为通道 ${actualChannelId} 初始化消息历史记录`);
+        state.messageHistory[actualChannelId] = [];
       }
-      state.messageHistory[channelId].push(action.payload);
-      console.log(`updateMessageStats: 通道 ${channelId} 消息历史记录更新，当前消息数: ${state.messageHistory[channelId].length}`);
       
-      // 限制每个通道的消息历史记录数量
-      const maxMessages = 100;
-      if (state.messageHistory[channelId].length > maxMessages) {
-        state.messageHistory[channelId] = state.messageHistory[channelId].slice(-maxMessages);
-        console.log(`updateMessageStats: 通道 ${channelId} 消息历史记录已裁剪至 ${maxMessages} 条`);
+      // 添加新消息
+      state.messageHistory[actualChannelId].push(action.payload);
+      
+      // 如果消息超过1000条，只保留最新的1000条
+      if (state.messageHistory[actualChannelId].length > 1000) {
+        console.log(`updateMessageStats: 通道 ${actualChannelId} 消息数量超过1000，进行裁剪`);
+        state.messageHistory[actualChannelId] = state.messageHistory[actualChannelId].slice(-1000);
       }
+      
+      console.log(`updateMessageStats: 通道 ${actualChannelId} 消息历史记录更新，当前消息数: ${state.messageHistory[actualChannelId].length}，最新消息:`, action.payload);
     },
     // 重置消息统计
     resetMessageStats: (state, action: PayloadAction<string>) => {
@@ -428,7 +796,7 @@ const channelSlice = createSlice({
       }
     },
     // 清空指定通道或客户端的消息历史和统计
-    clearChannelMessages(state, action: PayloadAction<string>) {
+    clearChannelMessages: (state, action: PayloadAction<string>) => {
       const channelId = action.payload;
       
       // 清空消息历史
@@ -475,7 +843,7 @@ const channelSlice = createSlice({
         // 合并配置，保持现有的连接状态
         Object.entries(action.payload).forEach(([type, config]) => {
           const channelType = type as ChannelType;
-          const currentState = state.channels[channelType]?.state || 'disconnected';
+          const currentState = state.channels[channelType]?.state || 'disconnected' as ConnectionState;
           const currentChannelId = state.channels[channelType]?.channelId;
 
           // 根据通道类型设置配置
@@ -546,9 +914,9 @@ const channelSlice = createSlice({
       .addCase(connectChannel.pending, (state, action) => {
         const { channelType } = action.meta.arg;
         if (state.channels[channelType]) {
-          state.channels[channelType] = {
+          (state.channels[channelType] as any) = {
             ...state.channels[channelType],
-            state: 'connecting'
+            state: 'connecting' as ConnectionState
           };
         }
         state.loading = true;
@@ -557,9 +925,9 @@ const channelSlice = createSlice({
       .addCase(connectChannel.fulfilled, (state, action) => {
         const { channelType, channelId } = action.payload;
         if (state.channels[channelType]) {
-          state.channels[channelType] = {
+          (state.channels[channelType] as any) = {
             ...state.channels[channelType],
-            state: 'connected',
+            state: 'connected' as ConnectionState,
             channelId
           };
         }
@@ -569,9 +937,9 @@ const channelSlice = createSlice({
       .addCase(connectChannel.rejected, (state, action) => {
         const { channelType } = action.meta.arg;
         if (state.channels[channelType]) {
-          state.channels[channelType] = {
+          (state.channels[channelType] as any) = {
             ...state.channels[channelType],
-            state: 'disconnected',
+            state: 'disconnected' as ConnectionState,
             channelId: undefined
           };
         }
@@ -584,9 +952,9 @@ const channelSlice = createSlice({
       .addCase(disconnectChannel.pending, (state, action) => {
         const { channelType } = action.meta.arg;
         if (state.channels[channelType]) {
-          state.channels[channelType] = {
+          (state.channels[channelType] as any) = {
             ...state.channels[channelType],
-            state: 'disconnecting'
+            state: 'disconnecting' as ConnectionState
           };
         }
         state.loading = true;
@@ -595,9 +963,9 @@ const channelSlice = createSlice({
       .addCase(disconnectChannel.fulfilled, (state, action) => {
         const { channelType } = action.payload;
         if (state.channels[channelType]) {
-          state.channels[channelType] = {
+          (state.channels[channelType] as any) = {
             ...state.channels[channelType],
-            state: 'disconnected',
+            state: 'disconnected' as ConnectionState,
             channelId: undefined
           };
         }
@@ -607,9 +975,9 @@ const channelSlice = createSlice({
       .addCase(disconnectChannel.rejected, (state, action) => {
         const { channelType } = action.meta.arg;
         if (state.channels[channelType]) {
-          state.channels[channelType] = {
+          (state.channels[channelType] as any) = {
             ...state.channels[channelType],
-            state: 'error'
+            state: 'error' as ConnectionState
           };
         }
         state.loading = false;
@@ -635,31 +1003,160 @@ const channelSlice = createSlice({
 export const { 
   setConnectInfo, 
   updateChannelState, 
+  updateTcpServerClient,
   updateMessageStats, 
   resetMessageStats,
   clearChannelMessages 
 } = channelSlice.actions;
 
-// 选择器函数
-export const selectChannelMessages = (state: RootState, channelId: string) => {
-    return state.channel.messageHistory[channelId] || [];
+// 更新通道状态的 action creator
+export const updateChannel = (
+    channelType: ChannelType,
+    state: ConnectionState,
+    config?: any,
+    channelId?: string
+) => {
+    return (dispatch: AppDispatch) => {
+        dispatch(updateChannelState({
+            channelType,
+            state,
+            config,
+            channelId
+        }));
+    };
 };
 
-// 选择器函数 - 获取通道消息统计
-export const selectChannelMessageStats = (state: RootState, channelId: string) => {
-    return state.channel.messageStats[channelId] || { sent: 0, received: 0 };
+// 更新TCP服务器客户端状态的 action creator
+export const updateTcpClient = (
+    ip: string,
+    port: number,
+    state: ConnectionState
+) => {
+    return (dispatch: AppDispatch) => {
+        dispatch(updateTcpServerClient({
+            channelId: `${ip}:${port}`,
+            ip,
+            port,
+            state
+        }));
+    };
 };
 
-// 选择器函数 - 获取TCP服务器客户端消息
-export const selectTcpServerClientMessages = (state: RootState, clientId: string) => {
-    // 客户端ID格式为 "IP:PORT"
-    return state.channel.messageHistory[clientId] || [];
-};
+// 基本选择器 - 获取消息历史记录
+const selectMessageHistory = (state: RootState) => state.channel.messageHistory;
 
-// 选择器函数 - 获取TCP服务器客户端消息统计
-export const selectTcpServerClientMessageStats = (state: RootState, clientId: string) => {
-    // 客户端ID格式为 "IP:PORT"
-    return state.channel.messageStats[clientId] || { sent: 0, received: 0 };
-};
+// 基本选择器 - 获取消息统计
+const selectMessageStatsMap = (state: RootState) => state.channel.messageStats;
+
+// TCP服务端通道应该显示所有客户端消息的合集
+const selectTcpServerAllMessages = createSelector(
+  [
+    selectMessageHistory,
+    (state: RootState) => state.channel.channels.tcpserver
+  ],
+  (messageHistory, tcpServer) => {
+    // 如果没有TCP服务端配置，返回空数组
+    if (!tcpServer || !tcpServer.channelId) return [];
+    
+    // 获取所有消息
+    const allMessages: ChannelMessage[] = [];
+    
+    // 首先添加服务端自身的消息
+    if (messageHistory[tcpServer.channelId]) {
+      allMessages.push(...messageHistory[tcpServer.channelId]);
+    }
+    
+    // 然后查找所有客户端消息
+    if (tcpServer.children) {
+      tcpServer.children.forEach(client => {
+        const clientId = client.channelId || `${client.ip}:${client.port}`;
+        if (messageHistory[clientId]) {
+          allMessages.push(...messageHistory[clientId]);
+        }
+      });
+    }
+    
+          // 按时间戳排序并限制返回最新的1000条消息
+      const sortedMessages = allMessages.sort((a, b) => {
+        const timeA = typeof a.timestamp === 'string' ? parseInt(a.timestamp) : a.timestamp;
+        const timeB = typeof b.timestamp === 'string' ? parseInt(b.timestamp) : b.timestamp;
+        return timeA - timeB;
+      });
+      
+      // 只返回最新的1000条消息
+      return sortedMessages.slice(-1000);
+  }
+);
+
+// 记忆化选择器 - 获取特定通道的消息
+export const selectChannelMessages = createSelector(
+  [
+    selectMessageHistory,
+    (state: RootState) => state.channel.channels.tcpserver,
+    (state: RootState) => state.channel.channels.tcpclient,
+    (_state: RootState, channelId: string) => channelId
+  ],
+  (messageHistory, tcpServer, tcpClient, channelId) => {
+    console.log('selectChannelMessages called for channelId:', channelId);
+    console.log('Current message history:', messageHistory);
+    
+    // 如果是TCP服务端通道，显示所有客户端消息
+    if (tcpServer && tcpServer.channelId === channelId) {
+      const allMessages: ChannelMessage[] = [];
+      
+      // 首先添加服务端自身的消息
+      if (messageHistory[channelId]) {
+        allMessages.push(...messageHistory[channelId]);
+      }
+      
+      // 然后查找所有客户端消息
+      if (tcpServer.children) {
+        tcpServer.children.forEach(client => {
+          const clientId = client.channelId || `${client.ip}:${client.port}`;
+          if (messageHistory[clientId]) {
+            allMessages.push(...messageHistory[clientId]);
+          }
+        });
+      }
+      
+      return allMessages.sort((a, b) => {
+        const timeA = typeof a.timestamp === 'string' ? parseInt(a.timestamp) : a.timestamp;
+        const timeB = typeof b.timestamp === 'string' ? parseInt(b.timestamp) : b.timestamp;
+        return timeA - timeB;
+      });
+    }
+    
+    // 对于TCP客户端，使用其channelId获取消息
+    if (tcpClient && tcpClient.channelId === channelId) {
+      console.log('获取TCP客户端消息，channelId:', channelId);
+      const messages = messageHistory[channelId] || [];
+      console.log('找到的消息:', messages);
+      return messages;
+    }
+    
+    // 其他通道直接返回对应ID的消息
+    const messages = messageHistory[channelId] || [];
+    console.log(`返回通道 ${channelId} 的消息:`, messages);
+    return messages;
+  }
+);
+
+// 记忆化选择器 - 获取通道消息统计
+export const selectChannelMessageStats = createSelector(
+  [selectMessageStatsMap, (_state: RootState, channelId: string) => channelId],
+  (messageStats, channelId) => messageStats[channelId] || { sent: 0, received: 0 }
+);
+
+// 记忆化选择器 - 获取TCP服务器客户端消息
+export const selectTcpServerClientMessages = createSelector(
+  [selectMessageHistory, (_state: RootState, clientId: string) => clientId],
+  (messageHistory, clientId) => messageHistory[clientId] || []
+);
+
+// 记忆化选择器 - 获取TCP服务器客户端消息统计
+export const selectTcpServerClientMessageStats = createSelector(
+  [selectMessageStatsMap, (_state: RootState, clientId: string) => clientId],
+  (messageStats, clientId) => messageStats[clientId] || { sent: 0, received: 0 }
+);
 
 export default channelSlice.reducer;

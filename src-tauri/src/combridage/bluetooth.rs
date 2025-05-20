@@ -15,6 +15,8 @@ use tokio::sync::Mutex;
 use tokio::time::timeout;
 use uuid::Uuid;
 pub struct BluetoothChannel {
+    channeltype: String,
+    channelid: String,
     adapters: Arc<Mutex<Vec<Adapter>>>,
     peripherals: HashMap<String, Vec<Characteristic>>, // Stores peripherals and their characteristic values
     connected_peripheral: Arc<Mutex<Option<Peripheral>>>,
@@ -49,6 +51,8 @@ impl BluetoothChannel {
         }
 
         Ok(Self {
+            channeltype: "bluetooth".to_string(),
+            channelid: "bluetooth".to_string() + &Uuid::new_v4().to_string(),
             adapters: Arc::new(Mutex::new(adapters)),
             peripherals: peripheral_characteristics,
             connected_peripheral: Arc::new(Mutex::new(None)),
@@ -148,7 +152,7 @@ impl BluetoothChannel {
 
 #[async_trait]
 impl CommunicationChannel for BluetoothChannel {
-    async fn send(&self, message: &Message) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn send(&self, message: &Message, clientid: Option<String>) -> Result<(), Box<dyn Error + Send + Sync>> {
         if let Some(peripheral) = self.connected_peripheral.lock().await.as_ref() {
             let send_data: serde_json::Value = message.content.clone();
 
@@ -195,7 +199,7 @@ impl CommunicationChannel for BluetoothChannel {
         message: &Message,
         timeout_secs: u64,
     ) -> Result<Message, Box<dyn Error + Send + Sync>> {
-        self.send(message).await?;
+        self.send(message, None).await?;
         let response = timeout(Duration::from_secs(timeout_secs), self.receive()).await?;
         response.map_err(|e| e.into())
     }
@@ -223,5 +227,9 @@ impl CommunicationChannel for BluetoothChannel {
             .unwrap();
 
         Ok(())
+    }
+
+    fn get_channel_id(&self) -> String {
+        self.channelid.clone()
     }
 }

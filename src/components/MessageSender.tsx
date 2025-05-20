@@ -5,13 +5,20 @@ import { ChannelService } from '../services/channelService';
 
 interface MessageSenderProps {
   channelType: ChannelType;
-  onSendMessage: (message: string, isHex: boolean) => void;
+  onSendMessage: (message: string, isHex: boolean, clientId?: string) => void;
+  selectedClient?: { 
+    ip: string; 
+    port: number; 
+    channelId: string;
+    name: string;
+  } | null;
   disabled?: boolean;
 }
 
 const MessageSender: React.FC<MessageSenderProps> = ({
   channelType,
   onSendMessage,
+  selectedClient = null,
   disabled = false
 }) => {
   const [message, setMessage] = useState('');
@@ -147,7 +154,7 @@ const MessageSender: React.FC<MessageSenderProps> = ({
     }
     
     setError(null);
-    onSendMessage(message, isHex);
+    onSendMessage(message, isHex, selectedClient?.channelId);
   };
 
   return (
@@ -227,6 +234,23 @@ const MessageSender: React.FC<MessageSenderProps> = ({
             </div>
           </div>
           
+          {/* 添加TCP服务器客户端指示器 */}
+          {channelType === 'tcpserver' && (
+            <div className="flex items-center bg-base-300/30 px-2 py-1 rounded text-xs ml-2">
+              {selectedClient ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-success text-lg">•</span>
+                  <span>发送到客户端: <b>{selectedClient.name}</b></span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-warning">
+                  <AlertCircle size={14} />
+                  <span>请先选择一个客户端</span>
+                </div>
+              )}
+            </div>
+          )}
+          
           <div className="flex items-center gap-2">
             {error && (
               <div className="flex items-center text-error text-xs mr-2">
@@ -239,7 +263,8 @@ const MessageSender: React.FC<MessageSenderProps> = ({
             <button
               className="btn btn-primary btn-sm"
               onClick={handleSend}
-              disabled={disabled || message.trim() === ''}
+              disabled={disabled || message.trim() === '' || (channelType === 'tcpserver' && !selectedClient)}
+              title={channelType === 'tcpserver' && !selectedClient ? '请先选择一个客户端' : '发送消息'}
             >
               <Send size={16} />
               <span>发送</span>

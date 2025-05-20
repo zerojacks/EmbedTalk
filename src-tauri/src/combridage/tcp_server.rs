@@ -1,5 +1,6 @@
 use crate::combridage::CommunicationChannel;
 use crate::combridage::{ChannelState, Message};
+use crate::combridage::messagemanager::{MessageManager, MessageDirection};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
 use serde_json;
@@ -13,165 +14,181 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 use tokio::sync::{broadcast, mpsc};
 use tokio::time::{sleep, timeout, Duration};
+use uuid::Uuid;
+use chrono;
 
 #[derive(Clone, Debug)]
 pub struct TcpClientOfServer {
-    stream: Arc<Mutex<TcpStream>>,
+    channeltype: String,
+    channelid: String,
+    channel_name: String,
     shutdown_signal: broadcast::Sender<()>,
     tx_send: mpsc::Sender<Vec<u8>>,
-    rx_recv: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>,
+    rx_message: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>,
 }
 
 impl TcpClientOfServer {
     pub async fn new(stream: TcpStream) -> Result<Self, Box<dyn Error + Send + Sync>> {
-        println!("new TcpClientOfServer {:?}", stream);
+        println!("创建新的 TcpClientOfServer");
+        let peer_addr = stream.peer_addr()?;
+        println!("客户端地址: {}", peer_addr);
+
         let std_stream = stream.into_std()?;
         std_stream.set_nonblocking(true)?;
         std_stream.set_nodelay(true)?;
 
         let (shutdown_signal, _) = broadcast::channel(1);
+        let (tx_send, mut rx_send) = mpsc::channel::<Vec<u8>>(100); // 发送队列
+        let (tx_message, rx_message) = mpsc::channel::<Vec<u8>>(100); // 消息队列
 
-        // 创建一个克隆的流用于读取
-        let split_stream = std_stream.try_clone()?;
-        let tokio_stream = TcpStream::from_std(split_stream)?;
-        let (reader, writer) = tokio::io::split(tokio_stream);
-
-        let (tx_send, rx_send) = mpsc::channel(100); // 发送队列
-        let (tx_recv, rx_recv) = mpsc::channel(100); // 接收队列
-
-        let arc_stream = std_stream.try_clone()?;
-        let mut_stream = Arc::new(Mutex::new(TcpStream::from_std(arc_stream)?));
-
-        let channel = Self {
-            stream: mut_stream.clone(),
-            shutdown_signal: shutdown_signal.clone(),
-            tx_send,
-            rx_recv: Arc::new(Mutex::new(rx_recv)),
-        };
+        let tokio_stream = TcpStream::from_std(std_stream)?;
+        let (mut reader, mut writer) = tokio::io::split(tokio_stream);
 
         // 启动发送任务
-        let channelclone = channel.clone();
+        let shutdown = shutdown_signal.subscribe();
         tokio::spawn(async move {
-            if let Err(e) = channelclone.send_task(writer, rx_send).await {
-                eprintln!("Send task error: {}", e);
+            let mut shutdown_rx = shutdown;
+            loop {
+                tokio::select! {
+                    Some(data) = rx_send.recv() => {
+                        println!("准备发送数据到 {}，长度: {}", peer_addr, data.len());
+                        if let Err(e) = writer.write_all(&data).await {
+                            eprintln!("写入数据失败: {:?}", e);
+                            break;
+                        }
+                        if let Err(e) = writer.flush().await {
+                            eprintln!("刷新数据失败: {:?}", e);
+                            break;
+                        }
+                        println!("数据发送完成");
+                    }
+                    _ = shutdown_rx.recv() => {
+                        println!("发送任务收到关闭信号");
+                        break;
+                    }
+                }
             }
         });
 
         // 启动接收任务
-        let channelsend = channel.clone();
+        let shutdown = shutdown_signal.subscribe();
+        let tx_message = tx_message.clone();
+        let peer_addr_str = peer_addr.to_string();
+        
         tokio::spawn(async move {
-            if let Err(e) = channelsend.receive_task(reader, tx_recv).await {
-                eprintln!("Receive task error: {}", e);
-            }
-        });
+            println!("[{}] 启动读取任务", peer_addr_str);
+            let mut buffer = vec![0; 1024];
 
-        Ok(channel)
-    }
-
-    pub async fn close(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        println!("TcpClientOfServer closing...");
-
-        // 发送关闭信号
-        let _ = self.shutdown_signal.send(());
-
-        // 给一些时间让任务退出
-        sleep(Duration::from_millis(100)).await;
-
-        // 关闭流
-        if let Ok(mut stream) = self.stream.try_lock() {
-            // 使用 tokio TcpStream 的 shutdown 方法
-            if let Err(e) = stream.shutdown().await {
-                eprintln!("Error shutting down stream: {:?}", e);
-            }
-        }
-
-        println!("TcpClientOfServer closed successfully");
-        Ok(())
-    }
-
-    // 发送消息
-    pub async fn send(&self, message: Vec<u8>) -> Result<(), Box<dyn Error + Send + Sync>> {
-        self.tx_send
-            .send(message)
-            .await
-            .map_err(|e| format!("Failed to send message: {:?}", e).into())
-    }
-
-    // 接收消息
-    pub async fn receive(&mut self) -> Option<Vec<u8>> {
-        self.rx_recv.lock().await.recv().await
-    }
-
-    async fn send_task(
-        &self,
-        mut writer: tokio::io::WriteHalf<TcpStream>,
-        mut rx_send: mpsc::Receiver<Vec<u8>>,
-    ) -> Result<(), IoError> {
-        let mut shutdown_receiver = self.shutdown_signal.subscribe();
-
-        loop {
-            tokio::select! {
-                Some(data) = rx_send.recv() => {
-                    println!("Sending data {:?}", data);
-                    if let Err(e) = writer.write_all(&data).await {
-                        eprintln!("Failed to write data: {:?}", e);
-                        break;
-                    }
-                }
-                _ = shutdown_receiver.recv() => {
-                    break;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    async fn receive_task(
-        self,
-        mut reader: tokio::io::ReadHalf<TcpStream>,
-        tx_recv: mpsc::Sender<Vec<u8>>,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let mut buffer = vec![0; 1024];
-        let mut shutdown_receiver = self.shutdown_signal.subscribe();
-
-        loop {
-            tokio::select! {
-                result = reader.read(&mut buffer) => {
-                    match result {
-                        Ok(n) if n > 0 => {
-                            let received_data = buffer[..n].to_vec();
-                            println!("Received data {:?}", received_data);
-                            if let Err(e) = tx_recv.send(received_data).await {
-                                eprintln!("Failed to send received data to queue: {:?}", e);
+            loop {
+                match reader.read(&mut buffer).await {
+                    Ok(n) if n > 0 => {
+                        println!("[{}] 读取到数据，长度: {}", peer_addr_str, n);
+                        let data = buffer[..n].to_vec();
+                        match tx_message.send(data).await {
+                            Ok(_) => println!("[{}] 数据已发送到消息通道", peer_addr_str),
+                            Err(e) => {
+                                eprintln!("[{}] 发送数据到消息通道失败: {:?}", peer_addr_str, e);
                                 break;
                             }
                         }
-                        Ok(0) => {
-                            println!("Connection closed by peer");
+                    }
+                    Ok(0) => {
+                        println!("[{}] 连接已关闭", peer_addr_str);
+                        break;
+                    }
+                    Ok(n) => {
+                        println!("[{}] 读取到 {} 字节的数据", peer_addr_str, n);
+                        continue;
+                    }
+                    Err(e) => {
+                        if e.kind() == std::io::ErrorKind::WouldBlock {
+                            println!("[{}] 暂无数据可读", peer_addr_str);
+                            tokio::time::sleep(Duration::from_millis(10)).await;
+                            continue;
+                        } else {
+                            eprintln!("[{}] 读取错误: {:?}", peer_addr_str, e);
                             break;
                         }
-                        Err(e) => {
-                            eprintln!("Read error: {:?}", e);
-                            break;
-                        }
-                        _ => {}
                     }
                 }
-                _ = shutdown_receiver.recv() => {
-                    break;
+            }
+            println!("[{}] 读取任务结束", peer_addr_str);
+        });
+
+        let channel = Self {
+            channeltype: "tcpserver".to_string(),
+            channelid: "tcpserver".to_string() + &Uuid::new_v4().to_string(),
+            channel_name: "TCP".to_string() + &peer_addr.to_string(),
+            shutdown_signal: shutdown_signal.clone(),
+            tx_send,
+            rx_message: Arc::new(Mutex::new(rx_message)),
+        };
+
+        let channeltype = channel.channeltype.clone();
+        let channelid = channel.channelid.clone();
+        let channel_for_spawn = channel.clone();
+        let channel_name = channel.channel_name.clone();
+        tokio::spawn(async move {
+            let app_handle = get_app_handle();
+            let message_manager = match MessageManager::new(app_handle.clone()) {
+                Ok(manager) => manager,
+                Err(e) => {
+                    eprintln!("创建消息管理器失败: {:?}", e);
+                    return;
+                }
+            };
+            let mut channel_clone = channel_for_spawn.clone();
+            while let Some(data) = channel_clone.receive().await {
+                println!("接收到消息，长度: {}", data.len());
+                // 记录发送的消息
+                if let Err(e) = message_manager.record_message(
+                    &channeltype,
+                    &channelid,
+                    &channel_name,
+                    &Message::new(serde_json::json!({
+                        "data": data
+                    })),
+                    MessageDirection::Received,
+                    None,
+                ).await {
+                    eprintln!("记录发送消息失败: {:?}", e);
                 }
             }
-        }
+        });
 
+        println!("TcpClientOfServer 创建完成");
+        Ok(channel.clone())
+    }
+
+    pub async fn send(&self, message: Vec<u8>) -> Result<(), Box<dyn Error + Send + Sync>> {
+        println!("尝试发送消息，长度: {}", message.len());
+        self.tx_send.send(message).await.map_err(|e| e.into())
+    }
+
+    pub async fn receive(&mut self) -> Option<Vec<u8>> {
+        let mut rx = self.rx_message.lock().await;
+        rx.recv().await.map_or(None, |data| {
+            println!("TcpClientOfServer::receive - 接收到数据，长度: {}", data.len());
+            Some(data)
+        })
+    }
+
+    pub async fn close(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        println!("关闭客户端连接");
+        let _ = self.shutdown_signal.send(());
         Ok(())
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct TcpServerChannel {
-    clients: Arc<Mutex<HashMap<String, Arc<Mutex<TcpClientOfServer>>>>>,
+    channeltype: String,
+    channelid: String,
+    channel_name: String,
+    clients: Arc<Mutex<HashMap<String, TcpClientOfServer>>>,
     shutdown_signal: broadcast::Sender<()>,
-    listener: Arc<Mutex<Option<TcpListener>>>, // 改为 Option 以支持完全关闭
+    listener: Arc<Mutex<Option<TcpListener>>>,
+    message_manager: Arc<MessageManager>,
 }
 
 impl TcpServerChannel {
@@ -182,15 +199,22 @@ impl TcpServerChannel {
         let address = format!("{}:{}", ipaddr, port);
         let (shutdown_signal, _) = broadcast::channel(1);
         println!("TcpServerChannel listening on: {}", address);
-
+        let channel_name = "TCP".to_string() + &address.clone();
         let std_listener = std::net::TcpListener::bind(address)?;
         std_listener.set_nonblocking(true)?;
         let listener = TcpListener::from_std(std_listener)?;
 
+        let app_handle = get_app_handle();
+        let message_manager = Arc::new(MessageManager::new(app_handle.clone())?);
+
         let server = Self {
+            channeltype: "tcpserver".to_string(),
+            channelid: "tcpserver".to_string() + &Uuid::new_v4().to_string(),
+            channel_name:channel_name,
             clients: Arc::new(Mutex::new(HashMap::new())),
             shutdown_signal: shutdown_signal.clone(),
             listener: Arc::new(Mutex::new(Some(listener))),
+            message_manager,
         };
 
         let server_clone = server.clone();
@@ -203,8 +227,45 @@ impl TcpServerChannel {
         Ok(server)
     }
 
+    async fn start_client_message_handler(
+        &self,
+        client_addr: String,
+        mut client: TcpClientOfServer,
+    ) {
+        println!("启动客户端消息处理器: {}", client_addr);
+        let message_manager = self.message_manager.clone();
+        
+        tokio::spawn(async move {
+            println!("开始监听客户端消息: {}", client_addr);
+            while let Some(data) = client.receive().await {
+                println!("收到客户端消息: {} 长度: {}", client_addr, data.len());
+                
+                // 创建消息内容
+                let content = serde_json::json!({
+                    "data": data
+                });
+
+                if let Err(e) = message_manager.record_message(
+                    &client.channeltype.clone(),
+                    &client.channelid,
+                    &client.channel_name,
+                    &Message::new(content.clone()),
+                    MessageDirection::Received,
+                    None
+                ).await {
+                    eprintln!("记录消息失败: {:?}", e);
+                } else {
+                    println!("消息已记录并处理: {} -> {:?}", client_addr, content);
+                }
+            }
+            println!("客户端消息处理器停止: {}", client_addr);
+        });
+    }
+
     async fn accept_loop(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut shutdown_receiver = self.shutdown_signal.subscribe();
+        
+        println!("TCP服务器开始接受连接");
 
         loop {
             tokio::select! {
@@ -214,7 +275,13 @@ impl TcpServerChannel {
                 }
                 accept_result = async {
                     if let Some(listener) = &*self.listener.lock().await {
-                        listener.accept().await
+                        match listener.accept().await {
+                            Ok(result) => Ok(result),
+                            Err(e) => {
+                                eprintln!("接受连接时出错: {:?}", e);
+                                Err(e)
+                            }
+                        }
                     } else {
                         Err(std::io::Error::new(std::io::ErrorKind::Other, "Listener closed"))
                     }
@@ -226,10 +293,33 @@ impl TcpServerChannel {
 
                             match TcpClientOfServer::new(stream).await {
                                 Ok(client) => {
-                                    self.clients.lock().await.insert(addr_str, Arc::new(Mutex::new(client)));
-                                }
+                                    {
+                                        let mut clients = self.clients.lock().await;
+                                        clients.insert(client.channelid.clone(), client.clone());
+                                    }
+                                    
+                                    let client_clone = client.clone();
+                                    // 启动消息处理器
+                                    self.start_client_message_handler(addr_str.clone(), client_clone).await;
+                                    
+                                    // 发送连接事件
+                                    let app_handle = get_app_handle();
+                                    let channel_info = serde_json::json!({
+                                        "channel": "tcpserver",
+                                        "eventType": "clientConnected",
+                                        "clientId": client.channelid.clone(),
+                                        "ip": addr.ip().to_string(),
+                                        "port": addr.port()
+                                    });
+                                    
+                                    if let Ok(event_payload) = serde_json::to_string(&channel_info) {
+                                        if let Err(e) = app_handle.emit("tcp-client-event", event_payload) {
+                                            eprintln!("发送客户端连接事件失败: {:?}", e);
+                                        }
+                                    }
+                                },
                                 Err(e) => {
-                                    eprintln!("Error creating client: {:?}", e);
+                                    eprintln!("创建客户端对象失败: {} 错误: {:?}", addr_str, e);
                                 }
                             }
                         }
@@ -253,7 +343,7 @@ impl TcpServerChannel {
         // 2. 关闭所有客户端连接
         let mut clients = self.clients.lock().await;
         for client in clients.values() {
-            if let Err(e) = client.lock().await.close().await {
+            if let Err(e) = client.close().await {
                 eprintln!("Error closing client: {:?}", e);
             }
         }
@@ -271,33 +361,104 @@ impl TcpServerChannel {
 
         Ok(())
     }
+
+    pub async fn is_client_connected(&self, client_id: &str) -> bool {
+        let clients = self.clients.lock().await;
+        clients.contains_key(client_id)
+    }
 }
 
 #[async_trait]
 impl CommunicationChannel for TcpServerChannel {
-    async fn send(&self, message: &Message) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let clients = self.clients.lock().await;
-        let serialized = bincode::serialize(message)?;
+    async fn send(&self, message: &Message, clientid: Option<String>) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let content = message.get_content();
+        let data = if let Some(arr) = content["data"].as_array() {
+            arr.iter()
+                .filter_map(|v| v.as_u64())
+                .map(|v| v as u8)
+                .collect::<Vec<u8>>()
+        } else {
+            return Err("Invalid data format".into());
+        };
+        println!("TcpServerChannel::send - 发送消息{:?} data: {:?}", message, data);
+        let app_handle = get_app_handle();
+        let message_manager = MessageManager::new(app_handle.clone())?;
+        
+        let mut message_clone = message.clone();
+        message_clone.update_timestamp();
 
-        for client in clients.values() {
-            if let Err(e) = client.lock().await.send(serialized.clone()).await {
-                eprintln!("Error sending to client: {:?}", e);
+        if let Some(clientid) = clientid {
+            let client_arc = {
+                let clients = self.clients.lock().await;
+                clients.get(clientid.as_str()).cloned()
+            };
+            println!("client_arc: {:?}", client_arc);
+            if let Some(client) = client_arc {
+                println!("准备发送消息");
+                client.send(data.clone()).await?;
+                println!("消息发送完成");
+                // 记录发送的消息
+
+                if let Err(e) = message_manager.record_message(
+                    &client.channeltype,
+                    &client.channelid,
+                    &client.channel_name,
+                    &message_clone,
+                    MessageDirection::Sent,
+                    None,
+                ).await {
+                    eprintln!("记录发送消息失败: {:?}", e);
+                }
+                Ok(())
+            } else {
+                Err(format!("客户端 {} 不存在", clientid).into())
             }
+        } else {
+            let clients = self.clients.lock().await;
+            for client in clients.values() {
+                client.send(data.clone()).await?;
+                
+                if let Err(e) = message_manager.record_message(
+                    &client.channeltype,
+                    &client.channelid,
+                    &client.channel_name,
+                    &message_clone,
+                    MessageDirection::Sent,
+                    None,
+                ).await {
+                    eprintln!("记录发送消息失败: {:?}", e);
+                }
+            }
+            Ok(())
         }
-        Ok(())
     }
 
     async fn receive(&self) -> Result<Message, Box<dyn Error + Send + Sync>> {
-        let mut clients = self.clients.lock().await;
-        for client in clients.values_mut() {
-            let mut client = client.lock().await;
-            if let Some(data) = client.receive().await {
-                let message: serde_json::Value = serde_json::from_slice(&data)?;
-                let message = Message::new(message);
-                return Ok(message);
+        // 使用带超时的通道来接收消息
+        let (tx, mut rx) = mpsc::channel::<(String, Vec<u8>)>(32);
+        let timeout_duration = Duration::from_millis(100);
+
+        let client_refs: Vec<(String, TcpClientOfServer)> = {
+            let clients = self.clients.lock().await;
+            if clients.is_empty() {
+                return Err("No clients connected".into());
             }
-        }
-        Err("No data received".into())
+            clients.iter().map(|(addr, client)| (addr.clone(), client.clone())).collect()
+        };
+
+        // 为每个客户端创建一个异步任务尝试接收消息
+        // let mut tasks = Vec::new();
+        // for (client_addr, mut client) in client_refs {
+        //     let tx = tx.clone();
+        //     let task = tokio::spawn(async move {
+        //         if let Some(data) = client.receive().await {
+        //             let _ = tx.send((client_addr, data)).await;
+        //         }
+        //     });
+        //     tasks.push(task);
+        // }
+        Err("No message received".into())
+  
     }
 
     async fn send_and_wait(
@@ -305,7 +466,7 @@ impl CommunicationChannel for TcpServerChannel {
         message: &Message,
         timeout_secs: u64,
     ) -> Result<Message, Box<dyn Error + Send + Sync>> {
-        self.send(message).await?;
+        self.send(message, None).await?;
         timeout(Duration::from_secs(timeout_secs), self.receive()).await?
     }
 
@@ -329,5 +490,9 @@ impl CommunicationChannel for TcpServerChannel {
             .unwrap();
 
         Ok(())
+    }
+
+    fn get_channel_id(&self) -> String {
+        self.channelid.clone()
     }
 }

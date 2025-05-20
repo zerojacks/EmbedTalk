@@ -50,12 +50,12 @@ pub async fn connect_channel(
             ChannelType::TcpServer(ip.to_string(), port)
         }
         "SERIAL" => {
-            let port = values["port"].as_str().ok_or("Missing port")?;
-            let baud_rate = values["baudRate"].as_u64().ok_or("Missing baud rate")? as u32;
-            let data_bits = values["dataBits"].as_u64().ok_or("Missing data bits")? as u8;
-            let flow_control = values["flowControl"].as_u64().ok_or("Missing flow control")? as u8;
+            let port = values["comname"].as_str().ok_or("Missing comname")?;
+            let baud_rate = values["baurdate"].as_u64().ok_or("Missing baud rate")? as u32;
+            let data_bits = values["databit"].as_u64().ok_or("Missing data bits")? as u8;
+            let flow_control = values["flowctrl"].as_u64().ok_or("Missing flow control")? as u8;
             let parity = values["parity"].as_str().ok_or("Missing parity")?;
-            let stop_bits = values["stopBits"].as_u64().ok_or("Missing stop bits")? as u8;
+            let stop_bits = values["stopbit"].as_u64().ok_or("Missing stop bits")? as u8;
             ChannelType::SerialPort(
                 port.to_string(),
                 baud_rate,
@@ -70,9 +70,9 @@ pub async fn connect_channel(
             let port = values["port"].as_u64().ok_or("Missing port")? as u16;
             let username = values["username"].as_str().unwrap_or("");
             let password = values["password"].as_str().unwrap_or("");
-            let client_id = values["clientId"].as_str().ok_or("Missing client ID")?;
+            let client_id = values["clientid"].as_str().ok_or("Missing client ID")?;
             let qos = values["qos"].as_u64().unwrap_or(0) as u8;
-            let topic = values["topic"].as_str().ok_or("Missing topic")?;
+            let topic = values["topic"].as_str().unwrap_or("#");
             ChannelType::Mqtt(
                 ip.to_string(),
                 port,
@@ -132,27 +132,40 @@ pub async fn disconnect_channel(
 pub async fn send_message(
     channelid: String,
     message: Vec<u8>,
+    clientid: Option<String>,
 ) -> Result<(), String> {
+    println!("send_message: channelid: {}, message: {:?}", channelid, message);
+    
     // 获取通道ID对应的ChannelType
     let channel_type = {
         let id_map = CHANNEL_ID_MAP.lock().await;
         id_map.get(&channelid).cloned().ok_or(format!("Channel ID not found: {}", channelid))?
     };
-
+    println!("send_message: 已获取channel_type: {:?}", channel_type);
+    
     // 获取通道管理器
     let manager = CHANNEL_MANAGER.lock().await;
+    println!("send_message: 已获取manager");
     
     // 解析消息内容
     let content = parse_message_content(&message)?;
+    println!("send_message: 已解析消息内容: {:?}", content);
     
     // 创建消息对象
     let msg = Message::new(content);
+    println!("send_message: 已创建Message对象: {:?}", msg.get_content());
     
     // 发送消息
-    manager.send(&channel_type, &msg).await
-        .map_err(|e| format!("发送消息失败: {}", e))?;
-    
-    Ok(())
+    match manager.send(&channel_type, &msg, clientid).await {
+        Ok(_) => {
+            println!("send_message: 消息发送成功");
+            Ok(())
+        },
+        Err(e) => {
+            println!("send_message: 消息发送失败: {:?}", e);
+            Err(format!("发送消息失败: {}", e))
+        }
+    }
 }
 
 #[tauri::command]
@@ -171,6 +184,7 @@ pub async fn start_timer_send(
     channel_id: String,
     message: Vec<u8>,
     interval_ms: u64,
+    clientid: Option<String>,
 ) -> Result<(), String> {
     // 检查通道是否存在
     let channel_type = {
@@ -217,7 +231,7 @@ pub async fn start_timer_send(
             let msg = Message::new(content);
             
             // 发送消息
-            if let Err(e) = manager.send(&channel_type_clone, &msg).await {
+            if let Err(e) = manager.send(&channel_type_clone, &msg, clientid.clone()).await {
                 println!("定时发送任务错误: 发送消息失败 {}", e);
             } else {
                 println!("定时发送成功: 通道 {}", channel_id_clone);
@@ -254,10 +268,10 @@ pub async fn stop_timer_send(channel_id: String) -> Result<(), String> {
 
 /// 获取定时发送任务状态
 #[tauri::command]
-pub fn get_timer_status(channel_id: String) -> Result<Option<(u64, Vec<u8>)>, String> {
+pub fn get_timer_status(channelid: String) -> Result<Option<(u64, Vec<u8>)>, String> {
     let tasks = TIMER_TASKS.lock().unwrap();
     
-    if let Some(task) = tasks.get(&channel_id) {
+    if let Some(task) = tasks.get(&channelid) {
         Ok(Some((task.interval, task.message.clone())))
     } else {
         Ok(None)

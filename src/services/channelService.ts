@@ -1,9 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import { ChannelType, ConnectionState, ChannelMessage, ConnectionParams } from '../types/channel';
+import { ChannelType, ConnectionState, ChannelMessage, ConnectionParams, TcpServerConfig, MqttConfig } from '../types/channel';
 import { ThunkDispatch, AnyAction } from '@reduxjs/toolkit';
 import { RootState } from '../store';
-import { updateChannelState, updateMessageStats } from '../store/slices/channelSlice';
+import { updateChannelState, updateMessageStats, updateTcpServerClient } from '../store/slices/channelSlice';
 import { SettingService } from './settingService';
 
 // 配置键常量
@@ -12,11 +12,40 @@ const CHANNEL_CONFIG_KEY = "config";
 
 // 默认通道配置
 const DEFAULT_CHANNEL_CONFIGS: Record<ChannelType, ConnectionParams> = {
-  tcpclient: {},
-  tcpserver: {},
-  serial: {},
-  mqtt: {},
-  bluetooth: {}
+  tcpclient: {
+    type: 'tcpclient',
+    ip: '127.0.0.1',
+    port: 8080
+  },
+  tcpserver: {
+    type: 'tcpserver',
+    ip: '0.0.0.0',
+    port: 8080,
+    children: []
+  },
+  serial: {
+    type: 'serial',
+    comname: 'COM1',
+    baurdate: 9600,
+    databit: 8,
+    flowctrl: 0,
+    parity: '无校验',
+    stopbit: 1
+  },
+  mqtt: {
+    type: 'mqtt',
+    ip: '127.0.0.1',
+    port: 1883,
+    clientid: `mqtt-${Date.now()}`,
+    username: '',
+    password: '',
+    qos: 2,
+    topic: '#'
+  },
+  bluetooth: {
+    type: 'bluetooth',
+    bluetoothname: ''
+  }
 };
 
 /**
@@ -26,6 +55,7 @@ export class ChannelService {
   // 存储全局监听器的解绑函数
   private static channelStateUnlistener: UnlistenFn | null = null;
   private static messageUnlistener: UnlistenFn | null = null;
+  private static tcpClientEventUnlistener: UnlistenFn | null = null;
   private static dispatch: ThunkDispatch<RootState, undefined, AnyAction> | null = null;
 
   /**
@@ -90,6 +120,60 @@ export class ChannelService {
       }
     });
 
+    // 监听TCP客户端连接/断开事件
+    this.tcpClientEventUnlistener = await listen('tcp-client-event', (event: any) => {
+      try {
+        console.log('收到TCP客户端原始事件:', event.payload);
+        const eventData = JSON.parse(event.payload);
+        console.log('TCP客户端事件解析结果:', eventData);
+        
+        if (this.dispatch && eventData.channel === 'tcpserver') {
+          if (eventData.eventType === 'clientConnected') {
+            console.log(`处理TCP客户端连接事件: ${eventData.ip}:${eventData.port}, ID: ${eventData.clientId}`);
+            this.dispatch(updateTcpServerClient({
+              channelId: eventData.clientId,
+              ip: eventData.ip,
+              port: eventData.port,
+              state: 'connected'
+            }));
+            console.log(`已更新Redux状态: TCP客户端已连接: ${eventData.ip}:${eventData.port}`);
+          } else if (eventData.eventType === 'clientDisconnected') {
+            console.log(`处理TCP客户端断开事件: ${eventData.ip}:${eventData.port}, ID: ${eventData.clientId}`);
+            this.dispatch(updateTcpServerClient({
+              channelId: eventData.clientId,
+              ip: eventData.ip,
+              port: eventData.port,
+              state: 'disconnected'
+            }));
+            console.log(`已更新Redux状态: TCP客户端已断开: ${eventData.ip}:${eventData.port}`);
+          }
+        } else {
+          console.warn('无法处理TCP客户端事件:', this.dispatch ? 'dispatch可用但事件类型/通道不匹配' : 'dispatch不可用', eventData);
+        }
+      } catch (error) {
+        console.error('处理TCP客户端事件错误:', error);
+        console.error('错误详情:', error instanceof Error ? error.message : String(error));
+        console.error('事件内容:', event.payload);
+        // 尝试重新解析并处理
+        try {
+          const retryEventData = JSON.parse(event.payload);
+          console.log('重试解析TCP客户端事件:', retryEventData);
+          if (this.dispatch && retryEventData.channel === 'tcpserver' && 
+              (retryEventData.eventType === 'clientConnected' || retryEventData.eventType === 'clientDisconnected')) {
+            console.log('尝试强制更新客户端状态:', retryEventData);
+            this.dispatch(updateTcpServerClient({
+              channelId: retryEventData.clientId,
+              ip: retryEventData.ip,
+              port: retryEventData.port,
+              state: retryEventData.eventType === 'clientConnected' ? 'connected' : 'disconnected'
+            }));
+          }
+        } catch (retryError) {
+          console.error('重试处理TCP客户端事件失败:', retryError);
+        }
+      }
+    });
+
     console.log('Channel service initialized with global listeners');
   }
 
@@ -104,6 +188,10 @@ export class ChannelService {
     if (this.messageUnlistener) {
       await this.messageUnlistener();
       this.messageUnlistener = null;
+    }
+    if (this.tcpClientEventUnlistener) {
+      await this.tcpClientEventUnlistener();
+      this.tcpClientEventUnlistener = null;
     }
     this.dispatch = null;
   }
@@ -139,7 +227,43 @@ export class ChannelService {
       // 确保返回的配置不包含任何状态信息
       Object.keys(configs).forEach((key) => {
         const channelType = key as ChannelType;
-        configs[channelType] = this.cleanConnectionParams(configs[channelType] || {});
+        const cleanConfig = this.cleanConnectionParams(configs[channelType] || {});
+        
+        // 检查配置是否为空或缺少必要参数，如果是则使用默认值
+        switch (channelType) {
+          case 'tcpclient':
+            configs[channelType] = {
+              ...DEFAULT_CHANNEL_CONFIGS.tcpclient,
+              ...cleanConfig
+            };
+            break;
+          case 'tcpserver':
+            configs[channelType] = {
+              ...DEFAULT_CHANNEL_CONFIGS.tcpserver,
+              ...cleanConfig,
+              children: (cleanConfig as TcpServerConfig).children || []
+            } as TcpServerConfig;
+            break;
+          case 'serial':
+            configs[channelType] = {
+              ...DEFAULT_CHANNEL_CONFIGS.serial,
+              ...cleanConfig
+            };
+            break;
+          case 'mqtt':
+            configs[channelType] = {
+              ...DEFAULT_CHANNEL_CONFIGS.mqtt,
+              ...cleanConfig,
+              clientid: (cleanConfig as MqttConfig).clientid || `mqtt-${Date.now()}`
+            } as MqttConfig;
+            break;
+          case 'bluetooth':
+            configs[channelType] = {
+              ...DEFAULT_CHANNEL_CONFIGS.bluetooth,
+              ...cleanConfig
+            };
+            break;
+        }
       });
 
       // 确保所有通道类型都存在
@@ -165,6 +289,8 @@ export class ChannelService {
    */
   static async connectChannel(channelType: ChannelType, params: ConnectionParams): Promise<string> {
     try {
+      console.log('连接通道:', channelType, params);
+
       // 调用后端连接
       const channelId = await invoke<string>('connect_channel', { 
         channel: channelType,
@@ -176,6 +302,7 @@ export class ChannelService {
       
       // 只保存必要的连接参数
       configs[channelType] = this.cleanConnectionParams(params);
+
       
       // 保存到配置文件
       await invoke("set_config_value_async", {
@@ -223,22 +350,17 @@ export class ChannelService {
   }
 
   /**
-   * 获取可用串口列表
-   */
-  static async listSerialPorts(): Promise<string[]> {
-    return invoke('list_serial_ports');
-  }
-
-  /**
    * 发送消息
    * @param channelid 通道ID
    * @param message 消息内容
    * @param isHex 是否为十六进制字符串
+   * @param clientId 可选，TCP服务器客户端ID，用于指定发送目标
    */
   static async sendMessage(
     channelid: string, 
     message: string, 
-    isHex: boolean = false
+    isHex: boolean = false,
+    clientId?: string
   ): Promise<void> {
     try {
       // 处理消息内容
@@ -265,18 +387,35 @@ export class ChannelService {
         }
       }
 
-      console.log(`发送消息到 ${channelid}`, { 
-        message,
+      // 准备发送参数
+      const sendParams: any = {
+        channelid,
+        message: messageBytes,
+        clientid: clientId
+      };
+
+      console.log('发送消息参数:', {
+        channelid,
+        clientId,
+        hexString: isHex ? message.replace(/\s+/g, '') : undefined,
         messageBytes,
-        isHex
+        isHex,
+        sendParams
       });
 
-      return invoke('send_message', {
-        channelid: channelid,
-        message: messageBytes
-      });
+      // 调用send_message函数
+      console.log('调用send_message，参数:', sendParams);
+      await invoke('send_message', sendParams);
+      console.log('send_message调用完成');
     } catch (error) {
-      console.error(`发送消息失败:`, error);
+      console.error('发送消息失败:', error);
+      console.error('详细信息:', {
+        error,
+        message: error instanceof Error ? error.message : String(error),
+        channelid,
+        clientId,
+        isHex
+      });
       throw error;
     }
   }

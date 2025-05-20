@@ -53,10 +53,10 @@ impl<T: CommunicationChannel> ProtocolChannelAdapter<T> {
 
 #[async_trait]
 impl<T: CommunicationChannel> CommunicationChannel for ProtocolChannelAdapter<T> {
-    async fn send(&self, message: &Message) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn send(&self, message: &Message, clientid: Option<String>) -> Result<(), Box<dyn Error + Send + Sync>> {
         // 检查是否启用自动解析
         let auto_parse = *self.auto_parse.lock().await;
-        
+
         if auto_parse {
             // 使用协议处理器处理消息
             match self.protocol_handler.process_message_to_send(&self.channel_id, message).await {
@@ -68,17 +68,17 @@ impl<T: CommunicationChannel> CommunicationChannel for ProtocolChannelAdapter<T>
                     }));
                     
                     // 使用内部通道发送处理后的消息
-                    self.inner_channel.send(&processed_message).await
+                    self.inner_channel.send(&processed_message, clientid).await
                 }
                 Err(e) => {
                     eprintln!("Failed to process message with protocol: {}", e);
                     // 如果协议处理失败，直接发送原始消息
-                    self.inner_channel.send(message).await
+                    self.inner_channel.send(message, clientid).await
                 }
             }
         } else {
             // 不启用自动解析，直接发送原始消息
-            self.inner_channel.send(message).await
+            self.inner_channel.send(message, clientid).await
         }
     }
 
@@ -141,7 +141,7 @@ impl<T: CommunicationChannel> CommunicationChannel for ProtocolChannelAdapter<T>
     ) -> Result<Message, Box<dyn Error + Send + Sync>> {
         // 检查是否启用自动解析
         let auto_parse = *self.auto_parse.lock().await;
-        
+
         if auto_parse {
             // 使用协议处理器处理消息
             match self.protocol_handler.process_message_to_send(&self.channel_id, message).await {
@@ -216,5 +216,9 @@ impl<T: CommunicationChannel> CommunicationChannel for ProtocolChannelAdapter<T>
     async fn on_statechange(&self, state: ChannelState) -> Result<(), Box<dyn Error + Send + Sync>> {
         // 直接调用内部通道的状态变更方法
         self.inner_channel.on_statechange(state).await
+    }
+
+    fn get_channel_id(&self) -> String {
+        self.channel_id.clone()
     }
 }

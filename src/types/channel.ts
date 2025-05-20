@@ -6,12 +6,7 @@ export type ChannelType = 'tcpclient' | 'tcpserver' | 'serial' | 'mqtt' | 'bluet
 /**
  * 连接状态
  */
-export type ConnectionState = 
-  | 'connected' 
-  | 'connecting' 
-  | 'disconnected' 
-  | 'disconnecting' 
-  | 'error';
+export type ConnectionState = 'connected' | 'connecting' | 'disconnected' | 'disconnecting' | 'error';
 
 /**
  * 消息方向
@@ -36,39 +31,48 @@ export interface ChannelMessage {
 export interface MessageStats {
   sent: number;
   received: number;
-  lastMessageTime?: string;
+  lastMessageTime?: string | number;
 }
 
 /**
  * 基础通道配置接口
  */
 export interface BaseChannelConfig {
-  state: ConnectionState;
+  type: ChannelType;
+  state?: ConnectionState;
   channelId?: string;
+  sentCount?: number;
+  receivedCount?: number;
 }
 
 /**
  * TCP客户端配置
  */
 export interface TcpClientConfig extends BaseChannelConfig {
-  ip?: string;
-  port?: number;
+  type: 'tcpclient';
+  ip: string;
+  port: number;
 }
 
 /**
  * TCP服务器客户端
  */
-export interface TcpServerClient extends BaseChannelConfig {
+export interface TcpServerClient {
   ip: string;
   port: number;
+  state: ConnectionState;
+  channelId?: string;
+  sentCount?: number;
+  receivedCount?: number;
 }
 
 /**
  * TCP服务器配置
  */
 export interface TcpServerConfig extends BaseChannelConfig {
-  ip?: string;
-  port?: number;
+  type: 'tcpserver';
+  ip: string;
+  port: number;
   children?: TcpServerClient[];
 }
 
@@ -76,6 +80,7 @@ export interface TcpServerConfig extends BaseChannelConfig {
  * 串口配置
  */
 export interface SerialConfig extends BaseChannelConfig {
+  type: 'serial';
   comname?: string;
   baurdate?: number;
   parity?: string;
@@ -88,33 +93,29 @@ export interface SerialConfig extends BaseChannelConfig {
  * MQTT配置
  */
 export interface MqttConfig extends BaseChannelConfig {
-  ip?: string;
-  port?: number;
+  type: 'mqtt';
+  ip: string;
+  port: number;
   clientid?: string;
   username?: string;
   password?: string;
   qos?: number;
   version?: string;
+  topic?: string;
 }
 
 /**
  * 蓝牙配置
  */
 export interface BluetoothConfig extends BaseChannelConfig {
-  bluetoothname?: string;
-  uuid?: string;
-  adapter?: string;
+  type: 'bluetooth';
+  bluetoothname: string;
 }
 
-/**
- * 通道配置映射
- */
+export type ChannelConfig = TcpClientConfig | TcpServerConfig | SerialConfig | MqttConfig | BluetoothConfig;
+
 export interface ChannelConfigMap {
-  tcpclient: TcpClientConfig;
-  tcpserver: TcpServerConfig;
-  serial: SerialConfig;
-  mqtt: MqttConfig;
-  bluetooth: BluetoothConfig;
+    [key: string]: ChannelConfig | undefined;
 }
 
 /**
@@ -144,19 +145,13 @@ export interface Channel {
   channeltype: ChannelType;
   name: string;
   state: ConnectionState;
-  clients?: Client[];
+  address?: string;
+  config?: any;
   messages: ChannelMessage[];
-  lastActivityTime?: number;
+  clients?: Client[];
   sentCount: number;
   receivedCount: number;
-  config?: TcpClientConfig | TcpServerConfig | SerialConfig | MqttConfig | BluetoothConfig;
-  address?: string;
-  protocol?: string;
-  protocolConfig?: any;
-  autoParseProtocol?: boolean;
-  errorMessage?: string;
-  lastConnectedTime?: number;
-  reconnectAttempts?: number;
+  lastActivityTime?: number;
 }
 
 /**

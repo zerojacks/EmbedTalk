@@ -46,13 +46,14 @@ const ConnectBridgeRedux = () => {
   useEffect(() => {
     if (serviceInitialized) {
       dispatch(loadChannelConfigs());
+      refreshComList();
     }
   }, [dispatch, serviceInitialized]);
 
   // 获取串口列表
   const refreshComList = async () => {
     try {
-      const ports = await invoke<string[]>("get_com_list");
+      const ports = await invoke<string[]>("list_serial_ports");
       setComList(ports);
     } catch (error) {
       console.error("Error loading COM ports:", error);

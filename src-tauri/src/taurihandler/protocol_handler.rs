@@ -215,7 +215,7 @@ pub async fn handle_protocol_message(
                 }
             }
             
-            channel_handler::send_message(channel_id, bytes).await
+            channel_handler::send_message(channel_id, bytes, None).await
                 .map_err(|e| format!("发送失败: {}", e))?;
             
             Ok(json!({ "success": true }))
