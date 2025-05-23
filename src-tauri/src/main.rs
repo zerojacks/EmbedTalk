@@ -122,6 +122,8 @@ fn main() {
             taurihandler::handler::caculate_pppfcs16,
             taurihandler::handler::da_and_measure_point_exchange,
             taurihandler::handler::open_devtools,
+            taurihandler::channel_handler::subscribe_mqtt_topic,
+            taurihandler::channel_handler::unsubscribe_mqtt_topic,
             parse_item_data,
         ])
         .run(tauri::generate_context!())

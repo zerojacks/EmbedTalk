@@ -14,15 +14,33 @@ export type ConnectionState = 'connected' | 'connecting' | 'disconnected' | 'dis
 export type MessageDirection = 'Sent' | 'Received';
 
 /**
+ * 消息格式
+ */
+export type MessageFormat = 'raw' | 'json' | 'base64' | 'hex' | 'cbor';
+
+/**
  * 消息接口
  */
 export interface ChannelMessage {
-  channeltype: ChannelType;
+  id: string;
   channelId: string;
-  timestamp: string;
   direction: MessageDirection;
+  timestamp: string | number;
+  data: string;
+  channeltype: ChannelType;
   content: any;
   metadata?: Record<string, string>;
+  format: MessageFormat;
+}
+
+/**
+ * 主题订阅表单数据
+ */
+export interface TopicFormData {
+  topic: string;
+  qos: number;
+  alias: string;
+  color: string;
 }
 
 /**
@@ -101,7 +119,7 @@ export interface MqttConfig extends BaseChannelConfig {
   password?: string;
   qos?: number;
   version?: string;
-  topic?: string;
+  topics?: TopicFormData[];
 }
 
 /**

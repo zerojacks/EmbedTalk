@@ -421,6 +421,41 @@ export class ChannelService {
   }
 
   /**
+   * 发送MQTT消息
+   * @param channelId 通道ID
+   * @param topic 主题
+   * @param message 消息内容
+   * @param isHex 是否为十六进制字符串
+   */
+  static async sendMqttMessage(
+    channelId: string,
+    topic: string,
+    message: string,
+    qos: number,
+    retain: boolean = false
+  ): Promise<void> {
+    try {
+      const jsonMessage = JSON.stringify({
+        "topic": topic,
+        "payload": message,
+        "qos": qos,
+        "retain": retain
+      });
+      const messageBytes = new TextEncoder().encode(jsonMessage);
+      const sendParams: any = {
+        channelId,
+        message: messageBytes,
+        clientid: channelId
+      };
+
+      await invoke('send_mqtt_message', sendParams);
+    } catch (error) {
+      console.error('发送MQTT消息失败:', error);
+      throw error;  
+    }
+  }
+
+  /**
    * 启动定时发送
    * @param channelType 通道类型
    * @param message 消息内容
@@ -506,5 +541,14 @@ export class ChannelService {
       console.error(`获取定时发送状态失败:`, error);
       return null;
     }
+  }
+
+  // MQTT 相关方法
+  static async subscribeMqttTopic(channelId: string, topic: string, qos: number): Promise<void> {
+    await invoke('subscribe_mqtt_topic', { channelId, topic, qos });
+  }
+
+  static async unsubscribeMqttTopic(channelId: string, topic: string): Promise<void> {
+    await invoke('unsubscribe_mqtt_topic', { channelId, topic });
   }
 }

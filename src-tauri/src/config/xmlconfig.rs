@@ -124,11 +124,33 @@ impl XmlTree {
         let node_dir = node.attributes.get("dir").and_then(|d| d.parse::<u8>().ok());
 
         // 检查协议匹配
-        let protocol_match = node_protocol.map_or(false, |p| p.eq_ignore_ascii_case(protocol));
+        let protocol_match = node_protocol.map_or(false, |p| {
+            if protocol.contains(',') {
+                // 如果传入的protocol包含逗号，直接进行完整匹配
+                println!("protocol: {}", protocol);
+                p.eq_ignore_ascii_case(protocol)
+            } else {
+                // 否则按照原来的逻辑进行分割匹配
+                p.split(',')
+                    .map(|s| s.trim())
+                    .any(|s| s.eq_ignore_ascii_case(protocol))
+            }
+        });
 
         // 检查区域匹配
         let region_match = node_region.map_or(false, |r| {
-            r.eq_ignore_ascii_case(region) || (region != "南网" && r.eq_ignore_ascii_case("南网"))
+            if region.contains(',') {
+                // 如果传入的region包含逗号，直接进行完整匹配
+                r.eq_ignore_ascii_case(region)
+            } else {
+                // 否则按照原来的逻辑进行分割匹配
+                r.split(',')
+                    .map(|s| s.trim())
+                    .any(|s| {
+                        s.eq_ignore_ascii_case(region) || 
+                        (region != "南网" && s.eq_ignore_ascii_case("南网"))
+                    })
+            }
         });
 
         // 检查方向匹配，如果节点没有dir属性或者传入的dir为None，则认为匹配
@@ -725,33 +747,50 @@ impl ProtocolConfigManager {
         dir: Option<u8>,
     ) -> Option<XmlElement> {
         let find_protocol = protocol.to_uppercase();
-
-        match find_protocol.as_str() {
-            protocol if protocol.contains("CSG13") => {
-                GLOBAL_CSG13
-                    .as_ref()
-                    .ok()?
-                    .get_item(data_item_id, protocol, region, dir)
+        
+        // 如果协议包含逗号，尝试每个协议
+        if find_protocol.contains(',') {
+            for single_protocol in find_protocol.split(',').map(|s| s.trim()) {
+                if let Some(result) = match single_protocol {
+                    p if p.contains("CSG13") => GLOBAL_CSG13.as_ref().ok()?.get_item(data_item_id, protocol, region, dir),
+                    p if p.contains("DLT/645") => GLOBAL_645.as_ref().ok()?.get_item(data_item_id, protocol, region, dir),
+                    p if p.contains("CSG16") => GLOBAL_CSG16.as_ref().ok()?.get_item(data_item_id, protocol, region, dir),
+                    p if p.contains("MOUDLE") => GLOBAL_Moudle.as_ref().ok()?.get_item(data_item_id, protocol, region, dir),
+                    _ => None,
+                } {
+                    return Some(result);
+                }
             }
-            protocol if protocol.contains("DLT/645") => {
-                GLOBAL_645
-                    .as_ref()
-                    .ok()?
-                    .get_item(data_item_id, protocol, region, dir)
+            None
+        } else {
+            // 单个协议的情况保持不变
+            match find_protocol.as_str() {
+                protocol if protocol.contains("CSG13") => {
+                    GLOBAL_CSG13
+                        .as_ref()
+                        .ok()?
+                        .get_item(data_item_id, protocol, region, dir)
+                }
+                protocol if protocol.contains("DLT/645") => {
+                    GLOBAL_645
+                        .as_ref()
+                        .ok()?
+                        .get_item(data_item_id, protocol, region, dir)
+                }
+                protocol if protocol.contains("CSG16") => {
+                    GLOBAL_CSG16
+                        .as_ref()
+                        .ok()?
+                        .get_item(data_item_id, protocol, region, dir)
+                }
+                protocol if protocol.contains("MOUDLE") => {
+                    GLOBAL_Moudle
+                        .as_ref()
+                        .ok()?
+                        .get_item(data_item_id, protocol, region, dir)
+                }
+                _ => None,
             }
-            protocol if protocol.contains("CSG16") => {
-                GLOBAL_CSG16
-                    .as_ref()
-                    .ok()?
-                    .get_item(data_item_id, protocol, region, dir)
-            }
-            protocol if protocol.contains("MOUDLE") => {
-                GLOBAL_Moudle
-                    .as_ref()
-                    .ok()?
-                    .get_item(data_item_id, protocol, region, dir)
-            }
-            _ => None,
         }
     }
 

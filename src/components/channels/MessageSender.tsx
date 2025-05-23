@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Clock, Play, Pause, AlertCircle, X } from 'lucide-react';
-import { ChannelType } from '../types/channel';
-import { ChannelService } from '../services/channelService';
+import { ChannelType } from '../../types/channel';
+import { ChannelService } from '../../services/channelService';
 
 interface MessageSenderProps {
   channelType: ChannelType;
-  onSendMessage: (message: string, isHex: boolean, clientId?: string) => void;
+  onSendMessage: (message: string, isHex: boolean, topic?: string) => void;
   selectedClient?: { 
     ip: string; 
     port: number; 
@@ -13,6 +13,7 @@ interface MessageSenderProps {
     name: string;
   } | null;
   disabled?: boolean;
+  showTopicInput?: boolean;
 }
 
 const MessageSender: React.FC<MessageSenderProps> = ({

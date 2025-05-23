@@ -430,4 +430,12 @@ impl CommunicationChannel for TcpClientChannel {
     fn get_channel_id(&self) -> String {
         self.channelid.clone()
     }
+
+    async fn subscribe_topic(&self, _topic: &str, _qos: u8) -> Result<(), Box<dyn Error + Send + Sync>> {
+        Err("TCP client does not support topic subscription".into())
+    }
+
+    async fn unsubscribe_topic(&self, _topic: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+        Err("TCP client does not support topic unsubscription".into())
+    }
 }

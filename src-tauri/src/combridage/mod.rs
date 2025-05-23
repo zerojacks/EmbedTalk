@@ -78,4 +78,6 @@ pub trait CommunicationChannel: Send + Sync {
     async fn close(&self) -> Result<(), Box<dyn Error + Send + Sync>>;
     async fn on_statechange(&self, state: ChannelState)
         -> Result<(), Box<dyn Error + Send + Sync>>;
+    async fn subscribe_topic(&self, topic: &str, qos: u8) -> Result<(), Box<dyn Error + Send + Sync>>;
+    async fn unsubscribe_topic(&self, topic: &str) -> Result<(), Box<dyn Error + Send + Sync>>;
 }

@@ -6,12 +6,21 @@ use async_trait::async_trait;
 use rumqttc::{AsyncClient, Event, MqttOptions, Packet, QoS};
 use serde_json;
 use uuid::Uuid;
+use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
 use tokio::sync::{mpsc, broadcast, Mutex};
 use tokio::time::{timeout, sleep};
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MqttMessage {
+    topic: String,
+    payload: String,
+    qos: u8,
+    retain: bool,
+}
 
 pub struct MqttChannel {
     channeltype: String,
@@ -20,8 +29,9 @@ pub struct MqttChannel {
     client: AsyncClient,
     topic: String,
     shutdown_signal: broadcast::Sender<()>,
-    tx_send: mpsc::Sender<Vec<u8>>,
-    rx_recv: Arc<Mutex<mpsc::Receiver<Vec<u8>>>>,
+    tx_send: mpsc::Sender<MqttMessage>,
+    rx_recv: Arc<Mutex<mpsc::Receiver<MqttMessage>>>,
+    topics: Arc<Mutex<HashMap<String, QoS>>>,
 }
 
 impl MqttChannel {
@@ -53,6 +63,7 @@ impl MqttChannel {
             shutdown_signal,
             tx_send,
             rx_recv: Arc::new(Mutex::new(rx_recv)),
+            topics: Arc::new(Mutex::new(HashMap::new())),
         };
 
         // 初始化消息管理器
@@ -62,7 +73,6 @@ impl MqttChannel {
 
         // 启动发送任务
         let send_client = client.clone();
-        let send_topic = topic.to_string();
         let channeltype = channel.channeltype.clone();
         let channelid = channel.channelid.clone();
         let channel_name = channel.channel_name.clone();
@@ -70,7 +80,6 @@ impl MqttChannel {
         tokio::spawn(async move {
             if let Err(e) = Self::send_task(
                 send_client,
-                send_topic,
                 rx_send,
                 channeltype,
                 channelid,
@@ -107,18 +116,19 @@ impl MqttChannel {
     // 发送任务
     async fn send_task(
         client: AsyncClient,
-        topic: String,
-        mut rx_send: mpsc::Receiver<Vec<u8>>,
+        mut rx_send: mpsc::Receiver<MqttMessage>,
         channeltype: String,
         channelid: String,
         channel_name: String,
         message_manager: MessageManager,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         while let Some(data) = rx_send.recv().await {
-            client.publish(&topic, QoS::AtLeastOnce, false, data.clone()).await?;
+            client.publish(&data.topic, QoSLevel::from(data.qos).into_inner(), data.retain, data.payload.as_bytes()).await?;
             
             let payload = serde_json::json!({
-                "data": data
+                "data": data,
+                "topic": data.topic,
+                "qos": u8::from(QoSLevel::from(data.qos))
             });
             let message = Message::new(payload);
             
@@ -142,7 +152,7 @@ impl MqttChannel {
     // 接收任务
     async fn receive_task(
         mut eventloop: rumqttc::EventLoop,
-        tx_recv: mpsc::Sender<Vec<u8>>,
+        tx_recv: mpsc::Sender<MqttMessage>,
         channeltype: String,
         channelid: String,
         channel_name: String,
@@ -164,7 +174,9 @@ impl MqttChannel {
                             let received_data = publish.payload.to_vec();
                             
                             let payload = serde_json::json!({
-                                "data": received_data.clone()
+                                "data": received_data.clone(),
+                                "topic": publish.topic,
+                                "qos": u8::from(QoSLevel::from(publish.qos))
                             });
                             let message = Message::new(payload);
                             
@@ -182,9 +194,15 @@ impl MqttChannel {
                             ).await {
                                 eprintln!("Timeout recording received message: {:?}", e);
                             }
+                            let mqtt_message = MqttMessage {
+                                topic: publish.topic.to_string(),
+                                payload: String::from_utf8(received_data).unwrap_or_default(),
+                                qos: u8::from(QoSLevel::from(publish.qos)),
+                                retain: publish.retain
+                            };
 
                             // 使用 try_send 发送到接收队列
-                            if let Err(e) = tx_recv.try_send(received_data) {
+                            if let Err(e) = tx_recv.try_send(mqtt_message) {
                                 dropped_messages += 1;
                                 
                                 if dropped_messages % 100 == 0 || std::time::Instant::now().duration_since(last_log_time).as_secs() >= 10 {
@@ -219,20 +237,71 @@ impl MqttChannel {
         Ok(())
     }
 
-    pub async fn close(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        // 发送关闭信号
+    pub async fn disconnect_mqtt(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        // 先发送关闭信号，通知所有任务准备关闭
         let _ = self.shutdown_signal.send(());
         
-        // 等待一段时间让任务正常退出
-        sleep(Duration::from_millis(100)).await;
+        // 等待任务正常退出
+        sleep(Duration::from_millis(300)).await;
         
-        // 断开 MQTT 连接
-        self.client.disconnect().await?;
+        // 尝试断开MQTT连接，但使用timeout避免永久阻塞
+        // 如果出现错误，记录但不返回失败
+        match timeout(Duration::from_secs(2), self.client.disconnect()).await {
+            Ok(result) => {
+                if let Err(e) = result {
+                    eprintln!("MQTT断开连接时发生错误，但将继续处理: {}", e);
+                    // 不返回错误，继续处理
+                }
+            },
+            Err(_) => {
+                eprintln!("MQTT断开连接超时，但将继续处理");
+                // 超时也继续处理
+            }
+        }
         
-        // 发送状态变更事件
-        self.on_statechange(ChannelState::Disconnected).await?;
+        // 无论断开连接成功与否，都发送状态变更事件
+        if let Err(e) = self.on_statechange(ChannelState::Disconnected).await {
+            eprintln!("发送MQTT断开连接状态变更事件失败: {}", e);
+        }
         
+        // 始终返回成功，确保调用方能正确处理
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct QoSLevel(QoS);
+
+impl QoSLevel {
+    pub fn into_inner(self) -> QoS {
+        self.0
+    }
+}
+
+impl From<QoS> for QoSLevel {
+    fn from(qos: QoS) -> Self {
+        QoSLevel(qos)
+    }
+}
+
+impl From<u8> for QoSLevel {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => QoSLevel(QoS::AtMostOnce),
+            1 => QoSLevel(QoS::AtLeastOnce),
+            2 => QoSLevel(QoS::ExactlyOnce),
+            _ => QoSLevel(QoS::AtLeastOnce), // Default to QoS 1 for invalid values for better reliability
+        }
+    }
+}
+
+impl From<QoSLevel> for u8 {
+    fn from(qos: QoSLevel) -> Self {
+        match qos.0 {
+            QoS::AtMostOnce => 0,
+            QoS::AtLeastOnce => 1,
+            QoS::ExactlyOnce => 2,
+        }
     }
 }
 
@@ -240,26 +309,19 @@ impl MqttChannel {
 impl CommunicationChannel for MqttChannel {
     async fn send(&self, message: &Message, _clientid: Option<String>) -> Result<(), Box<dyn Error + Send + Sync>> {
         let content = message.get_content();
-        
-        let bytes_to_send = if content.is_object() && content.get("data").is_some() {
-            let data = &content["data"];
-            
-            if data.is_array() {
-                let mut bytes = Vec::new();
-                for item in data.as_array().unwrap() {
-                    if let Some(byte) = item.as_u64() {
-                        bytes.push(byte as u8);
-                    }
-                }
-                bytes
-            } else {
-                serde_json::to_vec(data)?
-            }
-        } else {
-            serde_json::to_vec(content)?
-        };
+        //需要将content中提取"data"字段，再从这个data里面提取"topic"字段，然后根据这个topic字段，将message的内容发送出去
+        let topic = content["data"]["topic"].as_str().unwrap_or("default_topic");
+        let qos = content["data"]["qos"].as_u64().unwrap_or(0);
+        let payload = content["data"]["payload"].as_str().unwrap_or("default_payload");
+        let qos_level = QoSLevel::from(qos as u8);
+        let retain = content["data"]["retain"].as_bool().unwrap_or(false);
 
-        self.tx_send.send(bytes_to_send).await
+        self.tx_send.send(MqttMessage {
+            topic: topic.to_string(),
+            payload: payload.to_string(),
+            qos: qos as u8,
+            retain: retain
+        }).await
             .map_err(|e| Box::<dyn Error + Send + Sync>::from(format!("Failed to send message: {:?}", e)))?;
         
         Ok(())
@@ -287,7 +349,8 @@ impl CommunicationChannel for MqttChannel {
     }
 
     async fn close(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        self.close().await
+        self.disconnect_mqtt().await?;
+        Ok(())
     }
 
     async fn on_statechange(
@@ -311,5 +374,19 @@ impl CommunicationChannel for MqttChannel {
 
     fn get_channel_id(&self) -> String {
         self.channelid.clone()
+    }
+
+    async fn subscribe_topic(&self, topic: &str, qos: u8) -> Result<(), Box<dyn Error + Send + Sync>> {
+        self.client.subscribe(topic, QoSLevel::from(qos).into_inner()).await?;
+        self.topics.lock().await.insert(topic.to_string(), QoSLevel::from(qos).into_inner());
+        println!("MQTT subscribe topic: {}", topic);
+        Ok(())
+    }
+
+    async fn unsubscribe_topic(&self, topic: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+        self.client.unsubscribe(topic).await?;
+        self.topics.lock().await.remove(topic);
+        println!("MQTT unsubscribe topic: {}", topic);
+        Ok(())
     }
 }

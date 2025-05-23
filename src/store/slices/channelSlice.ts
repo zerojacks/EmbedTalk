@@ -119,7 +119,12 @@ const initialState: ChannelState = {
             channelId: undefined,
             qos: 2,
             version: '3.1.1',
-            topic: '#'
+            topics: [{
+                topic: '#',
+                qos: 2,
+                alias: '',
+                color: '#ED01AF'
+            }]
         },
         bluetooth: {
             type: 'bluetooth',
@@ -419,6 +424,70 @@ export const verifyAllConnections = createAsyncThunk<
     }
     
     return results;
+  }
+);
+
+// 添加MQTT主题订阅的异步Thunk
+export const subscribeMqttTopic = createAsyncThunk<
+  void,
+  { channelId: string; topic: string; qos: number; alias?: string; color?: string },
+  { state: RootState }
+>(
+  'channel/subscribeMqttTopic',
+  async ({ channelId, topic, qos, alias, color }, { dispatch, getState }) => {
+    await ChannelService.subscribeMqttTopic(channelId, topic, qos);
+    
+    // 更新store中的topics
+    const state = getState();
+    const mqttConfig = state.channel.channels.mqtt;
+    
+    if (mqttConfig && mqttConfig.channelId === channelId) {
+      const currentTopics = mqttConfig.topics || [];
+      const newTopic = {
+        topic,
+        qos,
+        alias: alias || topic,
+        color: color || '#b5a2a6'
+      };
+      
+      dispatch(updateChannelState({
+        channelType: 'mqtt',
+        state: mqttConfig.state || 'connected',
+        config: {
+          ...mqttConfig,
+          topics: [...currentTopics, newTopic]
+        }
+      }));
+    }
+  }
+);
+
+// 取消MQTT主题订阅的异步Thunk
+export const unsubscribeMqttTopic = createAsyncThunk<
+  void,
+  { channelId: string; topic: string },
+  { state: RootState }
+>(
+  'channel/unsubscribeMqttTopic',
+  async ({ channelId, topic }, { dispatch, getState }) => {
+    await ChannelService.unsubscribeMqttTopic(channelId, topic);
+    
+    // 从store中移除topic
+    const state = getState();
+    const mqttConfig = state.channel.channels.mqtt;
+    
+    if (mqttConfig && mqttConfig.channelId === channelId) {
+      const currentTopics = mqttConfig.topics || [];
+      
+      dispatch(updateChannelState({
+        channelType: 'mqtt',
+        state: mqttConfig.state || 'connected',
+        config: {
+          ...mqttConfig,
+          topics: currentTopics.filter(t => t.topic !== topic)
+        }
+      }));
+    }
   }
 );
 
@@ -997,6 +1066,14 @@ const channelSlice = createSlice({
         state.loading = false;
         state.error = action.error.message || 'Failed to verify connections';
       });
+    builder.addCase(subscribeMqttTopic.pending, (state, action) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(unsubscribeMqttTopic.pending, (state, action) => {
+      state.loading = true;
+      state.error = null;
+    });
   }
 });
 

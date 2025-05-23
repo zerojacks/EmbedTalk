@@ -221,4 +221,12 @@ impl<T: CommunicationChannel> CommunicationChannel for ProtocolChannelAdapter<T>
     fn get_channel_id(&self) -> String {
         self.channel_id.clone()
     }
+
+    async fn subscribe_topic(&self, topic: &str, qos: u8) -> Result<(), Box<dyn Error + Send + Sync>> {
+        self.inner_channel.subscribe_topic(topic, qos).await
+    }
+
+    async fn unsubscribe_topic(&self, topic: &str) -> Result<(), Box<dyn Error + Send + Sync>> {
+        self.inner_channel.unsubscribe_topic(topic).await
+    }
 }

@@ -209,4 +209,38 @@ impl CommunicationManager {
             Ok(false)
         }
     }
+
+    pub async fn subscribe_mqtt_topic(
+        &self,
+        channel_type: &ChannelType,
+        topic: &str,
+        qos: u8,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+
+        if let ChannelType::Mqtt(_, _, _, _, _, _, _) = channel_type {
+            if let Some(channel) = self.channels.get(channel_type) {
+                channel.subscribe_topic(topic, qos).await
+            } else {
+                Err("Channel not found".into())
+            }
+        } else {
+            Err("Channel Not Mqtt".into())
+        }
+    }
+
+    pub async fn unsubscribe_mqtt_topic(
+        &self,
+        channel_type: &ChannelType,
+        topic: &str,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        if let ChannelType::Mqtt(_, _, _, _, _, _, _) = channel_type {
+            if let Some(channel) = self.channels.get(channel_type) {
+                channel.unsubscribe_topic(topic).await
+            } else {
+                Err("Channel not found".into())
+            }
+        } else {
+            Err("Channel Not Mqtt".into())
+        }
+    }
 }

@@ -278,6 +278,64 @@ pub fn get_timer_status(channelid: String) -> Result<Option<(u64, Vec<u8>)>, Str
     }
 }
 
+/// 订阅MQTT主题
+#[tauri::command]
+pub async fn subscribe_mqtt_topic(channelid: String, topic: String, qos: u8) -> Result<(), String> {
+    println!("订阅MQTT主题: channelid: {}, topic: {}, qos: {}", channelid, topic, qos);
+    
+    // 获取通道ID对应的ChannelType
+    let channel_type = {
+        let id_map = CHANNEL_ID_MAP.lock().await;
+        id_map.get(&channelid).cloned().ok_or(format!("Channel ID not found: {}", channelid))?
+    };
+    println!("send_message: 已获取channel_type: {:?}", channel_type);
+    
+    // 获取通道管理器
+    let manager = CHANNEL_MANAGER.lock().await;
+    println!("send_message: 已获取manager");
+    
+    // 发送消息
+    match manager.subscribe_mqtt_topic(&channel_type, &topic, qos).await {
+        Ok(_) => {
+            println!("send_message: 消息发送成功");
+            Ok(())
+        },
+        Err(e) => {
+            println!("send_message: 消息发送失败: {:?}", e);
+            Err(format!("发送消息失败: {}", e))
+        }
+    }
+}
+
+
+#[tauri::command]
+pub async fn unsubscribe_mqtt_topic(channelid: String, topic: String) -> Result<(), String> {
+    println!("取消订阅MQTT主题: channelid: {}, topic: {}", channelid, topic);
+    
+    // 获取通道ID对应的ChannelType
+    let channel_type = {
+        let id_map = CHANNEL_ID_MAP.lock().await;
+        id_map.get(&channelid).cloned().ok_or(format!("Channel ID not found: {}", channelid))?
+    };
+    println!("send_message: 已获取channel_type: {:?}", channel_type);
+    
+    // 获取通道管理器
+    let manager = CHANNEL_MANAGER.lock().await;
+    println!("send_message: 已获取manager");
+    
+    // 发送消息
+    match manager.unsubscribe_mqtt_topic(&channel_type, &topic).await {
+        Ok(_) => {
+            println!("send_message: 消息发送成功");
+            Ok(())
+        },
+        Err(e) => {
+            println!("send_message: 消息发送失败: {:?}", e);
+            Err(format!("发送消息失败: {}", e))
+        }
+    }
+}
+
 /// 获取通道管理器实例
 pub fn get_channel_manager() -> &'static Mutex<CommunicationManager> {
     &CHANNEL_MANAGER
