@@ -15,7 +15,9 @@ import {
     deleteSelectedMessages,
     selectMessage,
     clearSelectedMessages,
-    parseFrameMessage
+    parseFrameMessage,
+    addParsingMessageId,
+    removeParsingMessageId
 } from '../../store/slices/frameExtractorSlice';
 import { X, PlusIcon, Edit, Trash2, ArrowRight, Copy, PlayCircle } from 'lucide-react';
 import { toast } from '../../context/ToastProvider';
@@ -105,11 +107,20 @@ const MessageDialog: React.FC = () => {
     // 解析单条消息
     const handleParseMessage = async (messageId: string, messageContent: string) => {
         try {
+            // 手动添加到正在解析的列表
+            dispatch(addParsingMessageId(messageId));
+            
             await dispatch(parseFrameMessage({ id: messageId, content: messageContent })).unwrap();
             toast.success('解析成功');
             closeDialog();
         } catch (error) {
-            toast.error(error as string);
+            // 确保错误是字符串格式
+            const errorMessage = error instanceof Error ? error.message : 
+                                typeof error === 'string' ? error : '解析失败';
+            toast.error(errorMessage);
+        } finally {
+            // 无论成功还是失败，都从正在解析的列表中移除
+            dispatch(removeParsingMessageId(messageId));
         }
     };
 

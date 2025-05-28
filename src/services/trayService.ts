@@ -155,14 +155,19 @@ class TrayService {
             // 获取应用图标
             const icon = await defaultWindowIcon();
 
-            // 创建托盘图标
-            this.trayInstance = await TrayIcon.new({
-                menu,
-                icon: icon || undefined,
-                tooltip: 'EmbedTalk',
-                menuOnLeftClick: true,
-                action: this.handleTrayEvent,
-            });
+            // 检查托盘图标是否已存在
+            this.trayInstance = await TrayIcon.getById('embedtalk');
+            if (!this.trayInstance) {
+                // 创建托盘图标
+                this.trayInstance = await TrayIcon.new({
+                    id: 'embedtalk',
+                    menu,
+                    icon: icon || undefined,
+                    tooltip: 'EmbedTalk',
+                    menuOnLeftClick: true,
+                    action: this.handleTrayEvent,
+                });
+            }
 
             this.isInitialized = true;
             console.log('托盘初始化成功');

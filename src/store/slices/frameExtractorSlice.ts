@@ -142,22 +142,38 @@ export const parseSelectedMessages = createAsyncThunk(
             return rejectWithValue("请先选择要解析的报文");
         }
 
-        try {
-            const results: TreeItemType[][] = [];
-            
-            // 为每个选中的消息创建一个解析任务
-            for (const messageItem of selectedMessages) {
+        const results: TreeItemType[][] = [];
+        const errors: {id: string; error: string}[] = [];
+        
+        // 为每个选中的消息创建一个解析任务，即使某个解析失败也继续进行
+        for (const messageItem of selectedMessages) {
+            try {
+                // 添加到正在解析的列表
+                dispatch(addParsingMessageId(messageItem.id));
+                
                 const result = await dispatch(parseFrameMessage({
                     id: messageItem.id,
                     content: messageItem.message
                 })).unwrap();
                 results.push(result.data);
+            } catch (error) {
+                // 记录错误但继续处理其他消息
+                errors.push({
+                    id: messageItem.id,
+                    error: error instanceof Error ? error.message : '解析失败'
+                });
+                console.error(`解析消息 ${messageItem.id} 失败:`, error);
+            } finally {
+                // 无论成功还是失败，都从正在解析的列表中移除
+                dispatch(removeParsingMessageId(messageItem.id));
             }
-            
-            return results;
-        } catch (error) {
-            return rejectWithValue(error instanceof Error ? error.message : '解析失败');
         }
+        
+        // 返回成功解析的结果，即使有部分失败
+        return {
+            results,
+            errors: errors.length > 0 ? errors : null
+        };
     }
 );
 
@@ -171,22 +187,36 @@ export const parseAllMessages = createAsyncThunk(
             return rejectWithValue("没有报文可解析");
         }
 
-        try {
-            const results: TreeItemType[][] = [];
-            
-            // 为每个消息创建一个解析任务
-            for (const messageItem of messages) {
+        const results: TreeItemType[][] = [];
+        const errors: {id: string; error: string}[] = [];
+        
+        // 为每个选中的消息创建一个解析任务，即使某个解析失败也继续进行
+        for (const messageItem of messages) {
+            try {
+                dispatch(addParsingMessageId(messageItem.id));
                 const result = await dispatch(parseFrameMessage({
                     id: messageItem.id,
                     content: messageItem.message
                 })).unwrap();
                 results.push(result.data);
+            } catch (error) {
+                // 记录错误但继续处理其他消息
+                errors.push({
+                    id: messageItem.id,
+                    error: error instanceof Error ? error.message : '解析失败'
+                });
+                console.error(`解析消息 ${messageItem.id} 失败:`, error);
+            } finally {
+                // 无论成功还是失败，都从正在解析的列表中移除
+                dispatch(removeParsingMessageId(messageItem.id));
             }
-            
-            return results;
-        } catch (error) {
-            return rejectWithValue(error instanceof Error ? error.message : '解析失败');
         }
+        
+        // 返回成功解析的结果，即使有部分失败
+        return {
+            results,
+            errors: errors.length > 0 ? errors : null
+        };
     }
 );
 
@@ -515,10 +545,20 @@ const frameExtractorSlice = createSlice({
                 state.isLoading = false;
                 const allExtractedData: ExtractedData[] = [];
                 
-                // 处理所有解析结果
-                for (const treeItems of action.payload) {
-                    const extracted = extractData(treeItems);
-                    allExtractedData.push(...extracted);
+                // 处理所有成功解析的结果
+                if (action.payload.results && action.payload.results.length > 0) {
+                    for (const treeItems of action.payload.results) {
+                        const extracted = extractData(treeItems);
+                        allExtractedData.push(...extracted);
+                    }
+                }
+                
+                // 如果有错误，记录到state.error中，但不影响成功解析的结果显示
+                if (action.payload.errors && action.payload.errors.length > 0) {
+                    // 只显示第一个错误，或者可以显示错误数量
+                    state.error = `有${action.payload.errors.length}个报文解析失败，其余解析成功`;
+                } else {
+                    state.error = null;
                 }
                 
                 state.extractedData = allExtractedData;
@@ -543,7 +583,7 @@ const frameExtractorSlice = createSlice({
                 const allExtractedData: ExtractedData[] = [];
                 
                 // 处理所有解析结果
-                for (const treeItems of action.payload) {
+                for (const treeItems of action.payload.results) {
                     const extracted = extractData(treeItems);
                     allExtractedData.push(...extracted);
                 }
