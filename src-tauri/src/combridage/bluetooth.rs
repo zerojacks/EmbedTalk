@@ -152,7 +152,11 @@ impl BluetoothChannel {
 
 #[async_trait]
 impl CommunicationChannel for BluetoothChannel {
-    async fn send(&self, message: &Message, clientid: Option<String>) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn send(
+        &self,
+        message: &Message,
+        clientid: Option<String>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         if let Some(peripheral) = self.connected_peripheral.lock().await.as_ref() {
             let send_data: serde_json::Value = message.content.clone();
 
@@ -233,7 +237,11 @@ impl CommunicationChannel for BluetoothChannel {
         self.channelid.clone()
     }
 
-    async fn subscribe_topic(&self, _topic: &str, _qos: u8) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn subscribe_topic(
+        &self,
+        _topic: &str,
+        _qos: u8,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         Err("Bluetooth does not support topic subscription".into())
     }
 

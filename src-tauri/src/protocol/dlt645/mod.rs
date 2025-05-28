@@ -1,9 +1,9 @@
-pub mod parser;
 pub mod builder;
+pub mod parser;
 
 // 导出主要类型，方便使用
-pub use parser::DLT645Parser;
 pub use builder::DLT645Builder;
+pub use parser::DLT645Parser;
 
 // DLT645 协议常量
 pub const FRAME_START: u8 = 0x68;

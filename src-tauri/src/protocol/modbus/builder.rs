@@ -1,6 +1,6 @@
+use super::ModbusFunctionCode;
 use serde_json::Value;
 use std::error::Error;
-use super::ModbusFunctionCode;
 
 /// Modbus 协议消息构建器
 pub struct ModbusBuilder {
@@ -43,7 +43,11 @@ impl ModbusBuilder {
         start_address: u16,
         quantity: u16,
     ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
-        self.build_read_request(ModbusFunctionCode::ReadDiscreteInputs as u8, start_address, quantity)
+        self.build_read_request(
+            ModbusFunctionCode::ReadDiscreteInputs as u8,
+            start_address,
+            quantity,
+        )
     }
 
     /// 构建读取保持寄存器请求 (功能码 0x03)
@@ -52,7 +56,11 @@ impl ModbusBuilder {
         start_address: u16,
         quantity: u16,
     ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
-        self.build_read_request(ModbusFunctionCode::ReadHoldingRegisters as u8, start_address, quantity)
+        self.build_read_request(
+            ModbusFunctionCode::ReadHoldingRegisters as u8,
+            start_address,
+            quantity,
+        )
     }
 
     /// 构建读取输入寄存器请求 (功能码 0x04)
@@ -61,7 +69,11 @@ impl ModbusBuilder {
         start_address: u16,
         quantity: u16,
     ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
-        self.build_read_request(ModbusFunctionCode::ReadInputRegisters as u8, start_address, quantity)
+        self.build_read_request(
+            ModbusFunctionCode::ReadInputRegisters as u8,
+            start_address,
+            quantity,
+        )
     }
 
     /// 构建写入单个线圈请求 (功能码 0x05)
@@ -71,7 +83,11 @@ impl ModbusBuilder {
         value: bool,
     ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         let value_u16 = if value { 0xFF00 } else { 0x0000 };
-        self.build_write_single_request(ModbusFunctionCode::WriteSingleCoil as u8, address, value_u16)
+        self.build_write_single_request(
+            ModbusFunctionCode::WriteSingleCoil as u8,
+            address,
+            value_u16,
+        )
     }
 
     /// 构建写入单个寄存器请求 (功能码 0x06)
@@ -80,7 +96,11 @@ impl ModbusBuilder {
         address: u16,
         value: u16,
     ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
-        self.build_write_single_request(ModbusFunctionCode::WriteSingleRegister as u8, address, value)
+        self.build_write_single_request(
+            ModbusFunctionCode::WriteSingleRegister as u8,
+            address,
+            value,
+        )
     }
 
     /// 构建写入多个线圈请求 (功能码 0x0F)
@@ -213,12 +233,12 @@ impl ModbusBuilder {
                 // 添加设备地址和 CRC
                 let mut request = vec![self.unit_id];
                 request.extend_from_slice(&pdu);
-                
+
                 // 计算 CRC
                 let crc = Self::calculate_crc(&request);
                 request.push(crc as u8);
                 request.push((crc >> 8) as u8);
-                
+
                 Ok(request)
             }
             "tcp" => {
@@ -227,13 +247,14 @@ impl ModbusBuilder {
                 let mut request = vec![
                     (self.transaction_id >> 8) as u8,
                     self.transaction_id as u8,
-                    0x00, 0x00, // Protocol ID (always 0)
+                    0x00,
+                    0x00, // Protocol ID (always 0)
                     (length >> 8) as u8,
                     length as u8,
                     self.unit_id,
                 ];
                 request.extend_from_slice(&pdu);
-                
+
                 Ok(request)
             }
             _ => Err(format!("Unsupported Modbus mode: {}", self.mode).into()),
@@ -258,12 +279,15 @@ impl ModbusBuilder {
     }
 
     /// 从 JSON 数据构建 Modbus 请求
-    pub fn build_from_json(&self, json_data: &Value) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+    pub fn build_from_json(
+        &self,
+        json_data: &Value,
+    ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         let function_code = json_data
             .get("function_code")
             .and_then(|v| v.as_u64())
             .ok_or("Missing function_code")?;
-        
+
         match function_code {
             0x01 => {
                 // 读取线圈
@@ -275,7 +299,7 @@ impl ModbusBuilder {
                     .get("quantity")
                     .and_then(|v| v.as_u64())
                     .ok_or("Missing quantity")? as u16;
-                
+
                 self.build_read_coils(start_address, quantity)
             }
             0x02 => {
@@ -288,7 +312,7 @@ impl ModbusBuilder {
                     .get("quantity")
                     .and_then(|v| v.as_u64())
                     .ok_or("Missing quantity")? as u16;
-                
+
                 self.build_read_discrete_inputs(start_address, quantity)
             }
             0x03 => {
@@ -301,7 +325,7 @@ impl ModbusBuilder {
                     .get("quantity")
                     .and_then(|v| v.as_u64())
                     .ok_or("Missing quantity")? as u16;
-                
+
                 self.build_read_holding_registers(start_address, quantity)
             }
             0x04 => {
@@ -314,7 +338,7 @@ impl ModbusBuilder {
                     .get("quantity")
                     .and_then(|v| v.as_u64())
                     .ok_or("Missing quantity")? as u16;
-                
+
                 self.build_read_input_registers(start_address, quantity)
             }
             0x05 => {
@@ -327,7 +351,7 @@ impl ModbusBuilder {
                     .get("value")
                     .and_then(|v| v.as_bool())
                     .ok_or("Missing value or not a boolean")?;
-                
+
                 self.build_write_single_coil(address, value)
             }
             0x06 => {
@@ -340,7 +364,7 @@ impl ModbusBuilder {
                     .get("value")
                     .and_then(|v| v.as_u64())
                     .ok_or("Missing value")? as u16;
-                
+
                 self.build_write_single_register(address, value)
             }
             0x0F => {
@@ -349,17 +373,17 @@ impl ModbusBuilder {
                     .get("address")
                     .and_then(|v| v.as_u64())
                     .ok_or("Missing address")? as u16;
-                
+
                 let values = json_data
                     .get("values")
                     .and_then(|v| v.as_array())
                     .ok_or("Missing values array")?;
-                
+
                 let bool_values: Result<Vec<bool>, _> = values
                     .iter()
                     .map(|v| v.as_bool().ok_or("Value is not a boolean"))
                     .collect();
-                
+
                 self.build_write_multiple_coils(start_address, &bool_values?)
             }
             0x10 => {
@@ -368,17 +392,17 @@ impl ModbusBuilder {
                     .get("address")
                     .and_then(|v| v.as_u64())
                     .ok_or("Missing address")? as u16;
-                
+
                 let values = json_data
                     .get("values")
                     .and_then(|v| v.as_array())
                     .ok_or("Missing values array")?;
-                
+
                 let u16_values: Result<Vec<u16>, _> = values
                     .iter()
                     .map(|v| v.as_u64().map(|n| n as u16).ok_or("Value is not a number"))
                     .collect();
-                
+
                 self.build_write_multiple_registers(start_address, &u16_values?)
             }
             _ => Err(format!("Unsupported function code: {}", function_code).into()),

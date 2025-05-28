@@ -3,7 +3,6 @@ use crate::combridage::{ChannelState, Message};
 use async_trait::async_trait;
 use serde_json;
 use socket2::{Socket, TcpKeepalive};
-use uuid::Uuid;
 use std::error::Error;
 use std::io;
 use std::io::Error as IoError;
@@ -14,6 +13,7 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 use tokio::sync::{broadcast, Mutex};
 use tokio::time::{sleep, timeout, Duration};
+use uuid::Uuid;
 //global.rs
 use crate::combridage::messagemanager::{MessageDirection, MessageManager};
 use crate::global::get_app_handle;
@@ -194,7 +194,7 @@ impl TcpClientChannel {
             // 直接写入数据，不尝试解析
             writer.write_all(&data).await?;
             writer.flush().await?;
-            
+
             println!("TcpClientChannel sent data of size: {}", data.len());
             let payload = serde_json::json!({
                 "data": data
@@ -209,8 +209,8 @@ impl TcpClientChannel {
                     MessageDirection::Sent,
                     None,
                 )
-            .await
-            .map_err(|e| IoError::new(io::ErrorKind::Other, e))?; // 修改此行
+                .await
+                .map_err(|e| IoError::new(io::ErrorKind::Other, e))?; // 修改此行
         }
         Ok(())
     }
@@ -223,7 +223,7 @@ impl TcpClientChannel {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut buffer = [0; 1024];
         let mut shutdown_receiver = self.shutdown_signal.subscribe();
-        
+
         // 用于跟踪丢弃的消息数量
         let mut dropped_messages = 0;
         let mut last_log_time = std::time::Instant::now();
@@ -244,7 +244,7 @@ impl TcpClientChannel {
                                 "data": received_data
                             });
                             let message = Message::new(payload);
-                            
+
                             // 使用 timeout 包装 record_message 调用，防止长时间阻塞
                             match timeout(Duration::from_secs(1), message_manager.record_message(
                                 &self.channeltype.clone(),
@@ -269,14 +269,14 @@ impl TcpClientChannel {
                             // 使用 try_send 而不是 send，避免在队列满时阻塞
                             if let Err(e) = tx_recv.try_send(received_data) {
                                 dropped_messages += 1;
-                                
+
                                 // 每 10 秒或每 100 条丢弃的消息记录一次日志，避免日志过多
                                 let now = std::time::Instant::now();
                                 if dropped_messages % 100 == 0 || now.duration_since(last_log_time).as_secs() >= 10 {
                                     eprintln!("Queue full, dropped {} messages so far: {:?}", dropped_messages, e);
                                     last_log_time = now;
                                 }
-                                
+
                                 // 添加小延迟，给系统一些时间处理队列中的消息
                                 sleep(Duration::from_millis(10)).await;
                                 // 继续循环而不是终止任务
@@ -332,14 +332,18 @@ impl TcpClientChannel {
 
 #[async_trait]
 impl CommunicationChannel for TcpClientChannel {
-    async fn send(&self, message: &Message, clientid: Option<String>) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn send(
+        &self,
+        message: &Message,
+        clientid: Option<String>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // 获取消息内容
         let content = message.get_content();
-        
+
         // 从消息内容中提取 data 字段
         let bytes_to_send = if content.is_object() && content.get("data").is_some() {
             let data = &content["data"];
-            
+
             if data.is_array() {
                 // 如果 data 是数组，将其转换为字节数组
                 let mut bytes = Vec::new();
@@ -351,19 +355,28 @@ impl CommunicationChannel for TcpClientChannel {
                 bytes
             } else {
                 // 如果 data 不是数组，序列化 data 字段
-                serde_json::to_vec(data)
-                    .map_err(|e| Box::<dyn Error + Send + Sync>::from(format!("Failed to serialize data field: {:?}", e)))?
+                serde_json::to_vec(data).map_err(|e| {
+                    Box::<dyn Error + Send + Sync>::from(format!(
+                        "Failed to serialize data field: {:?}",
+                        e
+                    ))
+                })?
             }
         } else {
             // 如果没有 data 字段，序列化整个内容
-            serde_json::to_vec(content)
-                .map_err(|e| Box::<dyn Error + Send + Sync>::from(format!("Failed to serialize message content: {:?}", e)))?
+            serde_json::to_vec(content).map_err(|e| {
+                Box::<dyn Error + Send + Sync>::from(format!(
+                    "Failed to serialize message content: {:?}",
+                    e
+                ))
+            })?
         };
 
         // 使用 tx_send 发送提取的数据
-        self.tx_send.send(bytes_to_send).await
-            .map_err(|e| Box::<dyn Error + Send + Sync>::from(format!("Failed to send message: {:?}", e)))?;
-            
+        self.tx_send.send(bytes_to_send).await.map_err(|e| {
+            Box::<dyn Error + Send + Sync>::from(format!("Failed to send message: {:?}", e))
+        })?;
+
         println!("TcpClientChannel sent data of size: ");
         Ok(())
     }
@@ -431,7 +444,11 @@ impl CommunicationChannel for TcpClientChannel {
         self.channelid.clone()
     }
 
-    async fn subscribe_topic(&self, _topic: &str, _qos: u8) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn subscribe_topic(
+        &self,
+        _topic: &str,
+        _qos: u8,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         Err("TCP client does not support topic subscription".into())
     }
 

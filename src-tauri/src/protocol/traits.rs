@@ -22,19 +22,23 @@ pub struct ProtocolMessage {
 pub trait ProtocolParser: Send + Sync {
     /// 获取协议类型名称
     fn get_protocol_name(&self) -> String;
-    
+
     /// 解析二进制数据为协议消息
     async fn parse(&self, data: &[u8]) -> Result<ProtocolMessage, Box<dyn Error + Send + Sync>>;
-    
+
     /// 构建协议消息为二进制数据
-    async fn build(&self, message: &serde_json::Value) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>>;
-    
+    async fn build(
+        &self,
+        message: &serde_json::Value,
+    ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>>;
+
     /// 验证消息是否符合协议规范
     async fn validate(&self, data: &[u8]) -> Result<bool, Box<dyn Error + Send + Sync>>;
-    
+
     /// 获取协议配置信息
     fn get_config(&self) -> serde_json::Value;
-    
+
     /// 设置协议配置信息
-    fn set_config(&mut self, config: serde_json::Value) -> Result<(), Box<dyn Error + Send + Sync>>;
+    fn set_config(&mut self, config: serde_json::Value)
+        -> Result<(), Box<dyn Error + Send + Sync>>;
 }

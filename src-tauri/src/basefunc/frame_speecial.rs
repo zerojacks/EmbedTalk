@@ -1,11 +1,11 @@
+use crate::basefunc::frame_csg::FrameCsg;
 use crate::basefunc::frame_err::CustomError;
 use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::protocol::ProtocolInfo;
-use crate::basefunc::frame_csg::FrameCsg;
 use crate::basefunc::protocol::{AnalysicErr, FrameAnalisyic};
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement};
-use std::error::Error;
 use serde_json::Value;
+use std::error::Error;
 
 const MS_TYPE_ALL_USER: u8 = 0x01; //全部用户类型*/
 const MS_TYPE_A_SET_OF_USER: u8 = 0x02; //一组用户类型 */
@@ -23,7 +23,7 @@ const MS_TYPE_VIP_USER_TYPES: u8 = 0xFD; //重点用户 253*/
 const MS_TYPE_A_SET_OF_USER_PORT_NUMBERS: u8 = 0xFE; //一组用户端口号 254*/
 pub struct SpcialFrame;
 
-impl SpcialFrame{
+impl SpcialFrame {
     pub fn is_special_frame(data: &[u8], region: &str) -> bool {
         let frame = data.to_vec();
         if frame.len() < 6 {
@@ -40,14 +40,16 @@ impl SpcialFrame{
         true
     }
 
-    pub fn analysic_special_frame(        
+    pub fn analysic_special_frame(
         frame: &[u8],
         result_list: &mut Vec<Value>,
         index: usize,
-        region: &str) -> Result<(), Box<dyn Error>> {
-            let protocol = ProtocolInfo::ProtocolCSG13.name().to_string();
-            let _ = Self::analysic_csg_history_data_frame(frame, 1, result_list, index, &protocol, region);
-            Ok(())
+        region: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        let protocol = ProtocolInfo::ProtocolCSG13.name().to_string();
+        let _ =
+            Self::analysic_csg_history_data_frame(frame, 1, result_list, index, &protocol, region);
+        Ok(())
     }
 
     fn analysic_csg_history_data_frame(
@@ -66,7 +68,7 @@ impl SpcialFrame{
 
         let index = 0;
 
-        let data_segment =frame;
+        let data_segment = frame;
         let mut data_item_elem: Option<XmlElement> = None;
         let data_time: Option<&[u8]> = None;
         let mut point_str: String = String::new();
@@ -86,7 +88,7 @@ impl SpcialFrame{
                     let item = &data_segment[pos + 2..pos + 6];
                     point_str = FrameCsg::prase_da_data([da[0], da[1]]);
                     let (data_item_elem_opt, cur_data_item) =
-                    FrameCsg::try_get_item_and_point(item, protocol, region, Some(dir));
+                        FrameCsg::try_get_item_and_point(item, protocol, region, Some(dir));
 
                     println!(
                         "data_item:{:?} {:?} {:?}",
@@ -128,8 +130,7 @@ impl SpcialFrame{
 
                 if let Some(mut item_elem) = data_item_elem.clone() {
                     let sub_length_cont = item_elem.get_child_text("length").unwrap();
-                    (sub_length, sub_datament) = if sub_length_cont.to_uppercase() == "UNKNOWN"
-                    {
+                    (sub_length, sub_datament) = if sub_length_cont.to_uppercase() == "UNKNOWN" {
                         let sub_length = FrameCsg::calculate_item_length(
                             &mut item_elem,
                             &data_segment[pos..],
@@ -164,8 +165,7 @@ impl SpcialFrame{
                 }
 
                 let new_point_str = point_str.clone().replace("Pn=", "");
-                let new_dis_str: String =
-                    dis_data_identifier.clone().replace("数据标识编码：", "");
+                let new_dis_str: String = dis_data_identifier.clone().replace("数据标识编码：", "");
                 FrameFun::add_data(
                     sub_result,
                     format!("<第{}组>数据内容", num + 1),
@@ -210,5 +210,4 @@ impl SpcialFrame{
 
         Ok(())
     }
-
 }

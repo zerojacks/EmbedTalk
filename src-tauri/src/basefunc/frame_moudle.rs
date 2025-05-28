@@ -169,7 +169,13 @@ impl FrameMoudle {
             0x01 => "初始化模块",
             0x03 => "读参数",
             0x04 => "写参数",
-            0x05 => if item == 0xEC050501 { "上报信息" } else { "电池管理" },
+            0x05 => {
+                if item == 0xEC050501 {
+                    "上报信息"
+                } else {
+                    "电池管理"
+                }
+            }
             0x06 => "请求信息",
             0x07 => "传输文件",
             0x10 => "维护命令",
@@ -205,11 +211,7 @@ impl FrameMoudle {
         } else {
             "表示此帧报文来自从动站"
         };
-        let add_str = if add == 1 {
-            "保留"
-        } else {
-            "保留"
-        };
+        let add_str = if add == 1 { "保留" } else { "保留" };
         let ver_str = format!("协议版本号:{}", ver);
 
         FrameFun::add_data(
@@ -272,13 +274,19 @@ impl FrameMoudle {
         let di = &data_content[0..4];
         let di_data = &data_content[4..];
         let data_item = FrameFun::get_data_str_reverser(di);
-        println!("data_item: {} protocol: {} region: {} dir: {}", data_item, protocol, region, dir);
+        println!(
+            "data_item: {} protocol: {} region: {} dir: {}",
+            data_item, protocol, region, dir
+        );
         if let Some(mut data_item_elem) =
             ProtocolConfigManager::get_config_xml(&data_item, protocol, region, Some(dir))
         {
             let pos: usize = 0;
             let length_ele = data_item_elem.get_child_text("length");
-            println!("data_item_elem: {:?}, length_ele: {:?}", data_item_elem, length_ele);
+            println!(
+                "data_item_elem: {:?}, length_ele: {:?}",
+                data_item_elem, length_ele
+            );
 
             let sub_length = if let Some(length_text) = length_ele {
                 match length_text.to_uppercase().as_str() {

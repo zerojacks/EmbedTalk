@@ -1,8 +1,8 @@
+use super::MODBUS_PROTOCOL_NAME;
+use crate::protocol::traits::{ProtocolMessage, ProtocolParser};
 use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::error::Error;
-use crate::protocol::traits::{ProtocolMessage, ProtocolParser};
-use super::MODBUS_PROTOCOL_NAME;
 
 /// Modbus 协议解析器
 pub struct ModbusParser {
@@ -53,7 +53,11 @@ impl ModbusParser {
 
         // 验证 CRC
         if crc != calculated_crc {
-            return Err(format!("CRC check failed: expected {:04X}, got {:04X}", calculated_crc, crc).into());
+            return Err(format!(
+                "CRC check failed: expected {:04X}, got {:04X}",
+                calculated_crc, crc
+            )
+            .into());
         }
 
         // 根据功能码解析有效载荷
@@ -105,7 +109,12 @@ impl ModbusParser {
 
         // 验证长度
         if (payload.len() + 2) as u16 != length {
-            return Err(format!("Length mismatch: expected {}, got {}", length, payload.len() + 2).into());
+            return Err(format!(
+                "Length mismatch: expected {}, got {}",
+                length,
+                payload.len() + 2
+            )
+            .into());
         }
 
         // 根据功能码解析有效载荷
@@ -141,7 +150,10 @@ impl ModbusParser {
     }
 
     // 解析读取位状态响应
-    fn parse_read_bits_response(&self, payload: &[u8]) -> Result<Value, Box<dyn Error + Send + Sync>> {
+    fn parse_read_bits_response(
+        &self,
+        payload: &[u8],
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
         if payload.is_empty() {
             return Err("Empty payload".into());
         }
@@ -168,7 +180,10 @@ impl ModbusParser {
     }
 
     // 解析读取寄存器响应
-    fn parse_read_registers_response(&self, payload: &[u8]) -> Result<Value, Box<dyn Error + Send + Sync>> {
+    fn parse_read_registers_response(
+        &self,
+        payload: &[u8],
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
         if payload.is_empty() {
             return Err("Empty payload".into());
         }
@@ -192,7 +207,10 @@ impl ModbusParser {
     }
 
     // 解析写入单个线圈响应
-    fn parse_write_single_coil_response(&self, payload: &[u8]) -> Result<Value, Box<dyn Error + Send + Sync>> {
+    fn parse_write_single_coil_response(
+        &self,
+        payload: &[u8],
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
         if payload.len() < 4 {
             return Err("Payload too short".into());
         }
@@ -208,7 +226,10 @@ impl ModbusParser {
     }
 
     // 解析写入单个寄存器响应
-    fn parse_write_single_register_response(&self, payload: &[u8]) -> Result<Value, Box<dyn Error + Send + Sync>> {
+    fn parse_write_single_register_response(
+        &self,
+        payload: &[u8],
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
         if payload.len() < 4 {
             return Err("Payload too short".into());
         }
@@ -223,7 +244,10 @@ impl ModbusParser {
     }
 
     // 解析写入多个线圈响应
-    fn parse_write_multiple_coils_response(&self, payload: &[u8]) -> Result<Value, Box<dyn Error + Send + Sync>> {
+    fn parse_write_multiple_coils_response(
+        &self,
+        payload: &[u8],
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
         if payload.len() < 4 {
             return Err("Payload too short".into());
         }
@@ -238,7 +262,10 @@ impl ModbusParser {
     }
 
     // 解析写入多个寄存器响应
-    fn parse_write_multiple_registers_response(&self, payload: &[u8]) -> Result<Value, Box<dyn Error + Send + Sync>> {
+    fn parse_write_multiple_registers_response(
+        &self,
+        payload: &[u8],
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
         if payload.len() < 4 {
             return Err("Payload too short".into());
         }
@@ -261,7 +288,7 @@ impl ProtocolParser for ModbusParser {
 
     async fn parse(&self, data: &[u8]) -> Result<ProtocolMessage, Box<dyn Error + Send + Sync>> {
         let mode = self.config["mode"].as_str().unwrap_or("rtu");
-        
+
         let parsed_data = match mode {
             "rtu" => self.parse_rtu(data)?,
             "tcp" => self.parse_tcp(data)?,
@@ -282,47 +309,63 @@ impl ProtocolParser for ModbusParser {
         // 为简化示例，这里只实现一个基本框架
         let mode = self.config["mode"].as_str().unwrap_or("rtu");
         let unit_id = message.get("unit_id").and_then(|v| v.as_u64()).unwrap_or(1) as u8;
-        let function_code = message.get("function_code").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
-        
+        let function_code = message
+            .get("function_code")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u8;
+
         // 这里应该根据功能码构建不同的消息
         // 简化实现，仅作示例
         let mut data = vec![unit_id, function_code];
-        
+
         if let Some(payload) = message.get("payload") {
             if let Some(address) = payload.get("address") {
                 let address_value = address.as_u64().unwrap_or(0) as u16;
                 data.push((address_value >> 8) as u8);
                 data.push(address_value as u8);
-                
+
                 match function_code {
                     0x01 | 0x02 | 0x03 | 0x04 => {
                         // 读取操作
-                        let quantity = payload.get("quantity").and_then(|v| v.as_u64()).unwrap_or(1) as u16;
+                        let quantity = payload
+                            .get("quantity")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(1) as u16;
                         data.push((quantity >> 8) as u8);
                         data.push(quantity as u8);
-                    },
+                    }
                     0x05 => {
                         // 写单个线圈
-                        let state = payload.get("state").and_then(|v| v.as_bool()).unwrap_or(false);
+                        let state = payload
+                            .get("state")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
                         data.push(if state { 0xFF } else { 0x00 });
                         data.push(0x00);
-                    },
+                    }
                     0x06 => {
                         // 写单个寄存器
-                        let value = payload.get("value").and_then(|v| v.as_u64()).unwrap_or(0) as u16;
+                        let value =
+                            payload.get("value").and_then(|v| v.as_u64()).unwrap_or(0) as u16;
                         data.push((value >> 8) as u8);
                         data.push(value as u8);
-                    },
+                    }
                     0x0F | 0x10 => {
                         // 写多个线圈/寄存器
                         // 这里需要更复杂的实现，简化处理
-                        return Err("Building multi-write messages not implemented in this example".into());
-                    },
-                    _ => return Err(format!("Unsupported function code: {:02X}", function_code).into()),
+                        return Err(
+                            "Building multi-write messages not implemented in this example".into(),
+                        );
+                    }
+                    _ => {
+                        return Err(
+                            format!("Unsupported function code: {:02X}", function_code).into()
+                        )
+                    }
                 }
             }
         }
-        
+
         // 根据模式添加适当的帧头/尾
         match mode {
             "rtu" => {
@@ -330,69 +373,73 @@ impl ProtocolParser for ModbusParser {
                 let crc = Self::calculate_crc(&data);
                 data.push(crc as u8);
                 data.push((crc >> 8) as u8);
-            },
+            }
             "tcp" => {
                 // 添加 Modbus TCP 头
-                let transaction_id = message.get("transaction_id").and_then(|v| v.as_u64()).unwrap_or(1) as u16;
+                let transaction_id = message
+                    .get("transaction_id")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(1) as u16;
                 let length = (data.len() as u16) + 1; // +1 for unit_id which is already in data
-                
+
                 let tcp_header = vec![
                     (transaction_id >> 8) as u8,
                     transaction_id as u8,
-                    0x00, 0x00, // Protocol ID (always 0)
+                    0x00,
+                    0x00, // Protocol ID (always 0)
                     (length >> 8) as u8,
                     length as u8,
                 ];
-                
+
                 // 移除 unit_id，因为它会被添加到 TCP 头后面
                 let unit_id = data.remove(0);
-                
+
                 // 组合最终数据
                 let mut final_data = tcp_header;
                 final_data.push(unit_id);
                 final_data.extend_from_slice(&data);
-                
+
                 return Ok(final_data);
-            },
+            }
             _ => return Err(format!("Unsupported Modbus mode: {}", mode).into()),
         }
-        
+
         Ok(data)
     }
 
     async fn validate(&self, data: &[u8]) -> Result<bool, Box<dyn Error + Send + Sync>> {
         let mode = self.config["mode"].as_str().unwrap_or("rtu");
-        
+
         match mode {
             "rtu" => {
                 // 验证 Modbus RTU 帧
                 if data.len() < 4 {
                     return Ok(false);
                 }
-                
+
                 // 检查 CRC
                 let crc = ((data[data.len() - 1] as u16) << 8) | (data[data.len() - 2] as u16);
                 let calculated_crc = Self::calculate_crc(&data[0..data.len() - 2]);
-                
+
                 Ok(crc == calculated_crc)
-            },
+            }
             "tcp" => {
                 // 验证 Modbus TCP 帧
                 if data.len() < 8 {
                     return Ok(false);
                 }
-                
+
                 let protocol_id = ((data[2] as u16) << 8) | (data[3] as u16);
                 let length = ((data[4] as u16) << 8) | (data[5] as u16);
-                
+
                 // 协议 ID 必须为 0
                 if protocol_id != 0 {
                     return Ok(false);
                 }
-                
+
                 // 验证长度
                 Ok((data.len() - 6) as u16 == length)
-            },
+            }
             _ => Err(format!("Unsupported Modbus mode: {}", mode).into()),
         }
     }

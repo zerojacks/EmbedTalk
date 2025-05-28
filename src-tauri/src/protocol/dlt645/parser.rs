@@ -71,43 +71,55 @@ impl DLT645Parser {
     fn parse_address_str(&self, address: &str) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         let address = address.replace(" ", "");
         if address.len() != 12 {
-            return Err(format!("Invalid address length: {}, expected 12 hex characters", address.len()).into());
+            return Err(format!(
+                "Invalid address length: {}, expected 12 hex characters",
+                address.len()
+            )
+            .into());
         }
-        
+
         let mut bytes = Vec::new();
         for i in (0..12).step_by(2) {
             if i + 2 <= address.len() {
-                let byte = u8::from_str_radix(&address[i..i+2], 16)
-                    .map_err(|_| format!("Invalid hex in address: {}", &address[i..i+2]))?;
+                let byte = u8::from_str_radix(&address[i..i + 2], 16)
+                    .map_err(|_| format!("Invalid hex in address: {}", &address[i..i + 2]))?;
                 bytes.push(byte);
             }
         }
-        
+
         // DLT645 地址是倒序的
         bytes.reverse();
-        
+
         Ok(bytes)
     }
 
     /// 解析数据标识符字符串为字节数组
-    fn parse_data_identifier_str(&self, data_id: &str) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+    fn parse_data_identifier_str(
+        &self,
+        data_id: &str,
+    ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         let data_id = data_id.replace(" ", "");
         if data_id.len() != 8 {
-            return Err(format!("Invalid data identifier length: {}, expected 8 hex characters", data_id.len()).into());
+            return Err(format!(
+                "Invalid data identifier length: {}, expected 8 hex characters",
+                data_id.len()
+            )
+            .into());
         }
-        
+
         let mut bytes = Vec::new();
         for i in (0..8).step_by(2) {
             if i + 2 <= data_id.len() {
-                let byte = u8::from_str_radix(&data_id[i..i+2], 16)
-                    .map_err(|_| format!("Invalid hex in data identifier: {}", &data_id[i..i+2]))?;
+                let byte = u8::from_str_radix(&data_id[i..i + 2], 16).map_err(|_| {
+                    format!("Invalid hex in data identifier: {}", &data_id[i..i + 2])
+                })?;
                 bytes.push(byte);
             }
         }
-        
+
         // DLT645 数据标识符是倒序的
         bytes.reverse();
-        
+
         Ok(bytes)
     }
 
@@ -116,21 +128,25 @@ impl DLT645Parser {
         if data.is_empty() {
             return Ok(Vec::new());
         }
-        
+
         let data = data.replace(" ", "");
         if data.len() % 2 != 0 {
-            return Err(format!("Invalid data length: {}, expected even number of hex characters", data.len()).into());
+            return Err(format!(
+                "Invalid data length: {}, expected even number of hex characters",
+                data.len()
+            )
+            .into());
         }
-        
+
         let mut bytes = Vec::new();
         for i in (0..data.len()).step_by(2) {
             if i + 2 <= data.len() {
-                let byte = u8::from_str_radix(&data[i..i+2], 16)
-                    .map_err(|_| format!("Invalid hex in data: {}", &data[i..i+2]))?;
+                let byte = u8::from_str_radix(&data[i..i + 2], 16)
+                    .map_err(|_| format!("Invalid hex in data: {}", &data[i..i + 2]))?;
                 bytes.push(byte);
             }
         }
-        
+
         Ok(bytes)
     }
 }
@@ -145,7 +161,7 @@ impl ProtocolParser for DLT645Parser {
     /// 解析二进制数据为协议消息
     async fn parse(&self, data: &[u8]) -> Result<ProtocolMessage, Box<dyn Error + Send + Sync>> {
         let is_valid = Self::validate_frame(data);
-        
+
         // 如果报文无效，返回错误消息
         if !is_valid {
             return Ok(ProtocolMessage {
@@ -159,7 +175,7 @@ impl ProtocolParser for DLT645Parser {
 
         // 使用 basefunc 中的 FrameAnalisyic 进行解析
         let parsed_data = FrameAnalisyic::process_frame(data, "default");
-        
+
         // 创建协议消息
         let message = ProtocolMessage {
             protocol_type: self.get_protocol_name(),
@@ -190,7 +206,7 @@ impl ProtocolParser for DLT645Parser {
                     .iter()
                     .map(|v| v.as_u64().map(|n| n as u8).ok_or("Invalid byte value"))
                     .collect();
-                
+
                 if let Ok(data) = bytes {
                     return Ok(data);
                 }
@@ -198,10 +214,11 @@ impl ProtocolParser for DLT645Parser {
         }
 
         // 从消息中提取必要的字段
-        let address = message_obj.get("address")
+        let address = message_obj
+            .get("address")
             .and_then(|v| v.as_str())
             .ok_or("Missing or invalid 'address' field")?;
-        
+
         // 功能码可能是字符串或数字
         let function_code = if let Some(fc) = message_obj.get("functionCode") {
             if let Some(fc_num) = fc.as_u64() {
@@ -216,54 +233,56 @@ impl ProtocolParser for DLT645Parser {
         } else {
             return Err("Missing 'functionCode' field".into());
         };
-        
-        let data_identifier = message_obj.get("dataIdentifier")
+
+        let data_identifier = message_obj
+            .get("dataIdentifier")
             .and_then(|v| v.as_str())
             .ok_or("Missing or invalid 'dataIdentifier' field")?;
-        
+
         // 数据字段是可选的
-        let data = message_obj.get("data")
+        let data = message_obj
+            .get("data")
             .and_then(|v| v.as_str())
             .unwrap_or("");
 
         // 构建 DLT645 报文
         let mut frame = Vec::new();
-        
+
         // 添加起始符 0x68
         frame.push(0x68);
-        
+
         // 添加地址字段 (6字节，从右到左)
         let address_bytes = self.parse_address_str(address)?;
         frame.extend_from_slice(&address_bytes);
-        
+
         // 添加第二个起始符 0x68
         frame.push(0x68);
-        
+
         // 添加控制码
         frame.push(function_code);
-        
+
         // 添加数据长度 (数据标识符4字节 + 数据字节数)
         let data_bytes = self.parse_data_str(data)?;
         let data_identifier_bytes = self.parse_data_identifier_str(data_identifier)?;
         frame.push((data_identifier_bytes.len() + data_bytes.len()) as u8);
-        
+
         // 添加数据标识符 (每个字节+0x33)
         for byte in &data_identifier_bytes {
             frame.push(byte + 0x33);
         }
-        
+
         // 添加数据 (每个字节+0x33)
         for byte in &data_bytes {
             frame.push(byte + 0x33);
         }
-        
+
         // 计算校验和
         let cs = DLT645Parser::calculate_checksum(&frame[1..]);
         frame.push(cs);
-        
+
         // 添加结束符 0x16
         frame.push(0x16);
-        
+
         Ok(frame)
     }
 
@@ -288,7 +307,7 @@ impl ProtocolParser for DLT645Parser {
             Ok(mut current_config) => {
                 *current_config = config;
                 Ok(())
-            },
+            }
             Err(_) => Err("Failed to set config".into()),
         }
     }

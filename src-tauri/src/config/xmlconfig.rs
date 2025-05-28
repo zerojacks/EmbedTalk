@@ -87,7 +87,13 @@ impl XmlTree {
     }
 
     // 快速查找指定ID的节点
-    pub fn find_by_id(&self, id: &str, protocol: &str, region: &str, dir: Option<u8>) -> Option<&XmlNode> {
+    pub fn find_by_id(
+        &self,
+        id: &str,
+        protocol: &str,
+        region: &str,
+        dir: Option<u8>,
+    ) -> Option<&XmlNode> {
         // 直接从索引中查找
         if let Some(node_indices) = self.id_index.get(id) {
             for &index in node_indices {
@@ -99,7 +105,11 @@ impl XmlTree {
                     dir,
                     self.protocol_index.get(protocol),
                     self.region_index.get(region),
-                    if region != "南网" { self.region_index.get("南网") } else { None }
+                    if region != "南网" {
+                        self.region_index.get("南网")
+                    } else {
+                        None
+                    },
                 ) {
                     return Some(node);
                 }
@@ -121,7 +131,10 @@ impl XmlTree {
     ) -> bool {
         let node_protocol = node.attributes.get("protocol");
         let node_region = node.attributes.get("region");
-        let node_dir = node.attributes.get("dir").and_then(|d| d.parse::<u8>().ok());
+        let node_dir = node
+            .attributes
+            .get("dir")
+            .and_then(|d| d.parse::<u8>().ok());
 
         // 检查协议匹配
         let protocol_match = node_protocol.map_or(false, |p| {
@@ -144,12 +157,10 @@ impl XmlTree {
                 r.eq_ignore_ascii_case(region)
             } else {
                 // 否则按照原来的逻辑进行分割匹配
-                r.split(',')
-                    .map(|s| s.trim())
-                    .any(|s| {
-                        s.eq_ignore_ascii_case(region) || 
-                        (region != "南网" && s.eq_ignore_ascii_case("南网"))
-                    })
+                r.split(',').map(|s| s.trim()).any(|s| {
+                    s.eq_ignore_ascii_case(region)
+                        || (region != "南网" && s.eq_ignore_ascii_case("南网"))
+                })
             }
         });
 
@@ -302,7 +313,11 @@ impl XmlElement {
 
     pub fn find_child_by_attribute(&self, attribute: &str, value: &str) -> Option<&XmlElement> {
         for child in &self.children {
-            if child.attributes.get(attribute).map_or(false, |v| v == value) {
+            if child
+                .attributes
+                .get(attribute)
+                .map_or(false, |v| v == value)
+            {
                 return Some(child);
             }
         }
@@ -351,9 +366,15 @@ impl QframeConfig {
         ) -> usize {
             // 合并当前节点和继承的属性
             let mut attributes = element.attributes.clone();
-            let protocol = attributes.get("protocol").cloned().or(inherited_protocol.clone());
-            let region = attributes.get("region").cloned().or(inherited_region.clone());
-            
+            let protocol = attributes
+                .get("protocol")
+                .cloned()
+                .or(inherited_protocol.clone());
+            let region = attributes
+                .get("region")
+                .cloned()
+                .or(inherited_region.clone());
+
             // 更新属性
             if let Some(p) = &protocol {
                 attributes.insert("protocol".to_string(), p.clone());
@@ -385,10 +406,10 @@ impl QframeConfig {
                 };
 
                 let child_index = build_recursive(
-                    tree, 
-                    child, 
-                    Some(node_index), 
-                    depth + 1, 
+                    tree,
+                    child,
+                    Some(node_index),
+                    depth + 1,
                     child_path,
                     protocol.clone(),
                     region.clone(),
@@ -484,7 +505,10 @@ impl QframeConfig {
         region: &str,
         dir: Option<u8>,
     ) -> Option<XmlElement> {
-        println!("item_id: {}, protocol: {}, region: {}, dir: {:?}", item_id, protocol, region, dir);
+        println!(
+            "item_id: {}, protocol: {}, region: {}, dir: {:?}",
+            item_id, protocol, region, dir
+        );
         let cache_key = Self::generate_cache_key(item_id, protocol, region, dir);
         {
             let cache = self.config_cache.read().unwrap();
@@ -747,15 +771,35 @@ impl ProtocolConfigManager {
         dir: Option<u8>,
     ) -> Option<XmlElement> {
         let find_protocol = protocol.to_uppercase();
-        
+
         // 如果协议包含逗号，尝试每个协议
         if find_protocol.contains(',') {
             for single_protocol in find_protocol.split(',').map(|s| s.trim()) {
                 if let Some(result) = match single_protocol {
-                    p if p.contains("CSG13") => GLOBAL_CSG13.as_ref().ok()?.get_item(data_item_id, protocol, region, dir),
-                    p if p.contains("DLT/645") => GLOBAL_645.as_ref().ok()?.get_item(data_item_id, protocol, region, dir),
-                    p if p.contains("CSG16") => GLOBAL_CSG16.as_ref().ok()?.get_item(data_item_id, protocol, region, dir),
-                    p if p.contains("MOUDLE") => GLOBAL_Moudle.as_ref().ok()?.get_item(data_item_id, protocol, region, dir),
+                    p if p.contains("CSG13") => {
+                        GLOBAL_CSG13
+                            .as_ref()
+                            .ok()?
+                            .get_item(data_item_id, protocol, region, dir)
+                    }
+                    p if p.contains("DLT/645") => {
+                        GLOBAL_645
+                            .as_ref()
+                            .ok()?
+                            .get_item(data_item_id, protocol, region, dir)
+                    }
+                    p if p.contains("CSG16") => {
+                        GLOBAL_CSG16
+                            .as_ref()
+                            .ok()?
+                            .get_item(data_item_id, protocol, region, dir)
+                    }
+                    p if p.contains("MOUDLE") => {
+                        GLOBAL_Moudle
+                            .as_ref()
+                            .ok()?
+                            .get_item(data_item_id, protocol, region, dir)
+                    }
                     _ => None,
                 } {
                     return Some(result);

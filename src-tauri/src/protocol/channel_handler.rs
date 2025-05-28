@@ -1,12 +1,12 @@
+use crate::combridage::Message;
+use crate::protocol::{ProtocolMessage, ProtocolParser};
+use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use crate::protocol::{ProtocolMessage, ProtocolParser};
-use crate::combridage::Message;
-use once_cell::sync::Lazy;
 
 /// 通道协议处理器配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,9 +22,8 @@ pub struct ChannelProtocolConfig {
 }
 
 // 全局单例实例
-static CHANNEL_PROTOCOL_HANDLER: Lazy<ChannelProtocolHandler> = Lazy::new(|| {
-    ChannelProtocolHandler::new()
-});
+static CHANNEL_PROTOCOL_HANDLER: Lazy<ChannelProtocolHandler> =
+    Lazy::new(|| ChannelProtocolHandler::new());
 
 /// 获取通道协议处理器全局实例
 pub fn get_channel_protocol_handler() -> &'static ChannelProtocolHandler {
@@ -49,7 +48,10 @@ impl ChannelProtocolHandler {
     }
 
     /// 注册协议解析器
-    pub async fn register_parser(&self, parser: Arc<dyn ProtocolParser>) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn register_parser(
+        &self,
+        parser: Arc<dyn ProtocolParser>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let protocol_name = parser.get_protocol_name();
         let mut parsers = self.parsers.write().await;
         parsers.insert(protocol_name, parser);
@@ -130,7 +132,11 @@ impl ChannelProtocolHandler {
         let configs = self.configs.read().await;
         let config = match configs.get(channel_id) {
             Some(config) => config.clone(),
-            None => return Err(format!("Channel '{}' not configured for any protocol", channel_id).into()),
+            None => {
+                return Err(
+                    format!("Channel '{}' not configured for any protocol", channel_id).into(),
+                )
+            }
         };
         drop(configs);
 
@@ -183,7 +189,7 @@ impl ChannelProtocolHandler {
         message: &Message,
     ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         let payload = message.get_payload();
-        
+
         // 检查消息是否包含协议信息
         if let Some(protocol) = payload.get("protocol").and_then(|v| v.as_str()) {
             // 包含协议信息，使用协议构建器生成数据
@@ -191,7 +197,7 @@ impl ChannelProtocolHandler {
                 return self.build_message(channel_id, data).await;
             }
         }
-        
+
         // 不包含协议信息或数据，尝试从原始消息内容构建数据
         let content = message.get_content();
         match content {
@@ -202,7 +208,7 @@ impl ChannelProtocolHandler {
                     .iter()
                     .map(|v| v.as_u64().map(|n| n as u8).ok_or("Invalid byte value"))
                     .collect();
-                
+
                 match bytes {
                     Ok(data) => Ok(data),
                     Err(_) => Err("Failed to convert message content to bytes".into()),
@@ -223,9 +229,12 @@ impl ChannelProtocolHandler {
     }
 
     /// 获取指定协议的配置模板
-    pub async fn get_protocol_config_template(&self, protocol_type: &str) -> Result<Value, Box<dyn Error + Send + Sync>> {
+    pub async fn get_protocol_config_template(
+        &self,
+        protocol_type: &str,
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
         let parsers = self.parsers.read().await;
-        
+
         if let Some(parser) = parsers.get(protocol_type) {
             Ok(parser.get_config())
         } else {

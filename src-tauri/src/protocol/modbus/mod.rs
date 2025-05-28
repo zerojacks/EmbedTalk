@@ -1,5 +1,5 @@
-pub(crate) mod parser;
 mod builder;
+pub(crate) mod parser;
 
 pub use parser::ModbusParser;
 

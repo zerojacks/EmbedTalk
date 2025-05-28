@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { InfoIcon } from '../components/Icons';
+import { UpdaterService } from '../services/updaterService';
+import { toast } from '../context/ToastProvider';
 
 interface AppInfo {
     name: string;
@@ -59,16 +61,27 @@ const AboutInfo = () => {
         async function checkUpdate() {
             setIsUpdate(true);
             try {
-                const result: AppInfo = await invoke('check_update');
-                if (result) {
+                // 使用 UpdaterService 检查更新
+                const hasUpdate = await UpdaterService.checkForUpdates();
+                if (hasUpdate) {
                     console.log('有新版本');
-                    setNewVersion({ haveNewVersion: true, newVersion: result.version });
+                    // 显示安装按钮
+                    setNewVersion({ haveNewVersion: true, newVersion: '新版本' });
+                    
+                    // 显示更新通知
+                    toast.success('发现新版本，正在安装...');
+                    
+                    // 延迟一秒后开始安装更新
+                    setTimeout(() => {
+                        UpdaterService.installUpdate();
+                    }, 1000);
                 } else {
                     console.log('没有新版本');
                     setNewVersion({ haveNewVersion: false, newVersion: version });
                 }
             } catch (error) {
                 console.log(error);
+                toast.error(`检查更新失败: ${error instanceof Error ? error.message : String(error)}`);
             } finally {
                 setIsUpdate(false);
             }

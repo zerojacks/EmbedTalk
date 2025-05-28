@@ -10,22 +10,20 @@ pub mod basefunc;
 pub mod combridage;
 pub mod config;
 pub mod global;
-pub mod taurihandler;
 pub mod protocol;
+pub mod taurihandler;
 // use once_cell::sync::OnceCell;
 use crate::config::appconfig::{get_config_value_async, set_config_value_async};
 use crate::taurihandler::channel_handler::{
-    connect_channel, disconnect_channel, list_serial_ports, send_message,
-    start_timer_send, stop_timer_send, get_timer_status
+    connect_channel, disconnect_channel, get_timer_status, list_serial_ports, send_message,
+    start_timer_send, stop_timer_send,
 };
+use crate::taurihandler::dlt645_handler::{build_dlt645_frame, list_channels, parse_dlt645_frame};
 use crate::taurihandler::handler::{
     app_close, check_update, get_all_config_item_lists, get_app_info, get_com_list,
-    get_protocol_config_item, get_region_value, on_text_change, save_file,
-    save_protocol_config_item, set_region_value, open_window, update_window_position, 
-    get_window_position, WindowState, parse_item_data
-};
-use crate::taurihandler::dlt645_handler::{
-    parse_dlt645_frame, build_dlt645_frame, list_channels
+    get_protocol_config_item, get_region_value, get_window_position, on_text_change, open_window,
+    parse_item_data, save_file, save_protocol_config_item, set_region_value,
+    update_window_position, WindowState,
 };
 use tauri_plugin_log::{Target, TargetKind};
 
@@ -39,6 +37,7 @@ fn main() {
     }));
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
@@ -49,19 +48,20 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_sql::Builder::default().build())
-        .plugin(tauri_plugin_log::Builder::new()
-        .targets([
-            Target::new(TargetKind::Stdout),
-            Target::new(TargetKind::LogDir { file_name: None }),
-            Target::new(TargetKind::Webview),
-        ])
-        .build()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    Target::new(TargetKind::Stdout),
+                    Target::new(TargetKind::LogDir { file_name: None }),
+                    Target::new(TargetKind::Webview),
+                ])
+                .build(),
         )
         .manage(WindowState::default()) // 添加窗口位置状态管理
         .setup(|app| {
             let handle = app.app_handle();
             global::set_app_handle(handle.clone()); // Set the global app handle
-            
+
             // 初始化协议栈
             let app_handle = handle.clone();
             tauri::async_runtime::spawn(async move {
@@ -70,14 +70,15 @@ fn main() {
                     Err(e) => error!("Failed to initialize protocol stack: {}", e),
                 }
             });
-            
+
             Ok(())
         })
         .on_window_event(move |window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 let state_flags = tauri_plugin_window_state::StateFlags::all();
                 let app = window.app_handle();
-                let _ = tauri_plugin_window_state::AppHandleExt::save_window_state(app, state_flags);
+                let _ =
+                    tauri_plugin_window_state::AppHandleExt::save_window_state(app, state_flags);
                 api.prevent_close();
                 std::process::exit(0);
             }

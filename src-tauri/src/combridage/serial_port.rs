@@ -3,7 +3,6 @@ use crate::combridage::{ChannelState, CommunicationChannel, Message};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
 use serde_json;
-use uuid::Uuid;
 use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,8 +11,9 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::broadcast;
 use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
-use tokio::time::{timeout, sleep};
+use tokio::time::{sleep, timeout};
 use tokio_serial::SerialStream;
+use uuid::Uuid;
 
 pub struct SerialPortChannel {
     channeltype: String,
@@ -63,7 +63,9 @@ impl SerialPortChannel {
             process_task_handle,
         };
 
-        channel.connect(port_name, baud_rate, databit, fowctrl, parity, stopbit).await?;
+        channel
+            .connect(port_name, baud_rate, databit, fowctrl, parity, stopbit)
+            .await?;
         if let Err(e) = channel.on_statechange(ChannelState::Connected).await {
             eprintln!("Failed to send connect event: {:?}", e);
             return Err(e);
@@ -100,7 +102,7 @@ impl SerialPortChannel {
                 Ok(port) => {
                     println!("串口连接成功: {}", port_name);
                     let (reader, writer) = tokio::io::split(port);
-                    
+
                     *self.reader.lock().await = Some(reader);
                     *self.writer.lock().await = Some(writer);
 
@@ -117,12 +119,22 @@ impl SerialPortChannel {
                 }
                 Err(e) => {
                     last_error = Some(e);
-                    eprintln!("串口连接失败 (尝试 {}/{}): {:?}", retry + 1, MAX_RETRIES, last_error);
+                    eprintln!(
+                        "串口连接失败 (尝试 {}/{}): {:?}",
+                        retry + 1,
+                        MAX_RETRIES,
+                        last_error
+                    );
                 }
             }
         }
 
-        Err(format!("串口连接失败，已重试 {} 次: {:?}", MAX_RETRIES, last_error.unwrap()).into())
+        Err(format!(
+            "串口连接失败，已重试 {} 次: {:?}",
+            MAX_RETRIES,
+            last_error.unwrap()
+        )
+        .into())
     }
 
     async fn start_send_task(
@@ -133,7 +145,7 @@ impl SerialPortChannel {
         let mut rx = self.sender.subscribe();
         let channeltype = self.channeltype.clone();
         let channelid = self.channelid.clone();
-        
+
         let handle = tokio::spawn(async move {
             while let Ok(data) = rx.recv().await {
                 if let Some(mut writer) = writer.lock().await.as_mut() {
@@ -166,7 +178,7 @@ impl SerialPortChannel {
                     Ok(n) if n > 0 => {
                         let received_data = buffer[..n].to_vec();
                         println!("接收到 {} 字节的数据", n);
-                        
+
                         // 将数据放入队列
                         if let Err(e) = data_sender.send(received_data).await {
                             eprintln!("发送数据到队列失败: {:?}", e);
@@ -227,7 +239,11 @@ impl SerialPortChannel {
 
 #[async_trait]
 impl CommunicationChannel for SerialPortChannel {
-    async fn send(&self, message: &Message, _clientid: Option<String>) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn send(
+        &self,
+        message: &Message,
+        _clientid: Option<String>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let content = message.get_content();
         let data = if let Some(arr) = content["data"].as_array() {
             arr.iter()
@@ -237,22 +253,25 @@ impl CommunicationChannel for SerialPortChannel {
         } else {
             return Err("Invalid data format".into());
         };
-        
+
         self.sender.send(data)?;
-        
+
         let app_handle = get_app_handle();
         let message_manager = MessageManager::new(app_handle.clone())?;
-        
+
         let mut message_clone = message.clone();
         message_clone.update_timestamp();
-        if let Err(e) = message_manager.record_message(
-            &self.channeltype,
-            &self.channelid,
-            &self.channel_name,
-            &message_clone,
-            MessageDirection::Sent,
-            None,
-        ).await {
+        if let Err(e) = message_manager
+            .record_message(
+                &self.channeltype,
+                &self.channelid,
+                &self.channel_name,
+                &message_clone,
+                MessageDirection::Sent,
+                None,
+            )
+            .await
+        {
             eprintln!("记录发送消息失败: {:?}", e);
         }
         Ok(())
@@ -269,11 +288,15 @@ impl CommunicationChannel for SerialPortChannel {
         }
     }
 
-    async fn send_and_wait(&self, message: &Message, timeout_secs: u64) -> Result<Message, Box<dyn Error + Send + Sync>> {
+    async fn send_and_wait(
+        &self,
+        message: &Message,
+        timeout_secs: u64,
+    ) -> Result<Message, Box<dyn Error + Send + Sync>> {
         self.send(message, None).await?;
         match timeout(Duration::from_secs(timeout_secs), self.receive()).await {
             Ok(result) => result,
-            Err(_) => Err("等待响应超时".into())
+            Err(_) => Err("等待响应超时".into()),
         }
     }
 
@@ -323,7 +346,11 @@ impl CommunicationChannel for SerialPortChannel {
         self.channelid.clone()
     }
 
-    async fn subscribe_topic(&self, _topic: &str, _qos: u8) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn subscribe_topic(
+        &self,
+        _topic: &str,
+        _qos: u8,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         Err("Serial port does not support topic subscription".into())
     }
 

@@ -46,7 +46,7 @@ impl Message {
     pub fn get_content(&self) -> &Value {
         &self.content
     }
-    
+
     // 添加 get_payload 方法作为 get_content 的别名，以保持兼容性
     pub fn get_payload(&self) -> &Value {
         &self.content
@@ -68,7 +68,11 @@ pub enum ChannelType {
 #[async_trait]
 pub trait CommunicationChannel: Send + Sync {
     fn get_channel_id(&self) -> String;
-    async fn send(&self, message: &Message, clientid: Option<String>) -> Result<(), Box<dyn Error + Send + Sync>>;
+    async fn send(
+        &self,
+        message: &Message,
+        clientid: Option<String>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>>;
     async fn receive(&self) -> Result<Message, Box<dyn Error + Send + Sync>>;
     async fn send_and_wait(
         &self,
@@ -78,6 +82,10 @@ pub trait CommunicationChannel: Send + Sync {
     async fn close(&self) -> Result<(), Box<dyn Error + Send + Sync>>;
     async fn on_statechange(&self, state: ChannelState)
         -> Result<(), Box<dyn Error + Send + Sync>>;
-    async fn subscribe_topic(&self, topic: &str, qos: u8) -> Result<(), Box<dyn Error + Send + Sync>>;
+    async fn subscribe_topic(
+        &self,
+        topic: &str,
+        qos: u8,
+    ) -> Result<(), Box<dyn Error + Send + Sync>>;
     async fn unsubscribe_topic(&self, topic: &str) -> Result<(), Box<dyn Error + Send + Sync>>;
 }

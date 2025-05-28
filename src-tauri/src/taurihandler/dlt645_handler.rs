@@ -15,7 +15,7 @@ pub struct Response {
 #[tauri::command]
 pub async fn parse_dlt645_frame(message: String) -> Response {
     debug!("Parsing DLT645 frame: {}", message);
-    
+
     // 将十六进制字符串转换为字节数组
     let bytes = match hex_to_bytes(&message) {
         Ok(bytes) => bytes,
@@ -27,7 +27,7 @@ pub async fn parse_dlt645_frame(message: String) -> Response {
             };
         }
     };
-    
+
     // 验证是否为有效的 DLT645 帧
     if !Frame645::is_dlt645_frame(&bytes) {
         return Response {
@@ -35,10 +35,10 @@ pub async fn parse_dlt645_frame(message: String) -> Response {
             error: Some("无效的 DLT645 报文格式".to_string()),
         };
     }
-    
+
     // 使用 FrameAnalisyic 解析帧
     let parsed_data = FrameAnalisyic::process_frame(&bytes, "default");
-    
+
     Response {
         data: parsed_data,
         error: None,
@@ -57,13 +57,15 @@ pub async fn build_dlt645_frame(
         "Building DLT645 frame: address={}, function_code={}, data_identifier={}, data={:?}",
         address, function_code, data_identifier, data
     );
-    
+
     let builder = DLT645Builder::new();
     let frame_result = match function_code.as_str() {
-        "01" => { // 读数据
+        "01" => {
+            // 读数据
             builder.build_read_data_frame(&address, &data_identifier)
-        },
-        "04" => { // 写数据
+        }
+        "04" => {
+            // 写数据
             if let Some(data_str) = data {
                 let data_bytes = match hex_to_bytes(&data_str) {
                     Ok(bytes) => bytes,
@@ -73,34 +75,36 @@ pub async fn build_dlt645_frame(
             } else {
                 return Err("写数据命令需要提供数据".to_string());
             }
-        },
-        "08" => { // 广播校时 - 使用读地址帧作为示例
+        }
+        "08" => {
+            // 广播校时 - 使用读地址帧作为示例
             builder.build_read_address_frame()
-        },
-        "10" => { // 冻结命令 - 使用读数据帧作为示例
+        }
+        "10" => {
+            // 冻结命令 - 使用读数据帧作为示例
             builder.build_read_data_frame(&address, &data_identifier)
-        },
+        }
         _ => return Err("不支持的功能码".to_string()),
     };
-    
+
     match frame_result {
         Ok(frame) => {
             // 将字节数组转换为十六进制字符串
             let hex_str = bytes_to_hex(&frame);
             Ok(hex_str)
-        },
+        }
         Err(e) => Err(format!("构建报文失败: {}", e)),
     }
 }
 
 /// 发送 DLT645 报文并等待响应
 #[tauri::command]
-pub async fn send_dlt645_frame(
-    channel_id: String,
-    message: String,
-) -> Result<Response, String> {
-    debug!("Sending DLT645 frame: {} to channel: {}", message, channel_id);
-    
+pub async fn send_dlt645_frame(channel_id: String, message: String) -> Result<Response, String> {
+    debug!(
+        "Sending DLT645 frame: {} to channel: {}",
+        message, channel_id
+    );
+
     // 将十六进制字符串转换为字节数组
     let bytes = match hex_to_bytes(&message) {
         Ok(bytes) => bytes,
@@ -109,7 +113,7 @@ pub async fn send_dlt645_frame(
             return Err(format!("无效的十六进制字符串: {}", e));
         }
     };
-    
+
     // 发送消息
     match channel_handler::send_message(channel_id, bytes, None).await {
         Ok(_) => {
@@ -119,7 +123,7 @@ pub async fn send_dlt645_frame(
                 data: Vec::new(),
                 error: None,
             })
-        },
+        }
         Err(e) => Err(format!("发送消息失败: {}", e)),
     }
 }
@@ -139,20 +143,20 @@ pub async fn list_channels() -> Vec<String> {
 // 辅助函数：将十六进制字符串转换为字节数组
 fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, String> {
     let hex = hex.replace(" ", "").replace("\n", "").replace("\r", "");
-    
+
     if hex.len() % 2 != 0 {
         return Err("十六进制字符串长度必须为偶数".to_string());
     }
-    
+
     let mut bytes = Vec::with_capacity(hex.len() / 2);
     for i in (0..hex.len()).step_by(2) {
-        if let Ok(byte) = u8::from_str_radix(&hex[i..i+2], 16) {
+        if let Ok(byte) = u8::from_str_radix(&hex[i..i + 2], 16) {
             bytes.push(byte);
         } else {
-            return Err(format!("无效的十六进制字符: {}", &hex[i..i+2]));
+            return Err(format!("无效的十六进制字符: {}", &hex[i..i + 2]));
         }
     }
-    
+
     Ok(bytes)
 }
 

@@ -75,7 +75,8 @@ impl MessageManager {
         let now = Utc::now();
         let date_folder = now.format("%Y-%m-%d").to_string();
         // 替换文件名中的非法字符
-        let safe_channel_name = channel_name.replace(&['\\', '/', ':', '*', '?', '"', '<', '>', '|'][..], "_");
+        let safe_channel_name =
+            channel_name.replace(&['\\', '/', ':', '*', '?', '"', '<', '>', '|'][..], "_");
         self.base_path
             .join(date_folder)
             .join(format!("{}.log", safe_channel_name))
@@ -114,26 +115,28 @@ impl MessageManager {
                 }
 
                 // 获取消息并按照 channel_name 分组
-                let messages_by_channel = queue_lock.drain(..).fold(
-                    HashMap::new(),
-                    |mut acc, msg| {
+                let messages_by_channel =
+                    queue_lock.drain(..).fold(HashMap::new(), |mut acc, msg| {
                         acc.entry(msg.channel_name.clone())
                             .or_insert_with(Vec::new)
                             .push(msg);
                         acc
-                    },
-                );
+                    });
 
                 // 对每个 channel_name 分别写入文件
                 for (channel_name, messages) in messages_by_channel {
                     let today = Utc::now().format("%Y-%m-%d").to_string();
-                    let safe_channel_name = channel_name.replace(&['\\', '/', ':', '*', '?', '"', '<', '>', '|'][..], "_");
+                    let safe_channel_name = channel_name
+                        .replace(&['\\', '/', ':', '*', '?', '"', '<', '>', '|'][..], "_");
                     let path = base_path
                         .join(today)
                         .join(format!("{}.log", safe_channel_name));
 
                     if let Err(e) = Self::batch_write_messages(&path, &messages).await {
-                        eprintln!("Error writing messages to storage for channel {}: {:?}", channel_name, e);
+                        eprintln!(
+                            "Error writing messages to storage for channel {}: {:?}",
+                            channel_name, e
+                        );
                         // 写入失败时，将消息放回队列
                         queue_lock.extend(messages);
                     }
@@ -158,48 +161,53 @@ impl MessageManager {
 
         for message in messages {
             let content = message.content.get_content();
-            
+
             println!("content {:?}", content);
             // 提取data字段并根据类型进行处理
             let data = if let Some(data_value) = content.get("data") {
                 match data_value {
                     // 如果是数组，转换为十六进制字符串
-                    serde_json::Value::Array(arr) => {
-                        arr.iter()
-                            .filter_map(|num| num.as_u64())
-                            .map(|num| format!("{:02X}", num))
-                            .collect::<Vec<String>>()
-                            .join(" ")
-                    },
+                    serde_json::Value::Array(arr) => arr
+                        .iter()
+                        .filter_map(|num| num.as_u64())
+                        .map(|num| format!("{:02X}", num))
+                        .collect::<Vec<String>>()
+                        .join(" "),
                     // 如果是字符串，直接使用
                     serde_json::Value::String(s) => s.clone(),
                     // 如果是对象或其他类型，转换为格式化的JSON字符串
-                    _ => serde_json::to_string_pretty(data_value).unwrap_or_else(|_| data_value.to_string())
+                    _ => serde_json::to_string_pretty(data_value)
+                        .unwrap_or_else(|_| data_value.to_string()),
                 }
             } else {
                 "".to_string()
             };
 
             // 格式化时间
-            let datetime = DateTime::<Utc>::from_timestamp_millis(message.content.timestamp).unwrap_or(Utc::now());
+            let datetime = DateTime::<Utc>::from_timestamp_millis(message.content.timestamp)
+                .unwrap_or(Utc::now());
             let timestamp = datetime.format("%Y-%m-%d %H:%M:%S:%3f").to_string();
-            
+
             // 格式化方向
             let direction = match message.direction {
                 MessageDirection::Sent => ">>>",
-                MessageDirection::Received => "<<<"
+                MessageDirection::Received => "<<<",
             };
-            
+
             // 构建日志行
             let log_line = format!(
                 "{} [{}] {} {}: {}\n",
                 timestamp,
                 message.channel_name, // TODO: 从metadata中获取地址信息
                 direction,
-                if direction == ">>>" { "发送" } else { "接收" },
+                if direction == ">>>" {
+                    "发送"
+                } else {
+                    "接收"
+                },
                 data
             );
-            
+
             file.write_all(log_line.as_bytes()).await?;
         }
 
@@ -273,7 +281,7 @@ impl MessageManager {
         // 添加到历史记录
         let mut history = self.message_history.lock().await;
         history.push(message_record.clone());
-        
+
         // 限制历史记录大小
         if history.len() > 1000 {
             let split_at = history.len() - 1000;
@@ -290,7 +298,7 @@ impl MessageManager {
             // 如果通道未注册，先注册通道
             drop(write_queues); // 释放读锁
             self.register_channel(channel_id).await?;
-            
+
             // 重新获取队列并添加消息
             let write_queues = self.write_queues.read().await;
             if let Some(queue) = write_queues.get(channel_id) {
@@ -301,7 +309,7 @@ impl MessageManager {
 
         // 发送消息事件通知前端
         let app_handle = get_app_handle();
-        
+
         // 创建一个前端可用的消息对象
         let frontend_message = serde_json::json!({
             "messageId": Uuid::new_v4().to_string(),
@@ -312,8 +320,11 @@ impl MessageManager {
             "timestamp": message_record.timestamp.timestamp_millis(),
             "metadata": metadata.clone()
         });
-        
-        println!("MessageManager::record_message - 发送消息事件: {:?}", frontend_message);
+
+        println!(
+            "MessageManager::record_message - 发送消息事件: {:?}",
+            frontend_message
+        );
         // 发送消息事件
         match app_handle.emit("message-event", serde_json::to_string(&frontend_message)?) {
             Ok(_) => println!("消息事件已发送"),

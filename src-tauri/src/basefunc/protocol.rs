@@ -2,9 +2,9 @@ use crate::basefunc::frame_645::Frame645;
 use crate::basefunc::frame_cco::FrameCCO;
 use crate::basefunc::frame_csg::FrameCsg;
 use crate::basefunc::frame_fun::FrameFun;
-use crate::basefunc::frame_tctask::TCMeterTask;
 use crate::basefunc::frame_moudle::FrameMoudle;
 use crate::basefunc::frame_speecial::SpcialFrame;
+use crate::basefunc::frame_tctask::TCMeterTask;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement};
 use regex::Regex;
 use serde_json::Value;
@@ -134,7 +134,7 @@ impl FrameAnalisyic {
 
         println!(
             "prase_data_item data_segment{:?} {:?}",
-            data_segment,data_item_elem
+            data_segment, data_item_elem
         );
 
         if !sub_data_item.is_empty() {
@@ -260,8 +260,7 @@ impl FrameAnalisyic {
                     dir,
                 );
                 sub_item_result = Some(sub_result);
-            }
-            else {
+            } else {
                 sub_item_result = None;
             }
         } else if data_item_elem.get_child("type").is_some() {
@@ -432,7 +431,12 @@ impl FrameAnalisyic {
         protocol: &str,
         region: &str,
         dir: Option<u8>,
-    ) -> (String, Option<Vec<serde_json::Value>>, usize, Option<String>) {
+    ) -> (
+        String,
+        Option<Vec<serde_json::Value>>,
+        usize,
+        Option<String>,
+    ) {
         // 使用 prase_singal_item 函数获取值
         let item_length: usize;
         let item_length_content = data_item_elem.get_child_text("length");
@@ -483,8 +487,7 @@ impl FrameAnalisyic {
 
         // 获取所有 `value` 子元素
         let value_elements = data_item_elem.get_items("value");
-        let (value_str, element) =
-            Self::find_value_from_elements(&value_elements, &value);
+        let (value_str, element) = Self::find_value_from_elements(&value_elements, &value);
 
         value_name = if value_str.is_empty() {
             format!("[{}]: {}", value_name, value)
@@ -637,7 +640,10 @@ impl FrameAnalisyic {
                 region,
                 dir,
             );
-            println!("ret: {:?}, data_segment: {:?}, data_item_elem: {:?}", ret, data_segment, data_item_elem);
+            println!(
+                "ret: {:?}, data_segment: {:?}, data_item_elem: {:?}",
+                ret, data_segment, data_item_elem
+            );
             if let Some(value) = ret {
                 subitem_value = value;
             } else {
@@ -1072,7 +1078,11 @@ impl FrameAnalisyic {
             } else {
                 // 存在子项
                 let description = if result_str.is_empty() {
-                    format!("[{}]: {}", sub_neme, FrameFun::get_data_str(&subitem_content, false, false, false))
+                    format!(
+                        "[{}]: {}",
+                        sub_neme,
+                        FrameFun::get_data_str(&subitem_content, false, false, false)
+                    )
                 } else {
                     result_str.clone()
                 };
@@ -1235,7 +1245,10 @@ impl FrameAnalisyic {
         }
 
         let need_delete = false;
-        println!("prase_type_item data_content: {:?} type: {:?}", data_content, sub_type);
+        println!(
+            "prase_type_item data_content: {:?} type: {:?}",
+            data_content, sub_type
+        );
         if let Some(parsed_value) = Self::prase_simple_type_data(
             &item_element,
             &data_segment,
@@ -1271,14 +1284,24 @@ impl FrameAnalisyic {
                     sub_item_result = Some(result_vec);
                 }
                 "FRAME645" => {
-                    let mut result_vec:Vec<Value> = Vec::new();
-                    Frame645::analysic_645_frame_by_afn(&data_content, &mut result_vec, index, region);
+                    let mut result_vec: Vec<Value> = Vec::new();
+                    Frame645::analysic_645_frame_by_afn(
+                        &data_content,
+                        &mut result_vec,
+                        index,
+                        region,
+                    );
                     sub_item_result = Some(result_vec);
                 }
                 "FRAMECSG13" => {
-                    let mut result_vec:Vec<Value> = Vec::new();
-                    match FrameCsg::analysic_csg_frame_by_afn(&data_content, &mut result_vec, index, region) {
-                        Ok(_) => {},
+                    let mut result_vec: Vec<Value> = Vec::new();
+                    match FrameCsg::analysic_csg_frame_by_afn(
+                        &data_content,
+                        &mut result_vec,
+                        index,
+                        region,
+                    ) {
+                        Ok(_) => {}
                         Err(e) => {
                             println!("FrameCsg::analysic_csg_frame_by_afn error: {}", e);
                         }
@@ -1300,7 +1323,10 @@ impl FrameAnalisyic {
                     let template_element = ProtocolConfigManager::get_template_element(
                         &sub_type, protocol, region, dir,
                     );
-                    println!("template_element: {:?}, protocol: {:?}, region: {:?}, dir: {:?}", template_element, protocol, region, dir);
+                    println!(
+                        "template_element: {:?}, protocol: {:?}, region: {:?}, dir: {:?}",
+                        template_element, protocol, region, dir
+                    );
                     if let Some(template_element) = template_element {
                         let (result_vec, length) = Self::prase_template_type(
                             &template_element,
@@ -1548,7 +1574,7 @@ impl FrameAnalisyic {
                     // Try to format the string with the current index
                     match format!("{}", s).replace("%d", &(i + 1).to_string()) {
                         formatted if formatted != *s => formatted,
-                        _ => format!("第{}组{}", i + 1, s) // Fall back to the original format if formatting failed
+                        _ => format!("第{}组{}", i + 1, s), // Fall back to the original format if formatting failed
                     }
                 } else {
                     // Use the original format if no format specifiers are found
@@ -1573,7 +1599,7 @@ impl FrameAnalisyic {
                             // Try to format the string with the current index
                             match format!("{}", s).replace("%d", &(i + 1).to_string()) {
                                 formatted if formatted != *s => formatted,
-                                _ => format!("第{}组{}", i + 1, s) // Fall back to the original format if formatting failed
+                                _ => format!("第{}组{}", i + 1, s), // Fall back to the original format if formatting failed
                             }
                         } else {
                             // Use the original format if no format specifiers are found

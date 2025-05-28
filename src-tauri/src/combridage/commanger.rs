@@ -1,3 +1,4 @@
+use crate::combridage::messagemanager::{MessageDirection, MessageManager};
 use crate::combridage::BluetoothChannel;
 use crate::combridage::ChannelState;
 use crate::combridage::ChannelType;
@@ -7,7 +8,6 @@ use crate::combridage::MqttChannel;
 use crate::combridage::SerialPortChannel;
 use crate::combridage::TcpClientChannel;
 use crate::combridage::TcpServerChannel;
-use crate::combridage::messagemanager::{MessageManager, MessageDirection};
 use crate::global::get_app_handle;
 use crate::taurihandler::channel_handler::get_channel_manager;
 use rumqttc::QoS;
@@ -95,12 +95,14 @@ impl CommunicationManager {
             }
         };
 
-        // 生成唯一的通道ID        
+        // 生成唯一的通道ID
         let channel_id = channel.get_channel_id();
         // 存储通道和通道ID的映射关系
-        self.channels.insert(channel_type.clone(), Arc::new(channel));
-        self.channel_ids.insert(channel_type.clone(), channel_id.clone());
-        
+        self.channels
+            .insert(channel_type.clone(), Arc::new(channel));
+        self.channel_ids
+            .insert(channel_type.clone(), channel_id.clone());
+
         // 返回通道ID
         Ok(channel_id)
     }
@@ -118,7 +120,7 @@ impl CommunicationManager {
             } else {
                 return Err("Channel ID not found".into());
             };
-            
+
             // 获取通道类型的字符串表示
             let channel_type_str = match channel_type {
                 ChannelType::TcpClient(_, _) => "tcpclient",
@@ -133,11 +135,15 @@ impl CommunicationManager {
             } else {
                 channel_id
             };
-            
-            println!("发送消息: {:?} 到通道 {}", message.get_content(), channel_id);
+
+            println!(
+                "发送消息: {:?} 到通道 {}",
+                message.get_content(),
+                channel_id
+            );
             // 发送消息
             channel.send(message, clientid).await?;
-            
+
             Ok(())
         } else {
             Err("Channel not found".into())
@@ -178,18 +184,18 @@ impl CommunicationManager {
         } else {
             return Err("Channel not found".into());
         };
-        
+
         // 关闭通道连接
         if let Some(channel) = self.channels.get(channel_type) {
             // 使用 `?` 运算符来传播错误
             channel.close().await?;
-            
+
             // 停止消息接收任务
             if let Some(handle) = self.channel_listeners.get(&channel_id) {
                 handle.abort();
                 println!("停止通道 {} 的消息接收线程", channel_id);
             }
-            
+
             // 设置运行标志为false
             *self.running.write().await = false;
         } else {
@@ -216,7 +222,6 @@ impl CommunicationManager {
         topic: &str,
         qos: u8,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-
         if let ChannelType::Mqtt(_, _, _, _, _, _, _) = channel_type {
             if let Some(channel) = self.channels.get(channel_type) {
                 channel.subscribe_topic(topic, qos).await

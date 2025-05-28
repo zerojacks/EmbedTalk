@@ -1,17 +1,20 @@
+use crate::basefunc::frame_csg::FrameCsg;
 use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::protocol::{FrameAnalisyic, ProtocolInfo};
-use crate::basefunc::frame_csg::FrameCsg;
 use crate::config::appconfig::GLOBAL_CONFIG_MANAGER;
 use crate::config::xmlconfig::{
     ItemConfigList, ProtocolConfigManager, XmlElement, GLOBAL_645, GLOBAL_CSG13, GLOBAL_CSG16,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 use std::thread;
 use std::time::Instant;
+use tauri::{LogicalPosition, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tracing::{error, info};
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, LogicalPosition, State};
-use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct WindowPosition {
     pub x: f64,
@@ -23,10 +26,10 @@ pub struct WindowState(pub Mutex<WindowPosition>);
 
 impl Default for WindowState {
     fn default() -> Self {
-        WindowState(Mutex::new(WindowPosition { 
-            x: 100.0, 
+        WindowState(Mutex::new(WindowPosition {
+            x: 100.0,
             y: 100.0,
-            monitor_id: None
+            monitor_id: None,
         }))
     }
 }
@@ -254,7 +257,12 @@ pub async fn save_protocol_config_item(value: &str) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn update_window_position(x: f64, y: f64, monitor_id: Option<String>, state: State<'_, WindowState>) -> Result<(), String> {
+pub async fn update_window_position(
+    x: f64,
+    y: f64,
+    monitor_id: Option<String>,
+    state: State<'_, WindowState>,
+) -> Result<(), String> {
     let mut position = state.0.lock().map_err(|e| e.to_string())?;
     position.x = x;
     position.y = y;
@@ -269,28 +277,31 @@ pub fn get_window_position(state: State<'_, WindowState>) -> Result<WindowPositi
 }
 
 #[tauri::command]
-pub async fn open_window(app_handle: tauri::AppHandle, state: State<'_, WindowState>) -> Result<(), String> {
+pub async fn open_window(
+    app_handle: tauri::AppHandle,
+    state: State<'_, WindowState>,
+) -> Result<(), String> {
     // 如果窗口不存在，创建新窗口
     let monitor = match app_handle.primary_monitor().map_err(|e| e.to_string())? {
         Some(m) => m,
         None => {
             // 获取所有显示器，如果出错则返回错误
-            let monitors = app_handle.available_monitors()
-                .map_err(|e| e.to_string())?;
+            let monitors = app_handle.available_monitors().map_err(|e| e.to_string())?;
             // 如果有显示器，使用第一个；否则返回错误
-            monitors.get(0)
+            monitors
+                .get(0)
                 .ok_or_else(|| "No monitors available".to_string())?
                 .clone()
         }
     };
-    
+
     // 获取显示器信息
     let size = monitor.size();
     let scale_factor = monitor.scale_factor();
     let monitor_id = monitor.name();
 
     // 计算窗口位置
-    let mut x = ((size.width as f64 * 0.3)) / scale_factor;
+    let mut x = (size.width as f64 * 0.3) / scale_factor;
     let mut y = ((size.height as f64 * 0.2) - (52.0 / 2.0)) / scale_factor;
 
     // 检查是否有保存的位置
@@ -312,23 +323,23 @@ pub async fn open_window(app_handle: tauri::AppHandle, state: State<'_, WindowSt
         position.monitor_id = monitor_id.map(|s| s.to_string());
     }
 
-        // 检查窗口是否已存在
-        if let Some(window) = app_handle.get_webview_window("quickparse") {
-            // 如果窗口存在，切换显示状态
-            let is_visible = window.is_visible().map_err(|e| e.to_string())?;
-            if is_visible {
-                window.hide().map_err(|e| e.to_string())?;
-            } else {
-                window.show().map_err(|e| e.to_string())?;
-                window.set_focus().map_err(|e| e.to_string())?;
-                // 重置窗口大小为初始状态
-                let _ = window.set_position(LogicalPosition::new(x, y));
-                let _ = window.set_resizable(false);
-                let _ = window.set_size(tauri::LogicalSize::new(500.0, 52.0));
-            }
-            return Ok(());
+    // 检查窗口是否已存在
+    if let Some(window) = app_handle.get_webview_window("quickparse") {
+        // 如果窗口存在，切换显示状态
+        let is_visible = window.is_visible().map_err(|e| e.to_string())?;
+        if is_visible {
+            window.hide().map_err(|e| e.to_string())?;
+        } else {
+            window.show().map_err(|e| e.to_string())?;
+            window.set_focus().map_err(|e| e.to_string())?;
+            // 重置窗口大小为初始状态
+            let _ = window.set_position(LogicalPosition::new(x, y));
+            let _ = window.set_resizable(false);
+            let _ = window.set_size(tauri::LogicalSize::new(500.0, 52.0));
         }
-    
+        return Ok(());
+    }
+
     let url = "http://localhost:1420/quick-parse".parse().unwrap();
     let window = WebviewWindowBuilder::new(&app_handle, "quickparse", WebviewUrl::External(url))
         .title("快速解析")
@@ -348,7 +359,7 @@ pub async fn open_window(app_handle: tauri::AppHandle, state: State<'_, WindowSt
     let window_clone = window.clone();
     let is_moving = Arc::new(AtomicBool::new(false));
     let is_moving_clone = is_moving.clone();
-    
+
     window.on_window_event(move |event| {
         match event {
             tauri::WindowEvent::Focused(false) => {
@@ -365,7 +376,7 @@ pub async fn open_window(app_handle: tauri::AppHandle, state: State<'_, WindowSt
             tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => {
                 // 设置移动状态为true
                 is_moving_clone.store(true, Ordering::Relaxed);
-                
+
                 // 创建一个延时，在移动结束后重置状态
                 let is_moving = is_moving_clone.clone();
                 std::thread::spawn(move || {
@@ -384,35 +395,39 @@ pub async fn open_window(app_handle: tauri::AppHandle, state: State<'_, WindowSt
 pub fn caculate_pppfcs16(frame: String) -> Result<u16, String> {
     // 清理输入字符串，移除空格和换行符
     let cleaned_frame = frame.replace(' ', "").replace('\n', "");
-    
+
     // 验证输入是否为有效的16进制字符串
     if !cleaned_frame.chars().all(|c| c.is_digit(16)) || cleaned_frame.len() % 2 != 0 {
         return Err("Invalid hex string".to_string());
     }
-    
+
     // 将16进制字符串转换为字节数组
     let frame_bytes = FrameFun::get_frame_list_from_str(&cleaned_frame);
-    
+
     // 使用0xFFFF作为初始FCS值计算校验和
     let fcs = FrameFun::ppp_fcs16(0xFFFF, &frame_bytes);
-    
+
     Ok(fcs)
 }
 
 #[tauri::command]
-pub fn da_and_measure_point_exchange(input: String, convert_type: String, continuous: bool) -> Result<String, String> {
+pub fn da_and_measure_point_exchange(
+    input: String,
+    convert_type: String,
+    continuous: bool,
+) -> Result<String, String> {
     // 清理输入字符串，移除空格和换行符
     let cleaned_input = input.trim().to_string();
-    
+
     match convert_type.as_str() {
         "point_to_da" => {
             let result = try_convert_point_to_da(&cleaned_input, continuous)?;
             Ok(result)
-        },
+        }
         "da_to_point" => {
             let result = try_convert_da_to_point(&cleaned_input)?;
             Ok(result)
-        },
+        }
         _ => Err("Invalid convert type. Expected: point_to_da or da_to_point".to_string()),
     }
 }
@@ -421,7 +436,7 @@ fn try_convert_point_to_da(input: &str, continuous: bool) -> Result<String, Stri
     // 处理逗号分隔的多个范围
     let ranges: Vec<&str> = input.split(',').collect();
     let mut all_points = Vec::new();
-    
+
     for range in ranges {
         if range.is_empty() {
             continue;
@@ -433,46 +448,50 @@ fn try_convert_point_to_da(input: &str, continuous: bool) -> Result<String, Stri
             if parts.len() != 2 {
                 return Err(format!("无效的范围格式: {}", range));
             }
-            
-            let start = parts[0].parse::<u16>()
+
+            let start = parts[0]
+                .parse::<u16>()
                 .map_err(|_| format!("无效的起始数字: {}", parts[0]))?;
-            let end = parts[1].parse::<u16>()
+            let end = parts[1]
+                .parse::<u16>()
                 .map_err(|_| format!("无效的结束数字: {}", parts[1]))?;
-            
+
             if start > end {
                 return Err(format!("起始数字必须小于或等于结束数字: {}", range));
             }
-            
+
             all_points.extend(start..=end);
         } else {
             // 处理单个数字
-            let point = range.parse::<u16>()
+            let point = range
+                .parse::<u16>()
                 .map_err(|_| format!("无效的数字: {}", range))?;
             all_points.push(point);
         }
     }
-    
+
     if all_points.is_empty() {
         return Err("请输入有效的测量点".to_string());
     }
-    
+
     // 对点进行排序和去重
     all_points.sort();
     all_points.dedup();
-    
+
     // 根据continuous参数选择转换方式
     let da_pairs = if continuous {
         FrameCsg::to_da_with_continuous(&all_points)
     } else {
         FrameCsg::to_da_with_single(&all_points)
     };
-    
+
     // 格式化输出
-    let result = da_pairs.iter()
+    let result = da_pairs
+        .iter()
         .map(|&(da1, da2)| format!("{:02X}{:02X}", da1, da2))
         .collect::<Vec<String>>()
         .join(",");
-    
+
     Ok(result)
 }
 
@@ -480,11 +499,11 @@ fn try_convert_da_to_point(input: &str) -> Result<String, String> {
     // 处理逗号分隔的多个DA值
     let da_values: Vec<&str> = input.split(',').collect();
     let mut all_results = Vec::new();
-    
+
     if da_values.is_empty() || (da_values.len() == 1 && da_values[0].trim().is_empty()) {
         return Err("请输入有效的DA值".to_string());
     }
-    
+
     for da_value in da_values {
         let da_value = da_value.trim();
         if da_value.is_empty() {
@@ -493,29 +512,30 @@ fn try_convert_da_to_point(input: &str) -> Result<String, String> {
 
         // 移除可能的0x前缀
         let da_value = da_value.trim_start_matches("0x");
-        
+
         let da_cleaned = da_value.replace(' ', "").replace('\n', "");
 
         // 验证16进制格式
         if !da_cleaned.chars().all(|c| c.is_ascii_hexdigit()) {
             return Err(format!("无效的16进制DA值: {}", da_cleaned));
         }
-        
+
         // 将16进制字符串转换为字节数组
         let da = FrameFun::get_frame_list_from_str(&da_cleaned);
 
         if da.len() % 2 != 0 {
             return Err(format!("DA长度错误: {}", da.len()));
         }
-        let mut pos:usize = 0;
+        let mut pos: usize = 0;
         while pos < da.len() {
-            let da_data = &da[pos..pos+2];
+            let da_data = &da[pos..pos + 2];
             let (size, points) = FrameFun::calculate_measurement_points(&da_data);
-            
+
             if size == 1 && points[0] == 0xFFFF {
                 all_results.push("0xFFFF".to_string());
             } else {
-                let points_str = points.iter()
+                let points_str = points
+                    .iter()
                     .map(|&x| x.to_string())
                     .collect::<Vec<String>>()
                     .join(",");
@@ -523,18 +543,22 @@ fn try_convert_da_to_point(input: &str) -> Result<String, String> {
             }
             pos += 2;
         }
-
     }
-    
+
     if all_results.is_empty() {
         return Err("转换结果为空".to_string());
     }
-    
+
     Ok(all_results.join(","))
 }
 
 #[tauri::command]
-pub fn parse_item_data(item: String, input: String, protocol: String, region: String) -> Result<Vec<Value>, String> {
+pub fn parse_item_data(
+    item: String,
+    input: String,
+    protocol: String,
+    region: String,
+) -> Result<Vec<Value>, String> {
     // 检查输入参数
     if item.is_empty() {
         return Err("数据标识不能为空".to_string());
@@ -573,10 +597,11 @@ pub fn parse_item_data(item: String, input: String, protocol: String, region: St
     let data_segment = FrameFun::get_frame_list_from_str(&input);
 
     // 获取数据项配置
-    let mut data_item_elem = match ProtocolConfigManager::get_config_xml(&item, &protocol, &region, dir) {
-        Some(elem) => elem,
-        None => return Err(format!("未找到数据标识[{}]的配置信息", item)),
-    };
+    let mut data_item_elem =
+        match ProtocolConfigManager::get_config_xml(&item, &protocol, &region, dir) {
+            Some(elem) => elem,
+            None => return Err(format!("未找到数据标识[{}]的配置信息", item)),
+        };
 
     // 处理数据项配置
     let sub_length = match data_item_elem.get_child_text("length") {
@@ -589,7 +614,11 @@ pub fn parse_item_data(item: String, input: String, protocol: String, region: St
 
     // 检查数据长度
     if sub_length > data_segment.len() {
-        return Err(format!("数据长度({})超过实际数据长度({})", sub_length, data_segment.len()));
+        return Err(format!(
+            "数据长度({})超过实际数据长度({})",
+            sub_length,
+            data_segment.len()
+        ));
     }
 
     let sub_datament = &data_segment[..sub_length];

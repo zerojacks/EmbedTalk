@@ -1,8 +1,8 @@
+use crate::protocol::traits::{ProtocolMessage, ProtocolParser};
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::protocol::traits::{ProtocolMessage, ProtocolParser};
 
 /// 协议管理器，负责管理和注册不同的协议解析器
 pub struct ProtocolManager {
@@ -19,7 +19,10 @@ impl ProtocolManager {
     }
 
     /// 注册协议解析器
-    pub async fn register_parser(&self, parser: Arc<dyn ProtocolParser>) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn register_parser(
+        &self,
+        parser: Arc<dyn ProtocolParser>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let protocol_name = parser.get_protocol_name();
         let mut parsers = self.parsers.write().await;
         parsers.insert(protocol_name, parser);
@@ -33,9 +36,12 @@ impl ProtocolManager {
     }
 
     /// 解析数据，自动检测协议类型
-    pub async fn parse_data(&self, data: &[u8]) -> Result<Option<ProtocolMessage>, Box<dyn Error + Send + Sync>> {
+    pub async fn parse_data(
+        &self,
+        data: &[u8],
+    ) -> Result<Option<ProtocolMessage>, Box<dyn Error + Send + Sync>> {
         let parsers = self.parsers.read().await;
-        
+
         // 尝试使用每个注册的解析器解析数据
         for parser in parsers.values() {
             match parser.validate(data).await {
@@ -46,19 +52,19 @@ impl ProtocolManager {
                 _ => continue, // 验证失败或出错，继续尝试下一个解析器
             }
         }
-        
+
         // 没有找到匹配的解析器
         Ok(None)
     }
 
     /// 使用指定协议解析数据
     pub async fn parse_with_protocol(
-        &self, 
-        protocol_name: &str, 
-        data: &[u8]
+        &self,
+        protocol_name: &str,
+        data: &[u8],
     ) -> Result<ProtocolMessage, Box<dyn Error + Send + Sync>> {
         let parsers = self.parsers.read().await;
-        
+
         if let Some(parser) = parsers.get(protocol_name) {
             parser.parse(data).await
         } else {
@@ -68,12 +74,12 @@ impl ProtocolManager {
 
     /// 使用指定协议构建数据
     pub async fn build_with_protocol(
-        &self, 
-        protocol_name: &str, 
-        message: &serde_json::Value
+        &self,
+        protocol_name: &str,
+        message: &serde_json::Value,
     ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         let parsers = self.parsers.read().await;
-        
+
         if let Some(parser) = parsers.get(protocol_name) {
             parser.build(message).await
         } else {

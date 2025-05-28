@@ -1,8 +1,9 @@
+use crate::combridage::messagemanager::{MessageDirection, MessageManager};
 use crate::combridage::CommunicationChannel;
 use crate::combridage::{ChannelState, Message};
-use crate::combridage::messagemanager::{MessageManager, MessageDirection};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
+use chrono;
 use serde_json;
 use std::collections::HashMap;
 use std::error::Error;
@@ -15,7 +16,6 @@ use tokio::sync::Mutex;
 use tokio::sync::{broadcast, mpsc};
 use tokio::time::{sleep, timeout, Duration};
 use uuid::Uuid;
-use chrono;
 
 #[derive(Clone, Debug)]
 pub struct TcpClientOfServer {
@@ -74,7 +74,7 @@ impl TcpClientOfServer {
         let shutdown = shutdown_signal.subscribe();
         let tx_message = tx_message.clone();
         let peer_addr_str = peer_addr.to_string();
-        
+
         tokio::spawn(async move {
             println!("[{}] 启动读取任务", peer_addr_str);
             let mut buffer = vec![0; 1024];
@@ -141,16 +141,19 @@ impl TcpClientOfServer {
             while let Some(data) = channel_clone.receive().await {
                 println!("接收到消息，长度: {}", data.len());
                 // 记录发送的消息
-                if let Err(e) = message_manager.record_message(
-                    &channeltype,
-                    &channelid,
-                    &channel_name,
-                    &Message::new(serde_json::json!({
-                        "data": data
-                    })),
-                    MessageDirection::Received,
-                    None,
-                ).await {
+                if let Err(e) = message_manager
+                    .record_message(
+                        &channeltype,
+                        &channelid,
+                        &channel_name,
+                        &Message::new(serde_json::json!({
+                            "data": data
+                        })),
+                        MessageDirection::Received,
+                        None,
+                    )
+                    .await
+                {
                     eprintln!("记录发送消息失败: {:?}", e);
                 }
             }
@@ -168,7 +171,10 @@ impl TcpClientOfServer {
     pub async fn receive(&mut self) -> Option<Vec<u8>> {
         let mut rx = self.rx_message.lock().await;
         rx.recv().await.map_or(None, |data| {
-            println!("TcpClientOfServer::receive - 接收到数据，长度: {}", data.len());
+            println!(
+                "TcpClientOfServer::receive - 接收到数据，长度: {}",
+                data.len()
+            );
             Some(data)
         })
     }
@@ -210,7 +216,7 @@ impl TcpServerChannel {
         let server = Self {
             channeltype: "tcpserver".to_string(),
             channelid: "tcpserver".to_string() + &Uuid::new_v4().to_string(),
-            channel_name:channel_name,
+            channel_name: channel_name,
             clients: Arc::new(Mutex::new(HashMap::new())),
             shutdown_signal: shutdown_signal.clone(),
             listener: Arc::new(Mutex::new(Some(listener))),
@@ -234,25 +240,28 @@ impl TcpServerChannel {
     ) {
         println!("启动客户端消息处理器: {}", client_addr);
         let message_manager = self.message_manager.clone();
-        
+
         tokio::spawn(async move {
             println!("开始监听客户端消息: {}", client_addr);
             while let Some(data) = client.receive().await {
                 println!("收到客户端消息: {} 长度: {}", client_addr, data.len());
-                
+
                 // 创建消息内容
                 let content = serde_json::json!({
                     "data": data
                 });
 
-                if let Err(e) = message_manager.record_message(
-                    &client.channeltype.clone(),
-                    &client.channelid,
-                    &client.channel_name,
-                    &Message::new(content.clone()),
-                    MessageDirection::Received,
-                    None
-                ).await {
+                if let Err(e) = message_manager
+                    .record_message(
+                        &client.channeltype.clone(),
+                        &client.channelid,
+                        &client.channel_name,
+                        &Message::new(content.clone()),
+                        MessageDirection::Received,
+                        None,
+                    )
+                    .await
+                {
                     eprintln!("记录消息失败: {:?}", e);
                 } else {
                     println!("消息已记录并处理: {} -> {:?}", client_addr, content);
@@ -264,7 +273,7 @@ impl TcpServerChannel {
 
     async fn accept_loop(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut shutdown_receiver = self.shutdown_signal.subscribe();
-        
+
         println!("TCP服务器开始接受连接");
 
         loop {
@@ -297,11 +306,11 @@ impl TcpServerChannel {
                                         let mut clients = self.clients.lock().await;
                                         clients.insert(client.channelid.clone(), client.clone());
                                     }
-                                    
+
                                     let client_clone = client.clone();
                                     // 启动消息处理器
                                     self.start_client_message_handler(addr_str.clone(), client_clone).await;
-                                    
+
                                     // 发送连接事件
                                     let app_handle = get_app_handle();
                                     let channel_info = serde_json::json!({
@@ -311,7 +320,7 @@ impl TcpServerChannel {
                                         "ip": addr.ip().to_string(),
                                         "port": addr.port()
                                     });
-                                    
+
                                     if let Ok(event_payload) = serde_json::to_string(&channel_info) {
                                         if let Err(e) = app_handle.emit("tcp-client-event", event_payload) {
                                             eprintln!("发送客户端连接事件失败: {:?}", e);
@@ -370,7 +379,11 @@ impl TcpServerChannel {
 
 #[async_trait]
 impl CommunicationChannel for TcpServerChannel {
-    async fn send(&self, message: &Message, clientid: Option<String>) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn send(
+        &self,
+        message: &Message,
+        clientid: Option<String>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let content = message.get_content();
         let data = if let Some(arr) = content["data"].as_array() {
             arr.iter()
@@ -380,10 +393,13 @@ impl CommunicationChannel for TcpServerChannel {
         } else {
             return Err("Invalid data format".into());
         };
-        println!("TcpServerChannel::send - 发送消息{:?} data: {:?}", message, data);
+        println!(
+            "TcpServerChannel::send - 发送消息{:?} data: {:?}",
+            message, data
+        );
         let app_handle = get_app_handle();
         let message_manager = MessageManager::new(app_handle.clone())?;
-        
+
         let mut message_clone = message.clone();
         message_clone.update_timestamp();
 
@@ -399,14 +415,17 @@ impl CommunicationChannel for TcpServerChannel {
                 println!("消息发送完成");
                 // 记录发送的消息
 
-                if let Err(e) = message_manager.record_message(
-                    &client.channeltype,
-                    &client.channelid,
-                    &client.channel_name,
-                    &message_clone,
-                    MessageDirection::Sent,
-                    None,
-                ).await {
+                if let Err(e) = message_manager
+                    .record_message(
+                        &client.channeltype,
+                        &client.channelid,
+                        &client.channel_name,
+                        &message_clone,
+                        MessageDirection::Sent,
+                        None,
+                    )
+                    .await
+                {
                     eprintln!("记录发送消息失败: {:?}", e);
                 }
                 Ok(())
@@ -417,15 +436,18 @@ impl CommunicationChannel for TcpServerChannel {
             let clients = self.clients.lock().await;
             for client in clients.values() {
                 client.send(data.clone()).await?;
-                
-                if let Err(e) = message_manager.record_message(
-                    &client.channeltype,
-                    &client.channelid,
-                    &client.channel_name,
-                    &message_clone,
-                    MessageDirection::Sent,
-                    None,
-                ).await {
+
+                if let Err(e) = message_manager
+                    .record_message(
+                        &client.channeltype,
+                        &client.channelid,
+                        &client.channel_name,
+                        &message_clone,
+                        MessageDirection::Sent,
+                        None,
+                    )
+                    .await
+                {
                     eprintln!("记录发送消息失败: {:?}", e);
                 }
             }
@@ -443,7 +465,10 @@ impl CommunicationChannel for TcpServerChannel {
             if clients.is_empty() {
                 return Err("No clients connected".into());
             }
-            clients.iter().map(|(addr, client)| (addr.clone(), client.clone())).collect()
+            clients
+                .iter()
+                .map(|(addr, client)| (addr.clone(), client.clone()))
+                .collect()
         };
 
         // 为每个客户端创建一个异步任务尝试接收消息
@@ -458,7 +483,6 @@ impl CommunicationChannel for TcpServerChannel {
         //     tasks.push(task);
         // }
         Err("No message received".into())
-  
     }
 
     async fn send_and_wait(
@@ -496,7 +520,11 @@ impl CommunicationChannel for TcpServerChannel {
         self.channelid.clone()
     }
 
-    async fn subscribe_topic(&self, _topic: &str, _qos: u8) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn subscribe_topic(
+        &self,
+        _topic: &str,
+        _qos: u8,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         Err("TCP server does not support topic subscription".into())
     }
 

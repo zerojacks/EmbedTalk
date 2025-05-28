@@ -25,3 +25,5 @@ dist-ssr
 gen/*
 src-tauri/gen/*
 src/vs/*
+tauri-key.pem
+tauri-key.pem.pub

@@ -127,6 +127,7 @@
     "core:tray:allow-set-title",
     "core:tray:allow-set-tooltip",
     "core:tray:allow-set-visible",
-    "core:tray:default"
+    "core:tray:default",
+    "updater:default"
   ]
 }
