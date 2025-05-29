@@ -20,6 +20,16 @@
     background-color: transparent;
 }
 
+/* 隐藏滚动条 */
+.hide-scrollbar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
 .react-resizable-handle::after {
     content: '';
     position: absolute;

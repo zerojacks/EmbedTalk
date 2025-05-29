@@ -128,6 +128,42 @@
     "core:tray:allow-set-tooltip",
     "core:tray:allow-set-visible",
     "core:tray:default",
-    "updater:default"
+    "updater:default",
+    "shell:default",
+    "shell:allow-execute",   
+    "shell:allow-kill",
+    "shell:allow-stdin-write",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "explorer-dir",
+          "cmd": "explorer",
+          "args": [
+            {
+              "validator": ".*"
+            }
+          ]
+        },
+        {
+          "name": "open-dir-mac",
+          "cmd": "open",
+          "args": [
+            {
+              "validator": ".*"
+            }
+          ]
+        },
+        {
+          "name": "open-dir-linux",
+          "cmd": "xdg-open",
+          "args": [
+            {
+              "validator": ".*"
+            }
+          ]
+        }
+      ]
+    }
   ]
 }

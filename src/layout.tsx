@@ -5,6 +5,7 @@ import { BiNetworkChart } from "react-icons/bi";
 import { TbDeviceAnalytics, TbReportAnalytics } from "react-icons/tb";
 import { BiSolidFileArchive } from "react-icons/bi";
 import { FiTool,FiDatabase } from "react-icons/fi";
+import { VscOutput } from "react-icons/vsc";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
@@ -95,6 +96,14 @@ export default function Layout() {
                 [selectedClass]: location.pathname === "/task-analysis",
               })}
               title="任务分析"
+            />
+          </Link>
+          <Link className={linkClass} to="/log-parse">
+            <VscOutput
+              className={clsx(defaultClass, {
+                [selectedClass]: location.pathname === "/log-parse",
+              })}
+              title="日志解析"
             />
           </Link>
           <div className="flex-grow" />

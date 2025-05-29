@@ -22,6 +22,7 @@ import FileParse from "./routes/file-parse";
 import Tools from "./routes/tools";
 import FrameExtractorPage from './routes/frame-extractor';
 import TaskAnalysis from './routes/task-analysis';
+import LogParse from './routes/log-parse';
 
 const router = createBrowserRouter([
   {
@@ -64,6 +65,10 @@ const router = createBrowserRouter([
       {
         path: "/task-analysis",
         element: <TaskAnalysis />
+      },
+      {
+        path: "/log-parse",
+        element: <LogParse />
       }
     ],
   },

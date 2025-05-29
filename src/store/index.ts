@@ -7,6 +7,7 @@ import splitSizeReducer from './slices/splitSizeSlice';
 import fileParseReducer from './slices/fileParseSlice';
 import frameExtractorReducer from './slices/frameExtractorSlice';
 import TaskAnalysisReducer, { taskAnalysisSlice } from './slices/taskAnalysisSlice';
+import logParseReducer from './slices/logParseSlice';
 // 合并所有 reducer
 const rootReducer = combineReducers({
   channel: channelReducer,
@@ -15,6 +16,7 @@ const rootReducer = combineReducers({
   fileParse: fileParseReducer,
   frameExtractor: frameExtractorReducer,
   taskAnalysis: TaskAnalysisReducer,
+  logParse: logParseReducer,
   // 可以在这里添加其他 reducer
 });
 
