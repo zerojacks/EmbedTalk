@@ -111,30 +111,12 @@ jobs:
 
       - name: install frontend dependencies
         run: pnpm install # change this to npm, pnpm or bun depending on which one you use.
-        
-      - name: Debug key and password
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: |
-          echo "Private key length: ${#TAURI_SIGNING_PRIVATE_KEY}"
-          echo "Password length: ${#TAURI_KEY_PASSWORD}"
-          echo "Password first character: ${TAURI_KEY_PASSWORD:0:1}"
-          echo "Password last character: ${TAURI_KEY_PASSWORD: -1}"
-          # 检查私钥格式
-          if [[ $TAURI_SIGNING_PRIVATE_KEY == *"BEGIN ENCRYPTED PRIVATE KEY"* ]]; then
-            echo "Private key format appears correct"
-          else
-            echo "Private key format may be incorrect"
-          fi
 
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          TAURI_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
