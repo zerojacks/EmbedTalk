@@ -7,6 +7,7 @@ import ConnectBridgeRedux from "../settingcomplent/ConnectBridgeRedux";
 import ProtocolConfigPath from '../settingcomplent/protocolpath'
 import ShortcutSetting from '../settingcomplent/shortcut';
 import Devtools from "../settingcomplent/Devtools";
+import UpdateSetting from "../settingcomplent/updateSetting";
 
 export default function Settings() {
   return (
@@ -45,6 +46,9 @@ export default function Settings() {
         </div>
         <div className="mt-4">
           <Devtools />
+        </div>
+        <div className="mt-4">
+          <UpdateSetting />
         </div>
         <div className="mt-4">
           <AboutInfo />

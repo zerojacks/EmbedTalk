@@ -70,8 +70,12 @@ export class SettingService {
       if (value) {
         try {
           // 如果是字符串形式的 JSON，尝试解析
-          if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+          if (value.startsWith('{') || value.startsWith('[')) {
             return JSON.parse(value) as T;
+          }
+          // 如果期望的是布尔值
+          if (defaultValue !== undefined && typeof defaultValue === 'boolean') {
+            return (value === 'true') as unknown as T;
           }
           // 否则直接返回值
           return value as unknown as T;
@@ -97,8 +101,16 @@ export class SettingService {
    */
   static async setConfigValue<T>(section: string, key: string, value: T): Promise<boolean> {
     try {
-      // 对于对象类型的值，进行 JSON 序列化
-      const valueToStore = typeof value === 'object' ? JSON.stringify(value) : value;
+      // 确保所有值都转换为字符串
+      let valueToStore: string;
+      
+      if (typeof value === 'object') {
+        valueToStore = JSON.stringify(value);
+      } else if (typeof value === 'boolean') {
+        valueToStore = value ? 'true' : 'false';
+      } else {
+        valueToStore = String(value);
+      }
       
       await invoke("set_config_value_async", {
         section,

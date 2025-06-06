@@ -14,6 +14,7 @@ import { SettingsProvider } from "./context/SettingsProvider";
 import { ToastProvider, initializeToast  } from './context/ToastProvider';
 import { ShortcutProvider } from './context/ShortcutProvider';
 import { TrayProvider } from './context/TrayProvider';
+import { UpdateProvider } from './context/UpdateProvider';
 import Itemconfig from "./routes/itemconfig"
 import ChannelMonitorRedux from "./routes/ChannelMonitorRedux";
 import QuickParse from "./routes/quick-parse";
@@ -86,14 +87,16 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         <TauriProvider>
           <SettingsProvider>
             <ToastProvider>
-              <ShortcutProvider>
-                <TrayProvider>
-                  <>
-                    <RouterProvider router={router} />
-                    <UpdateProgress />
-                  </>
-                </TrayProvider>
-              </ShortcutProvider>
+              <UpdateProvider>
+                <ShortcutProvider>
+                  <TrayProvider>
+                    <>
+                      <RouterProvider router={router} />
+                      <UpdateProgress />
+                    </>
+                  </TrayProvider>
+                </ShortcutProvider>
+              </UpdateProvider>
             </ToastProvider>
           </SettingsProvider>
         </TauriProvider>

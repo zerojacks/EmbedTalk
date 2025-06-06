@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
 
     steps:
       - uses: actions/checkout@v4
@@ -35,33 +36,38 @@ jobs:
           
           if [ -n "$previous_tag" ]; then
             # 如果有上一个tag，获取两个tag之间的提交
-            changelog=$(git log ${previous_tag}..${current_tag} --pretty=format:"* %s (%h)" --no-merges)
+            changelog=$(git log ${previous_tag}..${current_tag} --pretty=format:"- %s%n  %b" --no-merges)
           else
             # 如果是第一个tag，获取所有提交
-            changelog=$(git log ${current_tag} --pretty=format:"* %s (%h)" --no-merges)
+            changelog=$(git log ${current_tag} --pretty=format:"- %s%n  %b" --no-merges)
           fi
           
           # 如果changelog为空，添加一个默认消息
           if [ -z "$changelog" ]; then
-            changelog="* 首次发布"
+            changelog="- 首次发布"
           fi
           
-          # 将更改日志保存到环境变量中，处理多行文本
-          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
-          echo "$changelog" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          # 处理多行文本，将换行符转换为 \n
+          changelog="${changelog//'%'/'%25'}"
+          changelog="${changelog//$'\n'/'%0A'}"
+          changelog="${changelog//$'\r'/'%0D'}"
+          
+          echo "changelog=${changelog}" >> $GITHUB_OUTPUT
+          echo "$changelog" > CHANGELOG.md
 
       - name: create release
         id: create-release
         uses: actions/github-script@v6
         with:
           script: |
+            const fs = require('fs');
+            const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
             const { data } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag_name: `v${process.env.PACKAGE_VERSION}`,
               name: `EmbedTalk v${process.env.PACKAGE_VERSION}`,
-              body: `# 更新日志\n\n${process.env.CHANGELOG}\n\n---\n\n下载并安装以下对应系统的安装包：`,
+              body: '# EmbedTalk v${process.env.PACKAGE_VERSION} 更新说明\n\n## 更新内容\n${changelog}\n\n##发布时间：${new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}',
               draft: true,
               prerelease: false
             })
@@ -75,7 +81,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest" # for Intel based macs.
+          - platform: "macos-latest"
             args: "--target x86_64-apple-darwin"
           - platform: "windows-latest"
             args: ""
@@ -93,16 +99,13 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-        # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
-        # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2
@@ -110,7 +113,7 @@ jobs:
           version: 7
 
       - name: install frontend dependencies
-        run: pnpm install # change this to npm, pnpm or bun depending on which one you use.
+        run: pnpm install
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -119,12 +122,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
+          releaseBody: ${{ needs.create-release.outputs.changelog }}
           args: ${{ matrix.args }}
           updaterJsonPreferNsis: true
           updaterJsonKeepUniversal: false
-
-  # 注意：tauri-action 已经会自动生成 latest.json 文件并上传到 release 中
-  # 不需要额外的 generate-latest-json 步骤
 
   publish-release:
     permissions:
