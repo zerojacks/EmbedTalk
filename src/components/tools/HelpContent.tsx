@@ -200,6 +200,62 @@ export const HelpContent: React.FC<HelpContentProps> = ({ helpId }) => {
                 </div>
             );
 
+        case 'bit-position-calculator':
+            return (
+                <div className="prose prose-sm max-w-none">
+                    <h4>基本功能</h4>
+                    <p>输入一个十六进制字符串，此工具将计算并列出所有值为1的Bit位的位置。Bit位的位置是从0开始索引的，并且是低位在前（LSB first）。</p>
+        
+                    <h4>输入格式</h4>
+                    <ul>
+                        <li>必须是有效的十六进制字符串（字符0-9, a-f, A-F，不区分大小写）。</li>
+                        <li>字符串中可以包含空格，计算时会自动忽略。</li>
+                        <li>去除空格后，字符串的长度必须是偶数，因为每两个十六进制字符代表一个字节。</li>
+                    </ul>
+        
+                    <h4>输出格式</h4>
+                    <ul>
+                        <li>结果是一个逗号分隔的数字列表。</li>
+                        <li>每个数字代表一个值为1的Bit位的位置。</li>
+                        <li>索引从0开始。例如，第一个字节的最低位（最右边）是第0位，最高位（最左边）是第7位。第二个字节的最低位是第8位，依此类推。</li>
+                    </ul>
+        
+                    <h4>示例</h4>
+                    <p><strong>示例 1:</strong></p>
+                    <ul>
+                        <li>输入: <code>01</code></li>
+                        <li>输出: <code>0</code> (0x01 = 0000000<strong>1</strong>B, 第0位为1)</li>
+                    </ul>
+        
+                    <p><strong>示例 2:</strong></p>
+                    <ul>
+                        <li>输入: <code>80</code></li>
+                        <li>输出: <code>7</code> (0x80 = <strong>1</strong>0000000B, 第7位为1)</li>
+                    </ul>
+        
+                    <p><strong>示例 3:</strong></p>
+                    <ul>
+                        <li>输入: <code>00 01</code> (或 <code>0001</code>)</li>
+                        <li>输出: <code>8</code> (第一个字节0x00没有置1的位。第二个字节0x01的第0位为1，全局索引为 1*8 + 0 = 8)</li>
+                    </ul>
+        
+                    <p><strong>示例 4:</strong></p>
+                    <ul>
+                        <li>输入: <code>F81F</code> (或 <code>F8 1F</code>)</li>
+                        <li>0xF8 = 11111000 (二进制) -&gt; 位 3, 4, 5, 6, 7</li>
+                        <li>0x1F = 00011111 (二进制) -&gt; 位 0, 1, 2, 3, 4 (对于第二个字节，全局索引为 8+0, 8+1, ... )</li>
+                        <li>输出: <code>3, 4, 5, 6, 7, 8, 9, 10, 11, 12</code></li>
+                    </ul>
+        
+                    <h4>错误处理</h4>
+                    <ul>
+                        <li>如果输入为空（或只包含空格），不会进行计算。</li>
+                        <li>如果输入包含无效字符（非十六进制字符），会提示错误。</li>
+                        <li>如果去除空格后输入长度为奇数，会提示错误。</li>
+                        <li>如果计算结果没有置1的Bit位，会明确提示。</li>
+                    </ul>
+                </div>
+            );
         default:
             return null;
     }

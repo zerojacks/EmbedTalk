@@ -54,6 +54,25 @@ const AboutInfo = () => {
             localStorage.setItem('getNewVersion', JSON.stringify(NewVersion));
         }
     }, [NewVersion]);
+    
+    // 检查是否有待安装的更新
+    useEffect(() => {
+        async function checkPendingUpdates() {
+            try {
+                // 在应用启动时检查是否有待安装的更新
+                await UpdaterService.checkPendingUpdatesOnStartup();
+            } catch (error) {
+                console.error('检查待安装更新失败:', error);
+            }
+        }
+        
+        // 在组件挂载后等待一秒再检查，避免与其他初始化操作冲突
+        const timer = setTimeout(() => {
+            checkPendingUpdates();
+        }, 1000);
+        
+        return () => clearTimeout(timer);
+    }, []);
 
     const handleClick = () => {
         if (isUpdate) return;
@@ -61,23 +80,41 @@ const AboutInfo = () => {
         async function checkUpdate() {
             setIsUpdate(true);
             try {
+                // 显示正在检查更新的提示
+                toast.info('正在检查更新...');
+                
                 // 使用 UpdaterService 检查更新
-                const hasUpdate = await UpdaterService.checkForUpdates();
+                const hasUpdate = await UpdaterService.checkForUpdates(true); // 使用静默模式，避免重复提示
+                
                 if (hasUpdate) {
                     console.log('有新版本');
                     // 显示安装按钮
                     setNewVersion({ haveNewVersion: true, newVersion: '新版本' });
                     
                     // 显示更新通知
-                    toast.success('发现新版本，正在安装...');
+                    toast.success('发现新版本，准备下载...');
                     
-                    // 延迟一秒后开始安装更新
-                    setTimeout(() => {
-                        UpdaterService.installUpdate();
-                    }, 1000);
+                    try {
+                        // 开始下载更新，完成后会显示确认对话框
+                        // 用户可以选择立即安装或下次启动时安装
+                        const updateResult = await UpdaterService.downloadUpdate();
+                        
+                        if (updateResult) {
+                            console.log(`已下载更新: ${updateResult.version}`);
+                        }
+                    } catch (downloadError) {
+                        // 如果是我们的有意异常，忽略它
+                        if (downloadError instanceof Error && downloadError.message === 'DOWNLOAD_ONLY') {
+                            console.log('已取消自动安装，等待用户确认');
+                        } else {
+                            // 其他下载错误
+                            toast.error(`下载更新失败: ${downloadError instanceof Error ? downloadError.message : String(downloadError)}`);
+                        }
+                    }
                 } else {
                     console.log('没有新版本');
                     setNewVersion({ haveNewVersion: false, newVersion: version });
+                    toast.info('当前已是最新版本');
                 }
             } catch (error) {
                 console.log(error);

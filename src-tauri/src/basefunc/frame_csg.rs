@@ -3802,7 +3802,7 @@ impl FrameCsg {
                 pos += sub_length;
                 num += 1;
 
-                if length - pos == 16 {
+                if length - pos == 16 || length - pos == 22 || ((num == (item_count * pncount)) && (length - pos >= 16)) {
                     pw = Self::guest_is_exit_pw(
                         length,
                         pw_data,
@@ -3813,7 +3813,6 @@ impl FrameCsg {
                         region,
                         Some(dir),
                     );
-
                     if pw {
                         length -= 16;
                     }
@@ -3862,9 +3861,7 @@ impl FrameCsg {
                 Some(sub_result),
                 None,
             );
-            if pw {
-                length -= 16;
-            }
+
             if length - pos == 6 {
                 let data_time = &data_segment[pos..pos + 6];
                 let time_str = FrameFun::parse_time_data(data_time, "CCYYMMDDhhmm", false);

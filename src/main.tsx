@@ -23,6 +23,7 @@ import Tools from "./routes/tools";
 import FrameExtractorPage from './routes/frame-extractor';
 import TaskAnalysis from './routes/task-analysis';
 import LogParse from './routes/log-parse';
+import UpdateProgress from './components/UpdateProgress';
 
 const router = createBrowserRouter([
   {
@@ -87,7 +88,10 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             <ToastProvider>
               <ShortcutProvider>
                 <TrayProvider>
-                  <RouterProvider router={router} />
+                  <>
+                    <RouterProvider router={router} />
+                    <UpdateProgress />
+                  </>
                 </TrayProvider>
               </ShortcutProvider>
             </ToastProvider>

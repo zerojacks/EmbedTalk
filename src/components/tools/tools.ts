@@ -40,5 +40,13 @@ export const tools: Tool[] = [
         icon: '📝',
         type: 'dialog',
         helpId: 'data-item-parser'
+    },
+    {
+        id: 'bit-position-calculator',
+        name: 'Bit位计算器',
+        description: '计算16进制字符串中为1的bit位',
+        icon: '💡',
+        type: 'dialog',
+        helpId: 'bit-position-calculator'
     }
 ]; 

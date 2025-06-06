@@ -6,6 +6,7 @@ import { TimeConverterTool } from '../components/tools/TimeConverterTool';
 import { ByteConverterTool } from '../components/tools/ByteConverterTool';
 import { MeasurementPointsTool } from '../components/tools/MeasurementPointsTool';
 import { DataItemParserTool } from '../components/tools/DataItemParserTool';
+import { BitPositionCalculatorTool } from '../components/tools/BitPositionCalculatorTool';
 
 export default function Tools() {
     const [activeDialog, setActiveDialog] = useState<string | null>(null);
@@ -28,6 +29,8 @@ export default function Tools() {
                 return <MeasurementPointsTool />;
             case 'data-item-parser':
                 return <DataItemParserTool />;
+            case 'bit-position-calculator':
+                return <BitPositionCalculatorTool />;
             default:
                 return null;
         }
