@@ -19,16 +19,6 @@ export class UpdaterService {
       const update = await check();
       
       if (update) {
-        // 显示更新日志
-        if (update.body) {
-          toast.info(
-            `更新说明:\n${update.body}`,
-            'center', // x position
-            'top', // y position
-            10000 // duration
-          );
-        }
-        
         // 发送更新事件
         const event = new CustomEvent('update-found', {
           detail: { version: update.version }
