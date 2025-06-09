@@ -62,22 +62,27 @@ export class SettingService {
    */
   static async getConfigValue<T>(section: string, key: string, defaultValue?: T): Promise<T | null> {
     try {
-      const value = await invoke<string>("get_config_value_async", {
+      const value = await invoke<any>("get_config_value_async", {
         section,
         key,
       });
       
       if (value) {
         try {
-          // 如果是字符串形式的 JSON，尝试解析
-          if (value.startsWith('{') || value.startsWith('[')) {
-            return JSON.parse(value) as T;
+          // 如果是字符串，尝试解析 JSON
+          if (typeof value === 'string') {
+            if (value.startsWith('{') || value.startsWith('[')) {
+              return JSON.parse(value) as T;
+            }
+            // 如果期望的是布尔值
+            if (defaultValue !== undefined && typeof defaultValue === 'boolean') {
+              return (value === 'true') as unknown as T;
+            }
+            // 否则直接返回字符串值
+            return value as unknown as T;
           }
-          // 如果期望的是布尔值
-          if (defaultValue !== undefined && typeof defaultValue === 'boolean') {
-            return (value === 'true') as unknown as T;
-          }
-          // 否则直接返回值
+          
+          // 如果已经是对象或其他类型，直接返回
           return value as unknown as T;
         } catch (parseError) {
           console.warn(`解析配置值 ${key} 失败，使用原始值:`, parseError);

@@ -56,7 +56,7 @@ export class UpdaterService {
     } catch (error) {
       console.error('检查更新失败:', error);
       if (!silent) {
-        toast.error(`检查更新失败: ${error instanceof Error ? error.message : String(error)}`);
+        toast.error("检查更新失败");
       }
       return false;
     }

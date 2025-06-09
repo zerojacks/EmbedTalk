@@ -1,4 +1,6 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface UpdateConfirmDialogProps {
   version: string;
@@ -32,7 +34,9 @@ const UpdateConfirmDialog: React.FC<UpdateConfirmDialogProps> = ({
           {releaseNotes && (
             <div className="mb-4 p-3 bg-base-200 rounded-lg max-h-48 overflow-y-auto">
               <h4 className="font-medium mb-2">更新说明：</h4>
-              <p className="text-sm whitespace-pre-wrap">{releaseNotes}</p>
+              <div className="prose prose-sm dark:prose-invert">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{releaseNotes}</ReactMarkdown>
+              </div>
             </div>
           )}
           

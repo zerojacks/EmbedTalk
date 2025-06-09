@@ -57,18 +57,17 @@ jobs:
       - name: create release
         id: create-release
         uses: actions/github-script@v6
-        env:
-          CHANGELOG: ${{ needs.create-release.outputs.changelog }}
         with:
           script: |
             const version = process.env.PACKAGE_VERSION;
             const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+            const changelog = `${{ steps.changelog.outputs.changelog }}`;
             const { data } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag_name: `v${version}`,
               name: `EmbedTalk v${version}`,
-              body: `# EmbedTalk v${version} 更新说明\n\n## 更新内容\n${process.env.CHANGELOG}\n\n## 发布时间\n${now}`,
+              body: `# EmbedTalk v${version} 更新说明\n\n## 更新内容\n${changelog}\n\n## 发布时间\n${now}`,
               draft: true,
               prerelease: false
             })
