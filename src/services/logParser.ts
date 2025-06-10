@@ -2,8 +2,7 @@ import { LogEntry } from '../store/slices/logParseSlice';
 import { v4 as uuidv4 } from 'uuid';
 
 // 常量定义
-const LOG_RECORD_FLAG = 0x22222222;
-const FRM_RECORD_FLAG = 0x22222223;
+export const LOG_RECORD_FLAG = 0x22222222;
 const MSG_HEAD_FLAG = 0xF9;
 const MSG_TAIL_FLAG = 0x6E;
 
@@ -28,19 +27,6 @@ interface RawLogData {
     tag: string;
     message: string;
     raw: string;
-}
-
-/**
- * 检查是否为有效的日志记录
- * @param data 二进制数据
- * @param offset 偏移量
- */
-function isValidLogRecord(data: Uint8Array, offset: number): boolean {
-    if (offset + 4 > data.length) return false;
-    
-    // 检查日志标记
-    const flag = new DataView(data.buffer).getUint32(offset, true);
-    return flag === LOG_RECORD_FLAG || flag === FRM_RECORD_FLAG;
 }
 
 /**

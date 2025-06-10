@@ -8,6 +8,8 @@ import fileParseReducer from './slices/fileParseSlice';
 import frameExtractorReducer from './slices/frameExtractorSlice';
 import TaskAnalysisReducer, { taskAnalysisSlice } from './slices/taskAnalysisSlice';
 import logParseReducer from './slices/logParseSlice';
+import frameParseReducer from './slices/frameParseSlice'
+
 // 合并所有 reducer
 const rootReducer = combineReducers({
   channel: channelReducer,
@@ -17,6 +19,7 @@ const rootReducer = combineReducers({
   frameExtractor: frameExtractorReducer,
   taskAnalysis: TaskAnalysisReducer,
   logParse: logParseReducer,
+  frameParse: frameParseReducer,
   // 可以在这里添加其他 reducer
 });
 

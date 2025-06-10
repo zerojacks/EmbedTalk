@@ -106,6 +106,14 @@ export default function Layout() {
               title="日志解析"
             />
           </Link>
+          <Link className={linkClass} to="/frame-parse">
+            <VscOutput
+              className={clsx(defaultClass, {
+                [selectedClass]: location.pathname === "/frame-parse",
+              })}
+              title="报文解析"
+            />
+          </Link>
           <div className="flex-grow" />
           <Link className={linkClass} to="/settings">
             <AiOutlineSetting

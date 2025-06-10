@@ -25,6 +25,7 @@ import FrameExtractorPage from './routes/frame-extractor';
 import TaskAnalysis from './routes/task-analysis';
 import LogParse from './routes/log-parse';
 import UpdateProgress from './components/UpdateProgress';
+import FrameView from "./routes/FrameView";
 
 const router = createBrowserRouter([
   {
@@ -71,6 +72,10 @@ const router = createBrowserRouter([
       {
         path: "/log-parse",
         element: <LogParse />
+      },
+      {
+        path: "/frame-parse",
+        element: <FrameView />
       }
     ],
   },
