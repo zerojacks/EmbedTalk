@@ -3,37 +3,52 @@
 #![allow(dead_code)] // 在文件顶部使用
 #![allow(unused_variables)] // 可以允许多个
 use std::panic;
-use tauri::Manager;
 // use tauri::{CustomMenuItem, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem};
 use tracing::{error, info};
 pub mod basefunc;
-pub mod combridage;
 pub mod config;
-pub mod global;
-pub mod protocol;
+#[cfg(feature = "desktop")]
+pub mod combridage;
+#[cfg(feature = "desktop")]
 pub mod taurihandler;
+#[cfg(feature = "desktop")]
+use tauri::Manager;
+#[cfg(feature = "desktop")]
+pub mod protocol;
+#[cfg(feature = "desktop")]
+pub mod global;
 // use once_cell::sync::OnceCell;
+#[cfg(feature = "desktop")]
 use crate::config::appconfig::{get_config_value_async, set_config_value_async};
+#[cfg(feature = "desktop")]
 use crate::taurihandler::channel_handler::{
     connect_channel, disconnect_channel, get_timer_status, list_serial_ports, send_message,
     start_timer_send, stop_timer_send,
 };
+#[cfg(feature = "desktop")]
 use crate::taurihandler::dlt645_handler::{build_dlt645_frame, list_channels, parse_dlt645_frame};
+#[cfg(feature = "desktop")]
 use crate::taurihandler::handler::{
     app_close, check_update, get_all_config_item_lists, get_app_info, get_com_list,
     get_protocol_config_item, get_region_value, get_window_position, on_text_change, open_window,
     parse_item_data, save_file, save_protocol_config_item, set_region_value,
     update_window_position, WindowState,
 };
+#[cfg(feature = "desktop")]
 use tauri_plugin_log::{Target, TargetKind};
 
-fn main() {
-    std::env::set_var("RUST_BACKTRACE", "1");
+#[cfg(feature = "web")]
+pub mod web;
 
+#[cfg(feature = "desktop")]
+fn main() {
+    // Desktop application entry point
+    std::env::set_var("RUST_BACKTRACE", "1");
+    
     panic::set_hook(Box::new(|info| {
         let backtrace = std::backtrace::Backtrace::capture();
-        eprintln!("Panic occurred: {:?}", info);
-        eprintln!("Backtrace: {:?}", backtrace);
+        error!("Panic occurred: {:?}", info);
+        error!("Backtrace: {:?}", backtrace);
     }));
 
     tauri::Builder::default()
@@ -130,4 +145,19 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(feature = "web")]
+#[tokio::main]
+async fn main() {
+    std::env::set_var("RUST_BACKTRACE", "1");
+
+    panic::set_hook(Box::new(|info| {
+        let backtrace = std::backtrace::Backtrace::capture();
+        error!("Panic occurred: {:?}", info);
+        error!("Backtrace: {:?}", backtrace);
+    }));
+
+    // Start web server
+    web::start_web_server().await;
 }

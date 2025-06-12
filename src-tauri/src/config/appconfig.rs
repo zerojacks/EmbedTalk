@@ -96,8 +96,11 @@ fn get_config_dir(app_name: &str) -> PathBuf {
     PathBuf::from(base_dir).join(app_name)
 }
 
-// remember to call `.manage(MyState::default())`
-#[tauri::command]
+#[cfg(feature = "desktop")]
+use tauri::command;
+
+#[cfg(feature = "desktop")]
+#[command]
 pub async fn get_config_value_async(section: &str, key: &str) -> Result<Option<Value>, String> {
     // Build the path to the config file
     let path = get_config_dir(constants::APP_NAME).join(constants::APP_CONFIG);
@@ -114,28 +117,13 @@ pub async fn get_config_value_async(section: &str, key: &str) -> Result<Option<V
     Ok(sectionvalue)
 }
 
-pub fn load_config_value(section: &str, key: &str) -> Option<Value> {
-    // Build the path to the config file
-    let path = get_config_dir(constants::APP_NAME).join(constants::APP_CONFIG);
-
-    // Load the config
-    let config = Config::new(path.to_str().unwrap()).map_err(|e| format!("{}", e));
-    if let Ok(config) = config {
-        // 读取 MainWindow.theme 字段
-        let sectionvalue = config.get_value(&[section, key]);
-        // Retrieve the value from the config
-        sectionvalue.cloned()
-    } else {
-        None
-    }
-}
-
-#[tauri::command]
+#[cfg(feature = "desktop")]
+#[command]
 pub async fn set_config_value_async(section: &str, key: &str, value: &str) -> Result<(), String> {
     // Build the path to the config file
     let path = get_config_dir(constants::APP_NAME).join(constants::APP_CONFIG);
     let dir_path = path.parent().unwrap(); // Get the directory path
-                                           // Create the directory if it doesn't exist
+                                          // Create the directory if it doesn't exist
     if !dir_path.exists() {
         if let Err(e) = fs::create_dir_all(dir_path) {
             return Err(format!("Failed to create directory: {}", e));
@@ -172,6 +160,22 @@ pub async fn set_config_value_async(section: &str, key: &str, value: &str) -> Re
     }
 
     Ok(())
+}
+
+pub fn load_config_value(section: &str, key: &str) -> Option<Value> {
+    // Build the path to the config file
+    let path = get_config_dir(constants::APP_NAME).join(constants::APP_CONFIG);
+
+    // Load the config
+    let config = Config::new(path.to_str().unwrap()).map_err(|e| format!("{}", e));
+    if let Ok(config) = config {
+        // 读取 MainWindow.theme 字段
+        let sectionvalue = config.get_value(&[section, key]);
+        // Retrieve the value from the config
+        sectionvalue.cloned()
+    } else {
+        None
+    }
 }
 
 pub fn set_config_value(section: &str, key: &str, value: &str) -> Result<(), String> {

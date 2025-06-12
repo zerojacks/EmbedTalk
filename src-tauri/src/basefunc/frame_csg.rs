@@ -11,7 +11,7 @@ use std::backtrace::Backtrace;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Mutex;
-use tracing::{error, info};
+use tracing::info;
 const ITEM_ACK_NAK: u32 = 0xE0000000;
 const MASK_FIR: u8 = 0x40;
 const MASK_FIN: u8 = 0x20;

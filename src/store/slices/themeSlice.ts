@@ -2,6 +2,7 @@ import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { setTheme as setThemeTauri } from '@tauri-apps/api/app';
 import { RootState } from '..';
 import { SettingService } from '../../services/settingService';
+import { isPlatform } from '../../utils/platform';
 
 export type ThemeOption = 'light' | 'dark' | 'system';
 
@@ -50,21 +51,29 @@ const themeSlice = createSlice({
     setTheme: {
       reducer: (state, action: PayloadAction<{ theme: ThemeOption; saveToDb?: boolean }>) => {
         state.current = action.payload.theme;
-        if (action.payload.theme === 'system') {
-          setThemeTauri(null);
+        
+        if (isPlatform.isDesktop) {
+          // 桌面端：使用 Tauri 和数据库存储
+          if (action.payload.theme === 'system') {
+            setThemeTauri(null);
+          } else {
+            setThemeTauri(action.payload.theme);
+          }
+          if (action.payload.saveToDb !== false) {
+            SettingService.setTheme(action.payload.theme)
+              .then(success => {
+                if (!success) {
+                  console.warn('Failed to save theme to settings');
+                }
+              })
+              .catch(error => {
+                console.error('Error saving theme to settings:', error);
+              });
+          }
         } else {
-          setThemeTauri(action.payload.theme);
-        }
-        if (action.payload.saveToDb !== false) {
-          SettingService.setTheme(action.payload.theme)
-            .then(success => {
-              if (!success) {
-                console.warn('Failed to save theme to settings');
-              }
-            })
-            .catch(error => {
-              console.error('Error saving theme to settings:', error);
-            });
+          // Web 端：使用 localStorage 存储
+          localStorage.setItem('theme', action.payload.theme);
+          document.documentElement.setAttribute('data-theme', action.payload.theme);
         }
       },
       prepare: (theme: ThemeOption, saveToDb: boolean = true) => {
@@ -93,11 +102,17 @@ export const selectTheme = (state: RootState) => state.theme.current;
 export const selectThemeLoaded = (state: RootState) => state.theme.isLoaded;
 export const selectSystemPreference = (state: RootState) => state.theme.systemPreference;
 export const selectEffectiveTheme = (state: RootState): 'light' | 'dark' => {
-  const currentTheme = state.theme.current;
-  if (currentTheme === 'system') {
-    return state.theme.systemPreference;
+  const theme = selectTheme(state);
+  if (theme === 'system') {
+    if (isPlatform.isDesktop) {
+      // 桌面端：使用系统主题
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } else {
+      // Web 端：默认使用 light
+      return 'light';
+    }
   }
-  return currentTheme as 'light' | 'dark';
+  return theme;
 };
 
 // 使用闭包避免循环依赖

@@ -440,13 +440,13 @@ impl QframeConfig {
         let mut stack: Vec<XmlElement> = Vec::new();
 
         loop {
-            match xml_reader.read_event(&mut buf) {
+            match xml_reader.read_event_into(&mut buf) {
                 Ok(Event::Start(ref e)) => {
-                    let name = String::from_utf8_lossy(e.name()).to_string();
+                    let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                     let mut attributes = HashMap::new();
                     for attr in e.attributes() {
                         if let Ok(attr) = attr {
-                            let key = String::from_utf8_lossy(attr.key).to_string();
+                            let key = String::from_utf8_lossy(attr.key.as_ref()).to_string();
                             let value = String::from_utf8_lossy(&attr.value).to_string();
                             attributes.insert(key, value);
                         }
@@ -468,8 +468,9 @@ impl QframeConfig {
                 Ok(Event::Text(e)) => {
                     if let Some(element) = stack.last_mut() {
                         element.value = Some(
-                            e.unescape_and_decode(&xml_reader)
-                                .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?,
+                            e.unescape()
+                                .map_err(|e| Arc::new(e) as Arc<dyn Error + Send + Sync>)?
+                                .into_owned(),
                         );
                     }
                 }

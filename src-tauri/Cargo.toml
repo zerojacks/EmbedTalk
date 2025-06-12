@@ -19,10 +19,9 @@ debug = true
 debug = true
 
 [dependencies]
-tauri = { version = "2", features = [ "macos-private-api", "tray-icon", "config-json5", "devtools"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-quick-xml = "0.22"
+quick-xml = { version = "0.37.5", features = ["serialize"] }
 lazy_static = "1.5"
 regex = "1"
 hex = "0.4"
@@ -45,26 +44,33 @@ rumqttc = "0.15"
 tokio-serial = "5.4"
 socket2 = "0.4"
 once_cell = "1.21"
-tauri-plugin-os = "2.2.1"
-tauri-plugin-shell = "2.2.1"
-tauri-plugin-global-shortcut = "2.2.0"
-tauri-plugin-fs = "2.2.1"
-tauri-plugin-dialog = "2.2.1"
-tauri-plugin-clipboard-manager = "2.2.2"
 dirs-next = "2.0"
 serde_yaml = "0.9"
 windows = { version = "0.48", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "UI_ViewManagement"] }
 objc = "0.2.7"
-tauri-plugin-process = "2.2.1"
 chrono = { version = "0.4", features = ["serde"] }
-tauri-plugin-log = "2.4.0"
 
-[dependencies.tauri-plugin-sql]
-features = ["sqlite"]
-version = "2.2.0"
+# Web服务器依赖
+axum = { version = "0.7", optional = true }
+tower-http = { version = "0.5", features = ["cors"], optional = true }
+tower = { version = "0.4", optional = true }
+
+# 桌面应用依赖
+tauri = { version = "2", features = [ "macos-private-api", "tray-icon", "config-json5", "devtools"], optional = true }
+tauri-plugin-os = { version = "2.2.1", optional = true }
+tauri-plugin-shell = { version = "2.2.1", optional = true }
+tauri-plugin-global-shortcut = { version = "2.2.0", optional = true }
+tauri-plugin-fs = { version = "2.2.1", optional = true }
+tauri-plugin-dialog = { version = "2.2.1", optional = true }
+tauri-plugin-clipboard-manager = { version = "2.2.2", optional = true }
+tauri-plugin-process = { version = "2.2.1", optional = true }
+tauri-plugin-log = { version = "2.4.0", optional = true }
+tauri-plugin-sql = { version = "2.2.0", features = ["sqlite"], optional = true }
+tauri-plugin-updater = { version = "2", optional = true }
+tauri-plugin-window-state = { version = "2.2.2", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-cocoa = "0.26.0"
+cocoa = { version = "0.26.0", optional = true }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2.2.0"
@@ -75,6 +81,32 @@ tauri-plugin-window-state = "2.2.2"
 windows = { version = "0.48", features = [] }
 
 [features]
-# this feature is used for production builds or when `devPath` points to the filesystem
-# DO NOT REMOVE!!
+# 默认feature
+default = ["desktop"]
+
+# 桌面应用feature
+desktop = [
+    "tauri",
+    "tauri-plugin-os",
+    "tauri-plugin-shell",
+    "tauri-plugin-global-shortcut",
+    "tauri-plugin-fs",
+    "tauri-plugin-dialog",
+    "tauri-plugin-clipboard-manager",
+    "tauri-plugin-process",
+    "tauri-plugin-log",
+    "tauri-plugin-sql",
+    "tauri-plugin-updater",
+    "tauri-plugin-window-state",
+    "cocoa"
+]
+
+# Web服务器feature
+web = [
+    "axum",
+    "tower-http",
+    "tower"
+]
+
+# 这个feature用于生产构建
 custom-protocol = ["tauri/custom-protocol"]

@@ -1,5 +1,3 @@
-// src/global.rs
-
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
 use tauri::AppHandle;

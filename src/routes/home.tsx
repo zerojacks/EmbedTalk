@@ -1,5 +1,4 @@
 import { TreeItemType } from '../components/TreeItem';
-import { invoke } from "@tauri-apps/api/core";
 import { useFrameTreeStore } from '../stores/useFrameAnalysicStore';
 import { useEffect, useRef, useState } from "react";
 import { useProtocolInfoStore } from '../stores/useProtocolInfoStore';
@@ -13,6 +12,8 @@ import { useShortcuts } from "../context/ShortcutProvider";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useDispatch, useSelector } from 'react-redux';
 import { selectSplitSize, setSplitSize } from '../store/slices/splitSizeSlice';
+import api from '../api/index';
+import { initPlatform } from '../utils/platform';
 
 const initialColumns: Column[] = [
   { name: '帧域', width: 30, minWidth: 100 },
@@ -43,6 +44,11 @@ export default function Home() {
   const { region, setRegion } = useProtocolInfoStore();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // 初始化平台检测
+  useEffect(() => {
+    initPlatform();
+  }, []);
+
   const handlePanelResize = (sizes: number[]) => {
     dispatch(setSplitSize(sizes));
   };
@@ -52,7 +58,6 @@ export default function Home() {
     handleParse(newValue);
   };
 
-  
   useEffect(() => {
     const start = selectedframe[0];
     const end = selectedframe[1];
@@ -72,7 +77,6 @@ export default function Home() {
       const scrollLeft = startCharIndex * charWidth;
       setFrameScroll([scrollTop, scrollLeft]);
     }
-
   }, [selectedframe]);
 
   useEffect(() => {
@@ -83,7 +87,6 @@ export default function Home() {
       textarea.scrollTop = scrollTop;
       textarea.scrollLeft = scrollLeft;
     }
-
   },[frameScroll])
 
   const clearTableData = () => {
@@ -125,7 +128,7 @@ export default function Home() {
       let currentRegion = region;
       if (region === "") {
         try {
-          currentRegion = await invoke<string>("get_region_value");
+          currentRegion = await api.getRegion();
         } catch (error) {
           currentRegion = "南网";
         }
@@ -133,10 +136,9 @@ export default function Home() {
       }
       
       try {
-        const result = await invoke<Response>('on_text_change', { 
-          message: formattedValue, 
-          region: currentRegion
-        });
+        console.log("formattedValue", formattedValue)
+        console.log("currentRegion", currentRegion)
+        const result = await api.parseFrame(formattedValue, currentRegion);
         if (result.error) {
           toast.error("解析失败！");
           console.log("错误信息：", result.error);
@@ -145,7 +147,7 @@ export default function Home() {
           setTableData(result.data);
         }
       } catch (error) {
-        console.error("调用后端函数出错：", error);
+        console.error("解析失败:", error);
         toast.error("解析失败！");
       }
     } catch (error) {

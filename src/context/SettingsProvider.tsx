@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { useSelector, useDispatch } from 'react-redux';
 import { selectTheme, setTheme, getEffectiveTheme, selectEffectiveTheme, ThemeOption } from '../store/slices/themeSlice';
-import { curry } from "lodash";
+
 interface SettingsContextInterface {
   theme: ThemeOption;
   effectiveTheme: 'light' | 'dark';
