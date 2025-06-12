@@ -13,8 +13,13 @@ use std::sync::{
 };
 use std::thread;
 use std::time::Instant;
-use tauri::{LogicalPosition, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, LogicalPosition, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tracing::{error, info};
+use chrono::Local;
+use std::fs::{self, File};
+use std::io::{self, Write, BufWriter};
+use std::path::PathBuf;
+
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct WindowPosition {
     pub x: f64,
@@ -677,4 +682,111 @@ pub fn parse_item_data(
 pub fn open_devtools(app_handle: tauri::AppHandle) {
     let window = app_handle.get_webview_window("main").unwrap();
     window.open_devtools();
+}
+
+#[derive(Debug, Serialize)]
+struct ExportProgress {
+    total_entries: usize,
+    processed_entries: usize,
+    current_tag: String,
+    percentage: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FrameEntry {
+    pub id: String,
+    pub pid: u8,
+    pub tag: u8,
+    pub tag_name: Option<String>,  // 添加标签名称字段
+    pub port: u8,
+    pub port_name: Option<String>,  // 添加端口名称字段
+    pub protocol: u8,
+    pub protocol_name: Option<String>,  // 添加协议名称字段
+    pub direction: u8,
+    pub direction_name: Option<String>,  // 添加方向名称字段
+    pub timestamp: String,
+    pub content: String,
+    pub raw_data: String,
+    pub position: Option<usize>,
+}
+
+#[tauri::command]
+pub async fn export_frames(
+    window: tauri::AppHandle,
+    source_path: String,
+    export_dir: String,
+    entries: Vec<FrameEntry>,
+) -> Result<(), String> {
+    // 创建导出目录
+    let file_name = PathBuf::from(&source_path)
+        .file_stem()
+        .and_then(|n| n.to_str())
+        .unwrap_or("export")
+        .to_string();
+    
+    let timestamp = Local::now().format("%Y%m%d_%H%M%S");
+    let export_dir_name = format!("{}_{}", file_name, timestamp);
+    let export_path = PathBuf::from(&export_dir).join(&export_dir_name);
+    
+    fs::create_dir_all(&export_path).map_err(|e| e.to_string())?;
+
+    let total_entries = entries.len();
+    let mut processed_entries = 0;
+
+    // 按标签类型分组，使用流式处理避免一次性加载所有数据
+    let mut writers: std::collections::HashMap<String, BufWriter<File>> = std::collections::HashMap::new();
+    
+    for entry in &entries {
+        let tag_name = entry.tag_name.as_ref()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("unknown_{}", entry.tag));
+        
+        let safe_tag_name = tag_name.chars()
+            .map(|c| if c.is_alphanumeric() || c == '_' || c == '-' { c } else { '_' })
+            .collect::<String>();
+        
+        // 获取或创建文件写入器
+        let writer = writers
+            .entry(safe_tag_name.clone())
+            .or_insert_with(|| {
+                let file_path = export_path.join(format!("frame_{}.txt", safe_tag_name));
+                BufWriter::new(File::create(file_path).unwrap())
+            });
+
+        // 写入数据
+        let line = format!(
+            "[{} PID:{}] {} {} {} {}\n",
+            entry.timestamp,
+            entry.pid,
+            entry.direction_name.as_ref().unwrap_or(
+                &(if entry.direction == 0 { "发送" } else { "接收" }).to_string()
+            ),
+            entry.port_name.as_ref().unwrap_or(&entry.port.to_string()),
+            entry.protocol_name.as_ref().unwrap_or(&entry.protocol.to_string()),
+            entry.content
+        );
+        
+        writer.write_all(line.as_bytes()).map_err(|e| e.to_string())?;
+
+        // 更新进度
+        processed_entries += 1;
+        if processed_entries % 100 == 0 || processed_entries == total_entries {
+            let progress = ExportProgress {
+                total_entries,
+                processed_entries,
+                current_tag: safe_tag_name.clone(),
+                percentage: (processed_entries as f32 / total_entries as f32) * 100.0,
+            };
+            if let Some(main_window) = window.get_webview_window("main") {
+                main_window.emit_to("main", "export-progress", &progress).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
+    // 刷新并关闭所有写入器
+    for (_, mut writer) in writers {
+        writer.flush().map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
 }

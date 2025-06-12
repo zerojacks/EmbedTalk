@@ -16,6 +16,8 @@ export interface FrameFilter {
     direction: number | null;
     startTime: string | null;
     endTime: string | null;
+    minTime: string | null;
+    maxTime: string | null;
 }
 
 interface FrameChunk {
@@ -28,6 +30,7 @@ interface FrameChunk {
 interface FrameFileContents {
     chunks: { [key: number]: FrameChunk };
     filter: FrameFilter;
+    filteredEntries: FrameEntry[] | null;
 }
 
 interface FrameParseState {
@@ -78,7 +81,7 @@ const frameParseSlice = createSlice({
         }>) => {
             const { path, chunk, content, startByte, endByte } = action.payload;
             if (!state.fileContents[path]) {
-                state.fileContents[path] = { chunks: {}, filter: { port: null, protocol: null, direction: null, startTime: null, endTime: null } };
+                state.fileContents[path] = { chunks: {}, filter: { port: null, protocol: null, direction: null, startTime: null, endTime: null, minTime: null, maxTime: null }, filteredEntries: null };
             }
             state.fileContents[path].chunks[chunk] = {
                 content,
@@ -111,29 +114,77 @@ const frameParseSlice = createSlice({
             if (!state.fileContents[path]) {
                 state.fileContents[path] = { 
                     chunks: {},
-                    filter: { port: null, protocol: null, direction: null, startTime: null, endTime: null }
+                    filter: { 
+                        port: null, 
+                        protocol: null, 
+                        direction: null, 
+                        startTime: null, 
+                        endTime: null,
+                        minTime: null,
+                        maxTime: null
+                    },
+                    filteredEntries: null
                 };
             }
+
             state.fileContents[path].filter = {
                 ...state.fileContents[path].filter,
                 ...filter
             };
+
+            const allEntries = Object.values(state.fileContents[path].chunks)
+                .flatMap(chunk => chunk.content);
+
+            if (allEntries.length > 0) {
+                const currentFilter = state.fileContents[path].filter;
+                let filtered = [...allEntries];
+
+                if (currentFilter.port !== null) {
+                    filtered = filtered.filter(entry => entry.port === currentFilter.port);
+                }
+                if (currentFilter.protocol !== null) {
+                    filtered = filtered.filter(entry => entry.protocol === currentFilter.protocol);
+                }
+                if (currentFilter.direction !== null) {
+                    filtered = filtered.filter(entry => entry.direction === currentFilter.direction);
+                }
+                if (currentFilter.startTime) {
+                    filtered = filtered.filter(entry => entry.timestamp >= currentFilter.startTime!);
+                }
+                if (currentFilter.endTime) {
+                    filtered = filtered.filter(entry => entry.timestamp <= currentFilter.endTime!);
+                }
+
+                state.fileContents[path].filteredEntries = filtered;
+            }
         },
         initializeFrameFilter: (state, action: PayloadAction<{
             path: string;
-            minTime?: string;
-            maxTime?: string;
+            entries: FrameEntry[];
         }>) => {
-            const { path, minTime, maxTime } = action.payload;
+            const { path, entries } = action.payload;
+            
+            let minTime = null;
+            let maxTime = null;
+            
+            if (entries.length > 0) {
+                const times = entries.map(entry => entry.timestamp);
+                minTime = times.reduce((a, b) => a < b ? a : b);
+                maxTime = times.reduce((a, b) => a > b ? a : b);
+            }
+
             state.fileContents[path] = {
                 chunks: {},
                 filter: {
                     port: null,
                     protocol: null,
                     direction: null,
-                    startTime: minTime || null,
-                    endTime: maxTime || null
-                }
+                    startTime: minTime,
+                    endTime: maxTime,
+                    minTime,
+                    maxTime
+                },
+                filteredEntries: entries
             };
         },
         setLoading: (state, action: PayloadAction<boolean>) => {
@@ -157,6 +208,8 @@ export const selectFrameFilter = (state: RootState) => {
 };
 export const selectIsLoading = (state: RootState) => state.frameParse.isLoading;
 export const selectError = (state: RootState) => state.frameParse.error;
+export const selectFilteredFrames = (state: RootState, path: string) => 
+    state.frameParse.fileContents[path]?.filteredEntries || [];
 
 export const {
     addFrameFile,

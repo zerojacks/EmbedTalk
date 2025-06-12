@@ -125,6 +125,7 @@ fn main() {
             taurihandler::handler::open_devtools,
             taurihandler::channel_handler::subscribe_mqtt_topic,
             taurihandler::channel_handler::unsubscribe_mqtt_topic,
+            taurihandler::handler::export_frames,
             parse_item_data,
         ])
         .run(tauri::generate_context!())

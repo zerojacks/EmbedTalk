@@ -2,10 +2,11 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 import { AiOutlineSetting, AiOutlineHome } from "react-icons/ai";
 import { MdOutlineMonitor, MdOutlineDevices } from "react-icons/md";
 import { BiNetworkChart } from "react-icons/bi";
-import { TbDeviceAnalytics, TbReportAnalytics } from "react-icons/tb";
+import { TbDeviceAnalytics, TbReportAnalytics, TbFileAnalytics } from "react-icons/tb";
 import { BiSolidFileArchive } from "react-icons/bi";
 import { FiTool,FiDatabase } from "react-icons/fi";
 import { VscOutput } from "react-icons/vsc";
+import { IoLogoApple } from "react-icons/io";
 import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
@@ -107,7 +108,7 @@ export default function Layout() {
             />
           </Link>
           <Link className={linkClass} to="/frame-parse">
-            <VscOutput
+            <TbFileAnalytics
               className={clsx(defaultClass, {
                 [selectedClass]: location.pathname === "/frame-parse",
               })}
