@@ -3,18 +3,20 @@ import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import { store, persistor } from './store';
-import Layout from "./layout";
-import ErrorPage from "./error-page";
-import Home from "./routes/home";
-import Settings from "./routes/settings";
 import { TauriProvider } from "./context/TauriProvider";
+import { PlatformProvider } from './context/PlatformProvider';
 import "./styles.css";
 import { SettingsProvider } from "./context/SettingsProvider";
 import { ToastProvider, initializeToast  } from './context/ToastProvider';
 import { ShortcutProvider } from './context/ShortcutProvider';
 import { TrayProvider } from './context/TrayProvider';
 import { UpdateProvider } from './context/UpdateProvider';
+
+import { store, persistor } from './store';
+import Layout from "./layout";
+import ErrorPage from "./error-page";
+import Home from "./routes/home";
+import Settings from "./routes/settings";
 import Itemconfig from "./routes/itemconfig"
 import ChannelMonitorRedux from "./routes/ChannelMonitorRedux";
 import QuickParse from "./routes/quick-parse";
@@ -89,22 +91,24 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <Provider store={store}>
       <PersistGate persistor={persistor}>
-        <TauriProvider>
-          <SettingsProvider>
-            <ToastProvider>
-              <UpdateProvider>
-                <ShortcutProvider>
-                  <TrayProvider>
-                    <>
-                      <RouterProvider router={router} />
-                      <UpdateProgress />
-                    </>
-                  </TrayProvider>
-                </ShortcutProvider>
-              </UpdateProvider>
-            </ToastProvider>
-          </SettingsProvider>
-        </TauriProvider>
+        <PlatformProvider>
+          <TauriProvider>
+            <SettingsProvider>
+              <ToastProvider>
+                <UpdateProvider>
+                  <ShortcutProvider>
+                    <TrayProvider>
+                      <>
+                        <RouterProvider router={router} />
+                        <UpdateProgress />
+                      </>
+                    </TrayProvider>
+                  </ShortcutProvider>
+                </UpdateProvider>
+              </ToastProvider>
+            </SettingsProvider>
+          </TauriProvider>
+        </PlatformProvider>
       </PersistGate>
     </Provider>
   </React.StrictMode>

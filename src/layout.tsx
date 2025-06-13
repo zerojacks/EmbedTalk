@@ -11,18 +11,16 @@ import clsx from "clsx";
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import AboutDialog from "./components/AboutDialog";
-import { isPlatform } from "./utils/platform";
 import { SettingsDrawer } from "./components/SettingsDrawer";
-import Home from "./routes/home";
 import { useSettingsContext } from "./context/SettingsProvider";
+import { usePlatform } from './context/PlatformProvider';
 
 export default function Layout() {
   const location = useLocation();
   const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const navigate = useNavigate();
   const { theme, setTheme } = useSettingsContext();
-
+  const { isWeb } = usePlatform();
   useEffect(() => {
     // 监听来自托盘的关于对话框显示事件
     const unlisten = listen("show-about-dialog", () => {
@@ -42,7 +40,7 @@ export default function Layout() {
   const defaultClass = "w-5 h-5";
 
   // Web环境下的布局
-  if (!isPlatform.isDesktop) {
+  if (isWeb) {
     let linkClass = "hover:text-accent flex items-center gap-2 px-3 py-2";
 
     return (

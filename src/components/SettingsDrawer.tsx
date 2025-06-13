@@ -2,7 +2,7 @@ import React from 'react';
 import { AiOutlineClose } from 'react-icons/ai';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectRegion, selectTheme, setRegion, setTheme, SettingsState } from '../store/slices/settingsSlice';
-import api from '../api';
+import { getApi } from '../api';
 
 
 interface SettingsDrawerProps {
@@ -15,13 +15,27 @@ export function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps) {
     const region = useAppSelector(selectRegion);
 
     React.useEffect(() => {
+        const fetchRegion = async () => {
+            try {
+                const api = await getApi();
+                const region = await api.getRegion();
+                dispatch(setRegion(region as SettingsState['region']));
+            } catch (error) {
+                console.error('Failed to get region:', error);
+            }
+        };
         // 获取初始区域设置
-        api.getRegion().then(region => dispatch(setRegion(region as SettingsState['region']))).catch(console.error)
-    }, []);
+        fetchRegion();
+    }, [dispatch]);
 
-    const handleRegionChange = (newRegion: SettingsState['region']) => {
-        api.setRegion(newRegion)
-        dispatch(setRegion(newRegion));
+    const handleRegionChange = async (newRegion: SettingsState['region']) => {
+        try {
+            const api = await getApi();
+            await api.setRegion(newRegion);
+            dispatch(setRegion(newRegion));
+        } catch (error) {
+            console.error('Failed to set region:', error);
+        }
     };
 
     return (

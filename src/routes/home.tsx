@@ -12,8 +12,7 @@ import { useShortcuts } from "../context/ShortcutProvider";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useDispatch, useSelector } from 'react-redux';
 import { selectSplitSize, setSplitSize } from '../store/slices/splitSizeSlice';
-import api from '../api/index';
-import { initPlatform } from '../utils/platform';
+import { getApi } from '../api';
 
 const initialColumns: Column[] = [
   { name: '帧域', width: 30, minWidth: 100 },
@@ -43,11 +42,6 @@ export default function Home() {
   const { historyVisible, setHistoryVisible } = useShortcuts();
   const { region, setRegion } = useProtocolInfoStore();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  // 初始化平台检测
-  useEffect(() => {
-    initPlatform();
-  }, []);
 
   const handlePanelResize = (sizes: number[]) => {
     dispatch(setSplitSize(sizes));
@@ -125,6 +119,7 @@ export default function Home() {
         return;
       }
 
+      const api = await getApi();
       let currentRegion = region;
       if (region === "") {
         try {
