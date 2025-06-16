@@ -2534,7 +2534,10 @@ impl FrameCsg {
                                 (new_sub_length, sub_datament)
                             } else {
                                 // 解析 sub_length_cont 为 usize
-                                let sub_length = sub_length_cont.parse::<usize>()?;
+                                let mut sub_length = sub_length_cont.parse::<usize>()?;
+                                if sub_length > data_segment.len() - pos - 4 {
+                                    sub_length = data_segment.len() - pos - 4;
+                                }
                                 let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                                 // 重新计算长度并获取新的数据段
                                 let (new_sub_length, new_datament) = Self::recalculate_sub_length(
@@ -2778,7 +2781,10 @@ impl FrameCsg {
                             let new_sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                             (new_sub_length, new_sub_datament)
                         } else {
-                            let sub_length = sub_length_cont.parse::<usize>().unwrap();
+                            let mut sub_length = sub_length_cont.parse::<usize>().unwrap();
+                            if sub_length > data_segment.len() - pos - 4 {
+                                sub_length = data_segment.len() - pos - 4;
+                            }
                             let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                             let (new_sub_length, new_datament) = Self::recalculate_sub_length(
                                 &mut data_item_elem,
@@ -3065,7 +3071,10 @@ impl FrameCsg {
                             let sub_datament = &data_segment[pos..pos + sub_length];
                             (sub_length, sub_datament)
                         } else {
-                            let sub_length = sub_length_cont.parse::<usize>().unwrap();
+                            let mut sub_length = sub_length_cont.parse::<usize>().unwrap();
+                            if sub_length > data_segment.len() - pos {
+                                sub_length = data_segment.len() - pos;
+                            }
                             let sub_datament = &data_segment[pos..pos + sub_length];
                             let (new_sub_length, new_datament) = Self::recalculate_sub_length(
                                 &mut item_elem,
@@ -3324,7 +3333,10 @@ impl FrameCsg {
                             let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                             (sub_length, sub_datament)
                         } else {
-                            let sub_length = sub_length_cont.parse::<usize>().unwrap();
+                            let mut sub_length = sub_length_cont.parse::<usize>().unwrap();
+                            if sub_length > data_segment.len() - pos - 4 {
+                                sub_length = data_segment.len() - pos - 4;
+                            }
                             let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                             let (new_sub_length, new_datament) = Self::recalculate_sub_length(
                                 &mut data_item_elem,
@@ -3709,7 +3721,7 @@ impl FrameCsg {
                             let mut sub_length = sub_length_cont.parse::<usize>().unwrap();
                             // info!("sub_length {:?} pos{:?} data_len {:?}", sub_length, pos, data_segment.len());
                             if sub_length > data_segment[pos..].len() {
-                                sub_length = data_segment.len() - pos;
+                                sub_length = data_segment[pos..].len();
                             }
                             let sub_datament = &data_segment[pos..pos + sub_length];
                             let (new_sub_length, new_datament) = Self::recalculate_sub_length(
@@ -4003,7 +4015,10 @@ impl FrameCsg {
                             let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                             (sub_length, sub_datament)
                         } else {
-                            let sub_length = sub_length_cont.parse::<usize>().unwrap();
+                            let mut sub_length = sub_length_cont.parse::<usize>().unwrap();
+                            if sub_length > data_segment.len() - pos - 4 {
+                                sub_length = data_segment.len() - pos - 4;
+                            }
                             let new_sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                             let (new_sub_length, new_datament) = Self::recalculate_sub_length(
                                 &mut data_item_elem,
@@ -4486,7 +4501,10 @@ impl FrameCsg {
                         let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                         (sub_length, sub_datament)
                     } else {
-                        let sub_length = sub_length_cont.parse::<usize>()?;
+                        let mut sub_length = sub_length_cont.parse::<usize>()?;
+                        if sub_length > data_segment.len() - pos - 4 {
+                            sub_length = data_segment.len() - pos - 4;
+                        }
                         let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                         let (sub_length, new_datament) = Self::recalculate_sub_length(
                             &mut data_item_elem,
@@ -4562,7 +4580,10 @@ impl FrameCsg {
                         let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                         (sub_length, sub_datament)
                     } else {
-                        let sub_length = sub_length_cont.parse::<usize>()?;
+                        let mut sub_length = sub_length_cont.parse::<usize>()?;
+                        if sub_length > data_segment.len() - pos - 4 {
+                            sub_length = data_segment.len() - pos - 4;
+                        }
                         let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                         let (sub_length, new_datament) = Self::recalculate_sub_length(
                             &mut data_item_elem,
@@ -4760,7 +4781,10 @@ impl FrameCsg {
                     let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                     (sub_length, sub_datament)
                 } else {
-                    let sub_length = sub_length_cont.parse::<usize>()?;
+                    let mut sub_length = sub_length_cont.parse::<usize>()?;
+                    if sub_length > data_segment.len() - pos - 4 {
+                        sub_length = data_segment.len() - pos - 4;
+                    }
                     let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                     let (sub_length, new_datament) = Self::recalculate_sub_length(
                         &mut data_item_elem,

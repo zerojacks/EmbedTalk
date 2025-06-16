@@ -142,7 +142,10 @@ impl SpcialFrame {
                         let sub_datament = &data_segment[pos..pos + sub_length];
                         (sub_length, sub_datament)
                     } else {
-                        let sub_length = sub_length_cont.parse::<usize>().unwrap();
+                        let mut sub_length = sub_length_cont.parse::<usize>().unwrap();
+                        if sub_length > data_segment.len() - pos {
+                            sub_length = data_segment.len() - pos;
+                        }
                         let sub_datament = &data_segment[pos..pos + sub_length];
                         let (new_sub_length, new_datament) = FrameCsg::recalculate_sub_length(
                             &mut item_elem,
