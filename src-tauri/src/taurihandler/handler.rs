@@ -17,7 +17,7 @@ use tauri::{Emitter, LogicalPosition, Manager, State, WebviewUrl, WebviewWindowB
 use tracing::{error, info};
 use chrono::Local;
 use std::fs::{self, File};
-use std::io::{self, Write, BufWriter};
+use std::io::{Write, BufWriter};
 use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]

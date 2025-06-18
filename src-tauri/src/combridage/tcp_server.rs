@@ -3,11 +3,9 @@ use crate::combridage::CommunicationChannel;
 use crate::combridage::{ChannelState, Message};
 use crate::global::get_app_handle;
 use async_trait::async_trait;
-use chrono;
 use serde_json;
 use std::collections::HashMap;
 use std::error::Error;
-use std::io::Error as IoError;
 use std::sync::Arc;
 use tauri::Emitter;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -457,7 +455,7 @@ impl CommunicationChannel for TcpServerChannel {
 
     async fn receive(&self) -> Result<Message, Box<dyn Error + Send + Sync>> {
         // 使用带超时的通道来接收消息
-        let (tx, mut rx) = mpsc::channel::<(String, Vec<u8>)>(32);
+        let (tx, _rx) = mpsc::channel::<(String, Vec<u8>)>(32);
         let timeout_duration = Duration::from_millis(100);
 
         let client_refs: Vec<(String, TcpClientOfServer)> = {

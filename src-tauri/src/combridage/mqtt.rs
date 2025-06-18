@@ -47,7 +47,7 @@ impl MqttChannel {
         let mut mqttoptions = MqttOptions::new(client_id, broker, port);
         mqttoptions.set_keep_alive(Duration::from_secs(5));
 
-        let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+        let (client, eventloop) = AsyncClient::new(mqttoptions, 10);
         client.subscribe(topic, qos).await?;
 
         let (shutdown_signal, _) = broadcast::channel(1);

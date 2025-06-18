@@ -148,7 +148,7 @@ impl SerialPortChannel {
 
         let handle = tokio::spawn(async move {
             while let Ok(data) = rx.recv().await {
-                if let Some(mut writer) = writer.lock().await.as_mut() {
+                if let Some(writer) = writer.lock().await.as_mut() {
                     if let Err(e) = writer.write_all(&data).await {
                         eprintln!("发送数据时发生错误: {:?}", e);
                         break;
@@ -173,7 +173,7 @@ impl SerialPortChannel {
         // 启动数据接收任务
         let receive_handle = tokio::spawn(async move {
             let mut buffer = vec![0; 1024];
-            while let Some(mut reader) = reader.lock().await.as_mut() {
+            while let Some(reader) = reader.lock().await.as_mut() {
                 match reader.read(&mut buffer).await {
                     Ok(n) if n > 0 => {
                         let received_data = buffer[..n].to_vec();

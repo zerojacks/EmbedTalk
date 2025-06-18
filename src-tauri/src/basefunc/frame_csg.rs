@@ -2076,7 +2076,7 @@ impl FrameCsg {
                     (1, &data_segment[pos + 4..pos + 4 + 1])
                 } else {
                     let sub_length_cont = data_item_elem.get_child_text("length");
-                    let sub_length = if let Some(sub_length_cont) = sub_length_cont {
+                    let mut sub_length = if let Some(sub_length_cont) = sub_length_cont {
                         if sub_length_cont.to_uppercase() == "UNKNOWN" {
                             Self::calculate_item_length(
                                 &mut data_item_elem,
@@ -2096,6 +2096,9 @@ impl FrameCsg {
                         "sub_length: {:?} data_segment: {:?}",
                         sub_length, data_segment
                     );
+                    if sub_length > data_segment[pos + 4..].len() {
+                        sub_length = data_segment[pos + 4..].len();
+                    }
                     let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                     (sub_length, sub_datament)
                 };
@@ -2297,7 +2300,7 @@ impl FrameCsg {
                     (1, &data_segment[pos + 4..pos + 4 + 1])
                 } else {
                     let sub_length_cont = data_item_elem.get_child_text("length");
-                    let sub_length = if let Some(sub_length_cont) = sub_length_cont {
+                    let mut sub_length = if let Some(sub_length_cont) = sub_length_cont {
                         if sub_length_cont.to_uppercase() == "UNKNOWN" {
                             Self::calculate_item_length(
                                 &mut data_item_elem,
@@ -2313,6 +2316,9 @@ impl FrameCsg {
                     } else {
                         data_segment[pos + 4..].len()
                     };
+                    if sub_length > data_segment[pos + 4..].len() {
+                        sub_length = data_segment[pos + 4..].len();
+                    }
                     let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                     (sub_length, sub_datament)
                 };
@@ -4272,7 +4278,10 @@ impl FrameCsg {
                         let new_segment = &data_segment[pos + 4..pos + 4 + sub_length];
                         (sub_length, new_segment)
                     } else {
-                        let sub_length = sub_length_cont.parse::<usize>()?;
+                        let mut sub_length = sub_length_cont.parse::<usize>()?;
+                        if sub_length > data_segment[pos + 4..].len() {
+                            sub_length = data_segment[pos + 4..].len();
+                        }
                         let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                         (sub_length, sub_datament)
                     };
@@ -4987,7 +4996,7 @@ impl FrameCsg {
                     (1, &data_segment[pos + 4..pos + 4 + 1])
                 } else {
                     let sub_length_cont = data_item_elem.get_child_text("length");
-                    let sub_length = if let Some(sub_length_cont) = sub_length_cont {
+                    let mut sub_length = if let Some(sub_length_cont) = sub_length_cont {
                         if sub_length_cont.to_uppercase() == "UNKNOWN" {
                             Self::calculate_item_length(
                                 &mut data_item_elem,
@@ -5003,6 +5012,9 @@ impl FrameCsg {
                     } else {
                         data_segment[pos + 4..].len()
                     };
+                    if sub_length > data_segment[pos + 4..].len() {
+                        sub_length = data_segment[pos + 4..].len();
+                    }
                     let sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
                     (sub_length, sub_datament)
                 };

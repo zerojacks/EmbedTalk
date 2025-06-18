@@ -1,6 +1,4 @@
-use crate::combridage::messagemanager::{MessageDirection, MessageManager};
 use crate::combridage::BluetoothChannel;
-use crate::combridage::ChannelState;
 use crate::combridage::ChannelType;
 use crate::combridage::CommunicationChannel;
 use crate::combridage::Message;
@@ -8,16 +6,12 @@ use crate::combridage::MqttChannel;
 use crate::combridage::SerialPortChannel;
 use crate::combridage::TcpClientChannel;
 use crate::combridage::TcpServerChannel;
-use crate::global::get_app_handle;
-use crate::taurihandler::channel_handler::get_channel_manager;
 use rumqttc::QoS;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
-use tokio::time::{sleep, Duration};
-use uuid::Uuid;
 
 pub struct CommunicationManager {
     channels: HashMap<ChannelType, Arc<Box<dyn CommunicationChannel>>>,
