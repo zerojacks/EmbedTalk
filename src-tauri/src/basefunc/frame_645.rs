@@ -510,8 +510,8 @@ impl Frame645 {
         let data_identifier = &frame[10..14];
         let data_content = &frame[14..frame.len() - 2];
         let length = frame.len();
+        let mut pos = 0;
         let data_item_str = FrameFun::get_data_str_delete_33h_reverse(data_identifier);
-        let mut index = indx;
         if let Some(mut data_item_elem) =
             ProtocolConfigManager::get_config_xml(&data_item_str, protocol, region, Some(dir))
         {
@@ -542,7 +542,7 @@ impl Frame645 {
                 data_content.len()
             };
 
-            let mut all_length = data_content.len();
+            let all_length = data_content.len();
             if all_length % sublength != 0 && all_length > sublength {
                 let time = &data_content[..5];
                 let time_str = FrameFun::parse_time_data(time, "mmhhDDMMYY", true);
@@ -551,15 +551,13 @@ impl Frame645 {
                     "数据起始时间".to_string(),
                     FrameFun::get_data_str_with_space(time),
                     time_str,
-                    vec![index + 14, index + 19],
+                    vec![indx + 14, indx + 19],
                     None,
                     None,
                 );
-                all_length -= 5;
-                index += 5;
+                pos += 5;
             }
 
-            let mut pos = 0;
             println!(
                 "pos={},sublength={} data_item_str={} all_length={}",
                 pos, sublength, data_item_str, all_length
@@ -571,7 +569,7 @@ impl Frame645 {
                     protocol,
                     region,
                     &data_content[pos..pos + sublength],
-                    14 + pos + index,
+                    14 + pos,
                     Some(dir),
                 );
                 pos += sublength;
@@ -591,7 +589,7 @@ impl Frame645 {
                 "数据标识编码".to_string(),
                 FrameFun::get_data_str_with_space(data_identifier),
                 data_identifier_str.clone(),
-                vec![index + 10, index + 14],
+                vec![indx + 10, indx + 14],
                 None,
                 None,
             );
@@ -604,7 +602,7 @@ impl Frame645 {
                     data_item_str.clone(),
                     FrameFun::get_data_str_delete_33h_reverse(data_content)
                 ),
-                vec![index + 14, index + length - 2],
+                vec![indx + 14, indx + length - 2],
                 Some(sub_result),
                 None,
             );
@@ -615,7 +613,7 @@ impl Frame645 {
                 "数据标识编码".to_string(),
                 FrameFun::get_data_str_with_space(data_identifier),
                 dis_data_identifier.clone(),
-                vec![index + 10, index + 14],
+                vec![indx + 10, indx + 14],
                 None,
                 None,
             );
@@ -628,7 +626,7 @@ impl Frame645 {
                     data_item_str.clone(),
                     FrameFun::get_data_str_delete_33h_reverse(data_content)
                 ),
-                vec![index + 14, index + length - 2],
+                vec![indx + 14, indx + length - 2],
                 None,
                 None,
             );
@@ -639,7 +637,7 @@ impl Frame645 {
             "数据域".to_string(),
             "".to_string(),
             "数据域传输时按字节进行加33H处理，接收后应按字节减33H处理".to_string(),
-            vec![index + 10, index + length - 2],
+            vec![indx + 10, indx + length - 2],
             Some(data_list),
             None,
         );

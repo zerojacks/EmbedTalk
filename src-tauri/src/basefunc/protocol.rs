@@ -1618,8 +1618,11 @@ impl FrameAnalisyic {
                     dir,
                 );
                 let item_id = FrameFun::get_data_str(sub_data, false, true, false);
-                let item_description: String = item_id.clone();
-                // println!("prase_template_type item_id: {:?}", item_id);
+                let item_description: String = format!("[{}]: {}", item_name, item_id);
+                println!(
+                    "prase_template_type item_id: {:?} {:?} {:?}",
+                    item_id, item_value, item_description
+                );
                 // if let Some(item_element) = ProtocolConfigManager::get_config_xml(&item_id, protocol, region, dir) {
                 //     if let Some(element_name) = item_element.get_child_text("name") {
                 //         item_description = format!("{} {}", item_description, element_name);

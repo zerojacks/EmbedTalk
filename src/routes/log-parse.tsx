@@ -871,11 +871,10 @@ export default function LogParse() {
             dispatch(setLoading(true));
             
             const buffer = await readFile(filePath);
-            const end = Math.min(start + CHUNK_SIZE, buffer.length);
-            const slice = buffer.slice(start, end);
+            const end = buffer.length;
             
-            // 使用 logParser 服务解析日志
-            const entries = parseLogChunk(slice, 0, slice.length);
+            // 使用 logParser 服务解析日志，现在使用并行处理
+            const entries = await parseLogChunk(buffer, start, end, CHUNK_SIZE);
             
             // 将解析的日志条目添加到Redux存储中
             dispatch(addLogChunk({
@@ -887,7 +886,6 @@ export default function LogParse() {
             }));
             
             // 清理旧的块，保持内存使用量合理
-            // 使用新的参数格式，指定排除当前文件
             dispatch(clearOldChunks({
                 maxAge: CACHE_MAX_AGE,
                 excludePath: filePath // 不清理当前文件的块

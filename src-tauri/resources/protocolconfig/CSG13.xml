@@ -41097,7 +41097,7 @@
 			<name>当前有功需量</name>
 			<length>3</length>
 			<decimal>4</decimal>
-			<unit>kW</unit>
+			<unit>kvarh</unit>
 			<sign>yes</sign>
 		</dataItem>
 		<dataItem id="06100802">
@@ -41108,7 +41108,293 @@
 			<sign>yes</sign>
 		</dataItem>
 	</dataItem>
-
+	<dataItem id="061030FF" protocol="csg13" region="南网">
+		<name>组合无功总电能数据块</name>
+		<length>10</length>
+		<dataItem id="06103001">
+			<name>组合无功1总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kvarh</unit>
+		</dataItem>
+		<dataItem id="06103002">
+			<name>组合无功2总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kvarh</unit>
+		</dataItem>
+	</dataItem>
+	<dataItem id="061101FF" protocol="csg13" region="南网">
+		<name>电压数据块</name>
+		<length>6</length>
+		<dataItem id="06110101">
+			<name>A相电压</name>
+			<length>2</length>
+			<unit>V</unit>
+			<decimal>1</decimal>
+		</dataItem>
+		<dataItem id="06110102">
+			<name>B相电压</name>
+			<length>2</length>
+			<unit>V</unit>
+			<decimal>1</decimal>
+		</dataItem>
+		<dataItem id="06110103">
+			<name>C相电压</name>
+			<length>2</length>
+			<unit>V</unit>
+			<decimal>1</decimal>
+		</dataItem>
+	</dataItem>
+	<dataItem id="061102FF" protocol="csg13" region="南网">
+		<name>电流数据块</name>
+		<length>9</length>
+		<dataItem id="06110201">
+			<name>A相电流</name>
+			<length>3</length>
+			<unit>A</unit>
+			<decimal>3</decimal>
+			<sign>yes</sign>
+		</dataItem>
+		<dataItem id="06110202">
+			<name>B相电流</name>
+			<length>3</length>
+			<unit>A</unit>
+			<decimal>3</decimal>
+			<sign>yes</sign>
+		</dataItem>
+		<dataItem id="06110203">
+			<name>C相电流</name>
+			<length>3</length>
+			<unit>A</unit>
+			<decimal>3</decimal>
+			<sign>yes</sign>
+		</dataItem>
+	</dataItem>
+	<dataItem id="061103FF" protocol="csg13" region="南网">
+		<name>有功功率数据块</name>
+		<length>12</length>
+		<dataItem id="06110300">
+			<name>总有功功率</name>
+			<length>3</length>
+			<unit>kW</unit>
+			<decimal>4</decimal>
+			<sign>yes</sign>
+		</dataItem>
+		<dataItem id="06110301">
+			<name>A相有功功率</name>
+			<length>3</length>
+			<unit>kW</unit>
+			<decimal>4</decimal>
+			<sign>yes</sign>
+		</dataItem>
+		<dataItem id="06110302">
+			<name>B相有功功率</name>
+			<length>3</length>
+			<unit>kW</unit>
+			<decimal>4</decimal>
+			<sign>yes</sign>
+		</dataItem>
+		<dataItem id="06110303">
+			<name>C相有功功率</name>
+			<length>3</length>
+			<unit>kW</unit>
+			<decimal>4</decimal>
+			<sign>yes</sign>
+		</dataItem>
+	</dataItem>
+	<dataItem id="061104FF" protocol="csg13" region="南网">
+		<name>无功功率数据块</name>
+		<length>12</length>
+		<dataItem id="06110400">
+			<name>总无功功率</name>
+			<length>3</length>
+			<unit>kvar</unit>
+			<decimal>4</decimal>
+			<sign>yes</sign>
+		</dataItem>
+		<dataItem id="06110401">
+			<name>A相无功功率</name>
+			<length>3</length>
+			<unit>kvar</unit>
+			<decimal>4</decimal>
+			<sign>yes</sign>
+		</dataItem>
+		<dataItem id="06110402">
+			<name>B相无功功率</name>
+			<length>3</length>
+			<unit>kvar</unit>
+			<decimal>4</decimal>
+			<sign>yes</sign>
+		</dataItem>
+		<dataItem id="06110403">
+			<name>C相无功功率</name>
+			<length>3</length>
+			<unit>kvar</unit>
+			<decimal>4</decimal>
+			<sign>yes</sign>
+		</dataItem>
+	</dataItem>
+	<dataItem id="061105FF" protocol="csg13" region="南网">
+		<name>功率因数数据块</name>
+		<length>8</length>
+		<dataItem id="06110500">
+			<name>总功率因数</name>
+			<length>2</length>
+			<decimal>3</decimal>
+			<sign>yes</sign>
+		</dataItem>
+		<dataItem id="06110501">
+			<name>A相功率因数</name>
+			<length>2</length>
+			<decimal>3</decimal>
+			<sign>yes</sign>
+		</dataItem>
+		<dataItem id="06110502">
+			<name>B相功率因数</name>
+			<length>2</length>
+			<decimal>3</decimal>
+			<sign>yes</sign>
+		</dataItem>
+		<dataItem id="06110503">
+			<name>C相功率因数</name>
+			<length>2</length>
+			<decimal>3</decimal>
+			<sign>yes</sign>
+		</dataItem>
+	</dataItem>
+	<dataItem id="061106FF" protocol="csg13" region="南网">
+		<name>有功，无功总电能数据块</name>
+		<length>10</length>
+		<dataItem id="06110601">
+			<name>正向有功总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+		<dataItem id="06110602">
+			<name>反向有功总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+	</dataItem>
+	<dataItem id="061107FF" protocol="csg13" region="南网">
+		<name>四象限无功总电能数据块</name>
+		<length>20</length>
+		<dataItem id="06110701">
+			<name>第一象限无功总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kvarh</unit>
+		</dataItem>
+		<dataItem id="06110702">
+			<name>第二象限无功总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kvarh</unit>
+		</dataItem>
+		<dataItem id="06110703">
+			<name>第三象限无功总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kvarh</unit>
+		</dataItem>
+		<dataItem id="06110704">
+			<name>第四象限无功总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kvarh</unit>
+		</dataItem>
+	</dataItem>
+	<dataItem id="061109FF" protocol="csg13" region="南网">
+		<name>谐波总电能曲线数据块</name>
+		<length>10</length>
+		<dataItem id="06110901">
+			<name>正向有功谐波总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+		<dataItem id="06110902">
+			<name>反向有功谐波总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+	</dataItem>
+	<dataItem id="06110AFF" protocol="csg13" region="南网">
+		<name>基波总电能曲线数据块</name>
+		<length>10</length>
+		<dataItem id="06110A01">
+			<name>正向有功基波总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+		<dataItem id="06110A02">
+			<name>反向有功基波总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+	</dataItem>
+	<dataItem id="06100CFF" protocol="csg13" region="南网">
+		<name>组合有功费率1-4电能曲线数据块</name>
+		<length>20</length>
+		<dataItem id="06100C01">
+			<name>组合有功费率1总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+		<dataItem id="06100C02">
+			<name>组合有功费率2总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+		<dataItem id="06100C03">
+			<name>组合有功费率3总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+		<dataItem id="06100C04">
+			<name>组合有功费率4总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+	</dataItem>
+	<dataItem id="06100DFF" protocol="csg13" region="南网">
+		<name>组合有功费率5-8电能曲线数据块</name>
+		<length>20</length>
+		<dataItem id="06100D01">
+			<name>组合有功费率5总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+		<dataItem id="06100D02">
+			<name>组合有功费率6总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+		<dataItem id="06100D03">
+			<name>组合有功费率7总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+		<dataItem id="06100D04">
+			<name>组合有功费率8总电能</name>
+			<length>5</length>
+			<decimal>4</decimal>
+			<unit>kWh</unit>
+		</dataItem>
+	</dataItem>
 	<dataItem id="E0001211" protocol="csg13" region="南网">
 		<name>对空调遥控设置制冷温值</name>
 		<length>16</length>
@@ -51663,6 +51949,230 @@
 		<length>6</length>
 		<type>BCD</type>
 	</dataItem>
+	<dataItem id="E1006004" protocol="csg13" region="南网">
+		<name>网络拓扑信息</name>
+		<length>unknown</length>
+		<splitByLength>
+			<name>节点总数量</name>
+			<length>2</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>节点起始序号</name>
+			<length>2</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>本次应答的节点数量</name>
+			<length>1</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>节点网络拓扑信息</name>
+			<length>unknown</length>
+			<lengthrule>19 * 本次应答的节点数量</lengthrule>
+			<type>NETTOPOINFO</type>
+		</splitByLength>
+	</dataItem>
+	<template id="NETTOPOINFO" protocol="csg13" region="南网">
+		<length>19</length>
+		<name>节点%d网络拓扑信息</name>
+		<splitByLength>
+			<name>节点地址</name>
+			<length>6</length>
+			<type>NORMAL</type>
+		</splitByLength>
+		<splitByLength>
+			<name>网络拓扑信息</name>
+			<length>13</length>
+			<type>NORMAL</type>
+		</splitByLength>
+	</template>
+	<dataItem id="E1006005" protocol="csg13" region="南网">
+		<name>多网络信息</name>
+		<length>unknown</length>
+		<splitByLength>
+			<name>多网络节点总数量</name>
+			<length>1</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>本节点网络标识号</name>
+			<length>1</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>本节点主节点地址</name>
+			<length>6</length>
+			<type>NORMAL</type>
+		</splitByLength>
+		<splitByLength>
+			<name>邻居节点网络标识号</name>
+			<length>unknown</length>
+			<lengthrule>1 * 多网络节点总数量</lengthrule>
+			<type>NEIGHBORNODE</type>
+		</splitByLength>
+	</dataItem>
+	<template id="NEIGHBORNODE" protocol="csg13" region="南网">
+		<length>1</length>
+		<name>邻居节点%d网络标识号</name>
+		<splitByLength>
+			<name>邻居节点网络标识号</name>
+			<length>1</length>
+			<type>BIN</type>
+		</splitByLength>
+	</template>
+	<dataItem id="E1006006" protocol="csg13" region="南网">
+		<name>白名单生效信息</name>
+		<length>2</length>
+		<splitByLength>
+			<name>白名单开关</name>
+			<length>1</length>
+			<type>BIN</type>
+			<value key="00">关闭</value>
+			<value key="01">开启</value>
+		</splitByLength>
+		<splitByLength>
+			<name>白名单生效范围</name>
+			<length>1</length>
+			<type>BIN</type>
+			<value key="00">表档案</value>
+			<value key="01">厂家自定义</value>
+			<value key="02">表档案和厂家自定义</value>
+			<value key="other">保留</value>
+		</splitByLength>
+	</dataItem>
+	<dataItem id="E1006007" protocol="csg13" region="南网">
+		<name>节点运行时长</name>
+		<length>4</length>
+		<type>BIN</type>
+		<unit>秒</unit>
+	</dataItem>
+	<dataItem id="E1006008" protocol="csg13" region="南网">
+		<name>从节点入网被拒信息</name>
+		<length>unknown</length>
+		<splitByLength>
+			<name>从节点数量</name>
+			<length>2</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>本次应答节点数量</name>
+			<length>1</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>从节点入网被拒信息</name>
+			<length>unknown</length>
+			<lengthrule>6 * 本次应答节点数量</lengthrule>
+			<type>REJECTNODE</type>
+		</splitByLength>
+	</dataItem>
+	<template id="REJECTNODE" protocol="csg13" region="南网">
+		<length>6</length>
+		<name>从节点%d地址</name>
+		<type>NORMAL</type>
+	</template>
+	<dataItem id="E1006009" protocol="csg13" region="南网">
+		<name>周边节点信道信息</name>
+		<length>unknown</length>
+		<splitByLength>
+			<name>周边节点总数量</name>
+			<length>2</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>本次应答节点数量</name>
+			<length>1</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>周边节点信道信息</name>
+			<length>unknown</length>
+			<lengthrule>16 * 本次应答节点数量</lengthrule>
+			<type>NEARBYNODE</type>
+		</splitByLength>
+	</dataItem>
+	<template id="NEARBYNODE" protocol="csg13" region="南网">
+		<length>16</length>
+		<name>周边节点%d信道信息</name>
+		<type>NORMAL</type>
+	</template>
+	<dataItem id="E1006010" protocol="csg13" region="南网">
+		<name>节点自检信息</name>
+		<length>4</length>
+		<splitByLength>
+			<name>过零自检结果</name>
+			<length>1</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>串口/485不通状态</name>
+			<length>1</length>
+			<type>BIN</type>
+			<value key="00">正常</value>
+			<value key="01">历史上出现过不通现象</value>
+			<value key="02">目前不通</value>
+			<value key="other">保留</value>
+		</splitByLength>
+		<splitByLength>
+			<name>上次离网原因</name>
+			<length>1</length>
+			<type>BIN</type>
+			<value key="00">未离网</value>
+			<value key="01">组网序列号发生变化</value>
+			<value key="02">2个路由周期收不到信标帧</value>
+			<value key="03">与代理节点连续四个路由周期的通信成功率都是0</value>
+			<value key="04">站点所在层级超过15级</value>
+			<value key="05">收到离线指示</value>
+			<value key="other">保留</value>
+		</splitByLength>
+		<splitByLength>
+			<name>复位原因</name>
+			<length>1</length>
+			<type>BIN</type>
+			<value key="00">掉电复位</value>
+			<value key="01">复位引脚复位</value>
+			<value key="02">升级完成复位</value>
+			<value key="03">CCO控制从节点重启</value>
+			<value key="other">保留</value>
+		</splitByLength>
+	</dataItem>
+	<dataItem id="E1006011" protocol="csg13" region="南网">
+		<name>应用层报文信息</name>
+		<length>unknown</length>
+		<splitByLength>
+			<name>报文总数量</name>
+			<length>2</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>本次上报的报文数量</name>
+			<length>1</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>应用层报文信息</name>
+			<length>unknown</length>
+			<lengthrule>1 * 本次上报的报文数量</lengthrule>
+			<type>FRAMEMSG</type>
+		</splitByLength>
+	</dataItem>
+	<template id="FRAMEMSG" protocol="csg13" region="南网">
+		<length>unknown</length>
+		<name>报文%d</name>
+		<splitByLength>
+			<name>报文长度</name>
+			<length>2</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>报文内容</name>
+			<length>unknown</length>
+			<lengthrule>1 * 报文长度</lengthrule>
+			<type>NORMAL</type>
+		</splitByLength>
+	</template>
 	<dataItem id="E1800021" protocol="csg13" region="南网">
 		<name>测量点参数 MD5 校验码</name>
 		<length>16</length>

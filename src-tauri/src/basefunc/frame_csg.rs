@@ -1205,6 +1205,22 @@ impl FrameCsg {
                     } else {
                         println!("rules:{:?} is not valid", rules);
                     }
+                } else {
+                    let length = element.get_child_text("length");
+                    if let Some(length) = length {
+                        if length.to_uppercase() == "UNKNOWN" {
+                            return Self::calculate_unknown_length(
+                                element,
+                                data,
+                                &mut length_map,
+                                protocol,
+                                region,
+                                dir,
+                            );
+                        } else {
+                            return length.parse::<usize>().unwrap_or(0);
+                        }
+                    }
                 }
 
                 if let Some(data_type) = template_element.get_value().map(|s| s.to_uppercase()) {
@@ -1290,6 +1306,9 @@ impl FrameCsg {
         region: &str,
         dir: Option<u8>,
     ) -> usize {
+        if data_segment.is_empty() {
+            return 0;
+        }
         let rules = data_subitem_elem
             .get_child_text("lengthrule")
             .unwrap_or_default();
@@ -1352,6 +1371,10 @@ impl FrameCsg {
                 text_part.parse::<usize>().unwrap_or(0)
             } else {
                 if let Some(vaule) = length_map.get(text_part) {
+                    println!("value {:?} vaule.0 {:?} vaule.1 {:?} data_segment {:?}", vaule, vaule.0, vaule.1, data_segment);
+                    if vaule.0 - (vaule.0 - vaule.1) > data_segment.len() {
+                        return 0;
+                    }
                     let vaule_data = &data_segment[(vaule.0 - vaule.1)..vaule.0];
                     let mut value_element = vaule.2.clone();
 
@@ -1417,6 +1440,8 @@ impl FrameCsg {
                 '/' => sub_length = decimal_number / sub_value,
                 _ => sub_length = 0,
             }
+        } else {
+            
         }
         println!("calculate_unknown_length Sub length: {}", sub_length);
         sub_length
@@ -1438,18 +1463,21 @@ impl FrameCsg {
             Self::recalculate_sub_length(&mut item_element, data_segment, protocol, region, dir);
         let next_item = FrameFun::get_data_str_reverser(&data_segment[2..6]);
         if Some(next_item.clone()) == item_element.get_attribute("id").cloned() {
+            println!("next_item:{:?} item_element:{:?}", next_item, item_element);
             return false;
         }
 
         let data_item_elem =
             ProtocolConfigManager::get_config_xml(&next_item, protocol, region, dir);
         if let Some(data_item_elem) = data_item_elem {
+            println!("data_item_elem:{:?}", data_item_elem);
             return false;
         }
         if (length + 6) > data_segment.len() {
+            println!("length:{:?} data_segment.len():{:?}", length, data_segment.len());
             return false;
         }
-
+        println!("data_segment[length..length + 6]:{:?} data_time:{:?}", &data_segment[length..length + 6], data_time);
         if Self::is_valid_bcd_time(&data_segment[length..length + 6]) {
             if let Some(data_time) = data_time {
                 return Self::is_within_one_month(&data_segment[length..length + 6], data_time);
@@ -2784,7 +2812,8 @@ impl FrameCsg {
                                 Some(dir),
                                 None,
                             );
-                            let new_sub_datament = &data_segment[pos + 4..pos + 4 + sub_length];
+                            let new_sub_datament = &data_segment[pos + 4..pos + 4 + new_sub_length];
+                            println!("new_sub_datament:{:?} sub_length:{:?}", new_sub_datament, new_sub_length);
                             (new_sub_length, new_sub_datament)
                         } else {
                             let mut sub_length = sub_length_cont.parse::<usize>().unwrap();
@@ -2992,7 +3021,7 @@ impl FrameCsg {
         let data_segment = &valid_data_segment[..length];
         let mut data_item_elem: Option<XmlElement> = None;
         let sub_length: usize;
-        let data_time: Option<&[u8]> = None;
+        let mut last_data_time: Option<&[u8]> = None;
         let sub_pos: usize;
         let mut point_str: String = String::new();
         let mut dis_data_identifier: String = String::new();
@@ -3001,7 +3030,7 @@ impl FrameCsg {
                 if !Self::guest_next_data_is_cur_item_data(
                     data_item_elem.clone(),
                     &data_segment[pos..],
-                    data_time.as_deref(),
+                    last_data_time.as_deref(),
                     protocol,
                     region,
                     Some(dir),
@@ -3110,7 +3139,7 @@ impl FrameCsg {
                             length,
                             &pw_data,
                             data_item_elem.clone(),
-                            data_time,
+                            last_data_time,
                             true,
                             protocol,
                             region,
@@ -3138,6 +3167,7 @@ impl FrameCsg {
                         None,
                     );
                     let data_time = &data_segment[pos + sub_length..pos + sub_length + 6];
+                    last_data_time = Some(data_time);
                     let time_str = FrameFun::parse_time_data(data_time, "CCYYMMDDhhmm", false);
                     FrameFun::add_data(
                         &mut sub_result,
@@ -3195,7 +3225,7 @@ impl FrameCsg {
                         length,
                         pw_data,
                         data_item_elem.clone(),
-                        data_time,
+                        last_data_time,
                         true,
                         protocol,
                         region,

@@ -1,6 +1,12 @@
 import { LogEntry } from '../store/slices/logParseSlice';
 import { v4 as uuidv4 } from 'uuid';
 
+// 扩展 Worker 类型
+interface ExtendedWorker extends Worker {
+    busy: boolean;
+    taskCount: number;
+}
+
 // 常量定义
 export const LOG_RECORD_FLAG = 0x22222222;
 const MSG_HEAD_FLAG = 0xF9;
@@ -30,143 +36,290 @@ interface RawLogData {
 }
 
 /**
- * 解析日志消息
+ * 扫描文件中的所有日志头位置
+ */
+function scanLogHeaders(buffer: Uint8Array, startPos: number = 0, endPos: number = 0): number[] {
+    const logPositions: number[] = [];
+    const bufferLength = buffer.length;
+    const safeStartPos = Math.max(0, startPos);
+    const safeEndPos = endPos > 0 && endPos <= bufferLength ? endPos : bufferLength;
+    
+    let pos = safeStartPos;
+    while (pos < safeEndPos - 4) {
+        const flag = new DataView(buffer.buffer).getUint32(pos, true);
+        if (flag === LOG_RECORD_FLAG) {
+            // 验证这个位置是否可能是一个有效的日志头
+            if (pos + 7 < safeEndPos) {  // 至少需要7字节（4字节标记 + 1字节PID + 2字节长度）
+                const pid = buffer[pos + 4];
+                const lengthHigh = buffer[pos + 5];
+                const lengthLow = buffer[pos + 6];
+                const contentLength = lengthLow | lengthHigh << 8;
+                
+                // 进行基本的有效性检查
+                if (contentLength > 0 && contentLength <= 10000) {
+                    logPositions.push(pos);
+                }
+            }
+        }
+        pos++;
+    }
+    return logPositions;
+}
+
+/**
+ * 解析指定范围内的日志
+ */
+function parseLogRange(buffer: Uint8Array, startPos: number, endPos: number): LogEntry[] {
+    const entries: LogEntry[] = [];
+    let pos = startPos;
+    
+    while (pos < endPos - 7) { // 至少需要7字节
+        try {
+            const flag = new DataView(buffer.buffer).getUint32(pos, true);
+            
+            if (flag === LOG_RECORD_FLAG) {
+                const pid = buffer[pos + 4];
+                const lengthHigh = buffer[pos + 5];
+                const lengthLow = buffer[pos + 6];
+                const contentLength = lengthLow | lengthHigh << 8;
+                
+                // 长度健康性检查
+                if (contentLength <= 0 || contentLength > 10000) {
+                    pos++;
+                    continue;
+                }
+                
+                // 确保有足够的内容
+                if (pos + 7 + contentLength > endPos) {
+                    break;
+                }
+                
+                // 提取日志内容
+                const contentStart = pos + 7;
+                const contentEnd = contentStart + contentLength;
+                const content = buffer.slice(contentStart, contentEnd);
+                
+                try {
+                    // 将二进制内容转换为字符串
+                    const msgStr = new TextDecoder().decode(content);
+                    
+                    // 解析日志内容
+                    const logEntry = parseLogMessage(msgStr);
+                    if (logEntry) {
+                        logEntry.pid = pid.toString();
+                        entries.push(logEntry);
+                    }
+                    
+                    // 移动到下一条记录
+                    pos = contentEnd;
+                    continue;
+                } catch (e) {
+                    console.error('Error parsing log content at position', pos, e);
+                }
+            }
+            pos++;
+        } catch (e) {
+            console.error('Error reading flag at position', pos, e);
+            pos++;
+        }
+    }
+    
+    return entries;
+}
+
+/**
+ * 创建Worker池
+ */
+class WorkerPool {
+    private workers: ExtendedWorker[] = [];
+    private queue: { buffer: Uint8Array; startPos: number; endPos: number; resolve: (entries: LogEntry[]) => void; reject: (error: any) => void; }[] = [];
+    private activeWorkers = 0;
+    private readonly maxWorkers: number;
+
+    constructor(maxWorkers: number = 5) {
+        this.maxWorkers = maxWorkers;
+    }
+
+    private getWorker(): ExtendedWorker {
+        // 如果有空闲的worker，重用它
+        const availableWorker = this.workers.find(worker => !worker.busy);
+        if (availableWorker) {
+            availableWorker.busy = true;
+            return availableWorker;
+        }
+
+        // 如果还可以创建新的worker
+        if (this.workers.length < this.maxWorkers) {
+            const worker = new Worker(
+                new URL('../workers/logParser.worker.ts', import.meta.url),
+                { type: 'module' }
+            ) as ExtendedWorker;
+            worker.busy = true;
+            worker.taskCount = 1;
+            this.workers.push(worker);
+            return worker;
+        }
+
+        // 如果没有可用的worker，返回负载最小的worker
+        return this.workers.reduce((min, w) => (!min || w.taskCount < min.taskCount) ? w : min);
+    }
+
+    async processSegment(buffer: Uint8Array, startPos: number, endPos: number): Promise<LogEntry[]> {
+        return new Promise((resolve, reject) => {
+            const task = { buffer, startPos, endPos, resolve, reject };
+            
+            if (this.activeWorkers < this.maxWorkers) {
+                this.runTask(task);
+            } else {
+                this.queue.push(task);
+            }
+        });
+    }
+
+    private runTask(task: { buffer: Uint8Array; startPos: number; endPos: number; resolve: (entries: LogEntry[]) => void; reject: (error: any) => void; }) {
+        const worker = this.getWorker();
+        this.activeWorkers++;
+
+        const handleMessage = (e: MessageEvent) => {
+            if (e.data.error) {
+                task.reject(new Error(e.data.error));
+            } else {
+                task.resolve(e.data.entries);
+            }
+            
+            worker.busy = false;
+            worker.taskCount = (worker.taskCount || 0) - 1;
+            this.activeWorkers--;
+
+            // 处理队列中的下一个任务
+            if (this.queue.length > 0) {
+                const nextTask = this.queue.shift();
+                if (nextTask) {
+                    this.runTask(nextTask);
+                }
+            }
+
+            worker.removeEventListener('message', handleMessage);
+            worker.removeEventListener('error', handleError);
+        };
+
+        const handleError = (error: ErrorEvent) => {
+            task.reject(error);
+            worker.busy = false;
+            worker.taskCount = (worker.taskCount || 0) - 1;
+            this.activeWorkers--;
+
+            worker.removeEventListener('message', handleMessage);
+            worker.removeEventListener('error', handleError);
+        };
+
+        worker.addEventListener('message', handleMessage);
+        worker.addEventListener('error', handleError);
+        worker.taskCount = (worker.taskCount || 0) + 1;
+
+        worker.postMessage({
+            buffer: task.buffer,
+            startPos: task.startPos,
+            endPos: task.endPos
+        });
+    }
+
+    terminate() {
+        this.workers.forEach(worker => worker.terminate());
+        this.workers = [];
+        this.queue = [];
+        this.activeWorkers = 0;
+    }
+}
+
+// 创建一个全局的Worker池实例
+const workerPool = new WorkerPool(5);
+
+/**
+ * 解析日志块
  * @param buffer 日志文件内容
  * @param startPos 起始位置
  * @param endPos 结束位置
+ * @param segmentSize 分段大小，默认1MB
  */
-export function parseLogChunk(buffer: Uint8Array, startPos: number = 0, endPos: number = 0): LogEntry[] {
-    // 输入验证
+export async function parseLogChunk(
+    buffer: Uint8Array,
+    startPos: number = 0,
+    endPos: number = 0,
+    segmentSize: number = 1024 * 1024 // 1MB
+): Promise<LogEntry[]> {
+    // 输入验证和参数安全化
     if (!buffer || !(buffer instanceof Uint8Array)) {
         console.error('无效的buffer类型', typeof buffer);
         return [];
     }
     
-    // 参数安全化
     const bufferLength = buffer.length;
-    const safeStartPos = Math.max(0, startPos || 0);
+    const safeStartPos = Math.max(0, startPos);
     const safeEndPos = endPos > 0 && endPos <= bufferLength ? endPos : bufferLength;
     
-    // 如果buffer为空或范围无效，返回空数组
     if (bufferLength === 0 || safeEndPos <= safeStartPos) {
         console.warn('Buffer为空或无效的范围');
         return [];
     }
     
-    // 执行解析
-    try {
-        const entries: LogEntry[] = [];
-        let pos = safeStartPos;
+    console.log(`开始扫描日志头，总长度: ${bufferLength}字节，扫描范围: ${safeStartPos}-${safeEndPos}`);
+    
+    // 扫描所有日志头位置
+    const logPositions = scanLogHeaders(buffer, safeStartPos, safeEndPos);
+    console.log(`找到 ${logPositions.length} 个可能的日志头`);
+    
+    if (logPositions.length === 0) {
+        return [];
+    }
+    
+    // 根据日志头位置进行分段
+    const segments: { start: number; end: number }[] = [];
+    let currentStart = safeStartPos;
+    let segmentCount = 0;
+    
+    while (currentStart < safeEndPos) {
+        let segmentEnd = Math.min(currentStart + segmentSize, safeEndPos);
         
-        // 调试信息 - 以十六进制显示
-        console.log("Buffer length:", bufferLength);
-        console.log("解析范围:", safeStartPos, "到", safeEndPos);
-        const firstBytes = Array.from(buffer.slice(0, Math.min(50, bufferLength)))
-            .map(b => b.toString(16).padStart(2, '0')).join(' ');
-        console.log("First 50 bytes (hex):", firstBytes);
-        
-        while (pos < safeEndPos - 7) { // 至少需要7字节（4字节标记 + 1字节PID + 2字节长度）
-            // 确保足够的数据可读
-            if (pos + 4 > safeEndPos) {
-                pos++;
-                continue;
-            }
-            
-            try {
-                // 查找日志标记 (0x22222222)
-                const flag = new DataView(buffer.buffer, buffer.byteOffset).getUint32(pos, true);
-                
-                if (flag === LOG_RECORD_FLAG) {
-                    console.log(`Found log record flag at position ${pos}: 0x${flag.toString(16)}`);
-                    
-                    // 确保有足够数据来读取PID和长度
-                    if (pos + 7 > safeEndPos) {
-                        console.log("Not enough data for PID and length");
-                        pos++;
-                        continue;
-                    }
-                    
-                    // 提取PID（1字节）
-                    const pid = buffer[pos + 4];
-                    let contentLength = 0;
-                    
-                    // 提取内容长度（2字节）- 小端序，低字节在前
-                    if (pos + 6 <= safeEndPos) {
-                        const lengthHigh = buffer[pos + 5];
-                        const lengthLow = buffer[pos + 6];
-                        contentLength = lengthLow | lengthHigh << 8;
-                        
-                        console.log(`Length bytes: 0x${lengthLow.toString(16).padStart(2, '0')} 0x${lengthHigh.toString(16).padStart(2, '0')}`);
-                        console.log(`At position ${pos}: PID=${pid}, Length=${contentLength} (0x${contentLength.toString(16).padStart(4, '0')})`);
-                    }
-                    
-                    // 长度健康性检查 - 避免过大值和负值
-                    if (contentLength <= 0 || contentLength > bufferLength || contentLength > 10000) {
-                        console.log(`Invalid content length: ${contentLength}, skipping`);
-                        pos++;
-                        continue;
-                    }
-                    
-                    // 确保有足够的内容
-                    if (pos + 7 + contentLength > safeEndPos) {
-                        console.log(`Not enough data for content: need ${contentLength} bytes, but only have ${safeEndPos - (pos + 7)}`);
-                        pos++;
-                        continue;
-                    }
-                    
-                    // 提取日志内容
-                    const contentStart = pos + 7; // 4字节标记 + 1字节PID + 2字节长度
-                    const contentEnd = contentStart + contentLength;
-                    
-                    // 确保内容范围有效
-                    if (contentEnd > bufferLength) {
-                        console.log(`Content end position ${contentEnd} exceeds buffer length ${bufferLength}`);
-                        pos++;
-                        continue;
-                    }
-                    
-                    const content = buffer.slice(contentStart, contentEnd);
-                    
-                    // 将二进制内容转换为十六进制字符串用于调试
-                    const contentHex = Array.from(content.slice(0, Math.min(20, content.length)))
-                        .map(b => b.toString(16).padStart(2, '0')).join(' ');
-                    console.log(`Content starts with: ${contentHex}${content.length > 20 ? '...' : ''}`);
-                    
-                    try {
-                        // 将二进制内容转换为字符串
-                        const msgStr = new TextDecoder().decode(content);
-                        console.log(`Decoded message: ${msgStr.substring(0, 100)}${msgStr.length > 100 ? '...' : ''}`);
-                        
-                        // 解析日志内容
-                        const logEntry = parseLogMessage(msgStr);
-                        if (logEntry) {
-                            // 使用提取的pid，确保一致性
-                            logEntry.pid = pid.toString();
-                            entries.push(logEntry);
-                            console.log(`Successfully parsed log entry: ${JSON.stringify(logEntry)}`);
-                        } else {
-                            console.log("Failed to parse log message");
-                        }
-                        
-                        // 移动到下一条记录
-                        pos = contentEnd;
-                    } catch (e) {
-                        console.error('Error parsing log content at position', pos, e);
-                        pos++; // 出错时移动一个字节继续查找
-                    }
-                } else {
-                    pos++;
-                }
-            } catch (e) {
-                console.error('Error reading flag at position', pos, e);
-                pos++; // 出错时移动一个字节继续查找
+        // 找到段结束位置之后的第一个日志头
+        const nextLogIndex = logPositions.findIndex(pos => pos > segmentEnd);
+        if (nextLogIndex !== -1) {
+            // 将段结束位置调整到上一个日志头之后
+            const lastLogInSegment = logPositions[nextLogIndex - 1];
+            if (lastLogInSegment > currentStart) {
+                segmentEnd = lastLogInSegment;
             }
         }
         
-        console.log(`Parsing completed. Found ${entries.length} log entries.`);
-        return entries;
+        segments.push({ start: currentStart, end: segmentEnd });
+        currentStart = segmentEnd;
+        segmentCount++;
+    }
+    
+    console.log(`将使用 ${segmentCount} 个段进行并行解析`);
+    
+    try {
+        // 并行处理所有段
+        const segmentPromises = segments.map(segment =>
+            workerPool.processSegment(buffer, segment.start, segment.end)
+        );
+        
+        // 等待所有段处理完成
+        const segmentResults = await Promise.all(segmentPromises);
+        
+        // 合并所有段的结果
+        const allEntries = segmentResults.flat();
+        
+        // 按照时间戳排序确保顺序正确
+        allEntries.sort((a, b) => 
+            new Date(a.timeStamp).getTime() - new Date(b.timeStamp).getTime()
+        );
+        
+        console.log(`成功解析 ${allEntries.length} 个日志条目，使用了 ${segmentCount} 个段`);
+        
+        return allEntries;
     } catch (error) {
-        console.error('parseLogChunk发生错误:', error);
+        console.error('并行解析过程中发生错误:', error);
         return [];
     }
 }
