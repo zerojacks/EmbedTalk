@@ -54972,6 +54972,12 @@
 		<type>ARD39_SYS</type>
 		<single>YES</single>
 	</dataItem>
+	<dataItem id="E2000071" protocol="csg13" region="南网">
+		<name>微应用异常告警</name>
+		<length>unknown</length>
+		<type>ARD40_SYS</type>
+		<single>YES</single>
+	</dataItem>
 	<dataItem id="E2000073" protocol="csg13" region="深圳">
 		<name>断线检测告警</name>
 		<length>unknown</length>
@@ -55465,6 +55471,55 @@
 		<splitByLength>
 			<name>发生时数据</name>
 			<item>E1800030</item>
+		</splitByLength>
+	</template>
+	<template id="ARD40_SYS" protocol="csg13" region="南网">
+		<splitByLength>
+			<name>告警状态</name>
+			<length>1</length>
+			<value key="00">恢复</value>
+			<value key="01">发生</value>
+		</splitByLength>
+		<splitByLength>
+			<name>告警发生时间</name>
+			<length>6</length>
+			<time>ssmmhhDDMMYY</time>
+		</splitByLength>
+		<splitByLength>
+			<name>APP名称</name>
+			<length>8</length>
+			<type>ASCII</type>
+		</splitByLength>
+		<splitByLength>
+			<name>APP版本号</name>
+			<length>8</length>
+			<type>ASCII</type>
+		</splitByLength>
+		<splitByLength>
+			<name>APP厂家代码</name>
+			<length>2</length>
+			<type>ASCII</type>
+		</splitByLength>
+		<splitByLength>
+			<name>APP CPU占用率</name>
+			<length>3</length>
+			<type>BIN</type>
+			<decimal>2</decimal>
+			<unit>%</unit>
+		</splitByLength>
+		<splitByLength>
+			<name>APP运行状态</name>
+			<length>1</length>
+			<type>BIN</type>
+			<value key="01">运行</value>
+			<value key="02">停止</value>
+			<value key="03">异常</value>
+		</splitByLength>
+		<splitByLength>
+			<name>APP虚拟内存大小</name>
+			<length>4</length>
+			<type>BIN</type>
+			<unit>kb</unit>
 		</splitByLength>
 	</template>
 	<template id="DISALARMRESULT" protocol="csg13" region="深圳">
