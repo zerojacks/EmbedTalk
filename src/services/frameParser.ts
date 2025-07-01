@@ -278,8 +278,16 @@ function parseFrameRange(buffer: Uint8Array, startPos: number, endPos: number): 
                 const milliseconds = new DataView(buffer.buffer).getUint16(pos + FRAME_MILLISEC_OFFSET, false);
                 
                 const date = new Date(timestamp * 1000 + milliseconds);
-                const timeStr = date.toISOString().replace('T', ' ').slice(0, -1);
-                
+                const timeStr = date.toLocaleString('zh-CN', { 
+                    hour12: false,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                }).replace(/\//g, '-') + '.' + String(date.getMilliseconds()).padStart(3, '0');
+
                 const contentStart = pos + FRAME_CONTENT_OFFSET;
                 const contentEnd = contentStart + (contentLength - 10);
                 
