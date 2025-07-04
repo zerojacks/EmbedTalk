@@ -988,14 +988,26 @@ const FrameView: React.FC = () => {
         const setupTauriEvents = async () => {
             try {
                 const unlistenDragEnter = await listen('tauri://drag-enter', () => {
+                    const currentPath = window.location.pathname;
+                    if (currentPath.includes('frame-view')) {
+                        setIsDragging(true);
+                    }
                     setIsDragging(true);
                 });
 
                 const unlistenDragLeave = await listen('tauri://drag-leave', () => {
+                    const currentPath = window.location.pathname;
+                    if (currentPath.includes('frame-view')) {
+                        setIsDragging(false);
+                    }
                     setIsDragging(false);
                 });
 
                 const unlistenDrop = await listen('tauri://drag-drop', async (event) => {
+                    const currentPath = window.location.pathname;
+                    if (currentPath.includes('frame-view')) {
+                        setIsDragging(false);
+                    }
                     setIsDragging(false);
 
                     if (typeof event.payload === 'object' && event.payload !== null && 'paths' in event.payload) {

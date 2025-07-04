@@ -1,148 +1,132 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { RootState } from '..';
+import { RootState } from '../store';
+import { createAction } from '@reduxjs/toolkit';
 
 // 日志条目接口定义
 export interface LogEntry {
-    id: string;           // 唯一标识符
-    timeStamp: string;    // 时间戳
-    level: string | null;        // 日志级别
-    tag: string | null;          // 标签
-    pid: string | null;          // 进程ID
-    tid: string | null;          // 线程ID
-    func: string | null;         // 函数名
-    line: number | null;         // 行号
-    message: string | null;      // 日志消息内容
-    rawData: string;          // 原始日志行
+    id: string;
+    pid?: string;
+    tid?: string;
+    func?: string;
+    line?: string;
+    timeStamp: string;
+    level?: string;
+    tag?: string;
+    message?: string;
+    rawData?: string;
 }
 
 // 日志文件接口
 export interface LogFile {
-    path: string;         // 文件路径
-    name: string;         // 文件名
-    size: number;         // 文件大小
-    lastModified: number; // 最后修改时间
-    isActive: boolean;    // 是否为活动文件
+    path: string;
+    name: string;
+    size: number;
+    lastModified: number;
+    isActive: boolean;
 }
 
 // 日志块接口
 export interface LogChunk {
-    startByte: number;    // 起始字节
-    endByte: number;      // 结束字节
-    content: LogEntry[];  // 日志条目
-    timestamp: number;    // 加载时间戳
+    content: LogEntry[];
+    startByte: number;
+    endByte: number;
+    lastAccessed: number;
 }
 
 // 日志文件内容
-export interface LogFileContent {
-    path: string;                     // 文件路径
-    totalSize: number;                // 总大小
-    chunks: Record<number, LogChunk>; // 日志块，键为块索引
-    lastAccessed: number;             // 最后访问时间
+export interface LogFileContents {
+    chunks: { [key: number]: LogChunk };
+    filter: LogFilter;
+    minTime?: string;  // 保存完整的时间戳（包含毫秒）
+    maxTime?: string;  // 保存完整的时间戳（包含毫秒）
 }
 
 // 过滤器接口
 export interface LogFilter {
-    level: string | null;             // 日志级别
-    tag: string | null;               // 标签
-    keyword: string | null;           // 关键字
-    startTime: string | null;         // 开始时间
-    endTime: string | null;           // 结束时间
+    level?: string;
+    tag?: string;
+    keyword?: string;
+    startTime?: string;
+    endTime?: string;
+    pid?: string;
+    tid?: string;
 }
 
 // 状态接口
 interface LogParseState {
-    openFiles: LogFile[];                       // 打开的文件
-    fileContents: Record<string, LogFileContent>; // 文件内容，键为文件路径
-    activeFilePath: string | null;              // 活动文件路径
-    fileFilters: Record<string, LogFilter>;     // 每个文件的过滤器，键为文件路径
-    filter: LogFilter;                          // 当前活动的过滤器
-    isLoading: boolean;                         // 是否正在加载
-    error: string | null;                       // 错误信息
+    openFiles: LogFile[];
+    activeFilePath: string | null;
+    fileContents: { [path: string]: LogFileContents };
+    fileFilters: { [path: string]: LogFilter };
+    isLoading: boolean;
+    error: string | null;
 }
 
 // 初始状态
 const initialState: LogParseState = {
     openFiles: [],
-    fileContents: {},
     activeFilePath: null,
+    fileContents: {},
     fileFilters: {},
-    filter: {
-        level: null,
-        tag: null,
-        keyword: null,
-        startTime: null,
-        endTime: null
-    },
     isLoading: false,
     error: null
 };
 
 // 创建 slice
-export const logParseSlice = createSlice({
+const logParseSlice = createSlice({
     name: 'logParse',
     initialState,
     reducers: {
         // 添加文件
         addLogFile: (state, action: PayloadAction<LogFile>) => {
-            const existingFile = state.openFiles.find(file => file.path === action.payload.path);
-            if (!existingFile) {
-                state.openFiles.push(action.payload);
-                
-                // 如果是第一个文件，设置为活动文件
-                if (state.openFiles.length === 1) {
-                    state.activeFilePath = action.payload.path;
-                    state.openFiles[0].isActive = true;
-                }
+            const file = action.payload;
+            if (!state.fileContents[file.path]) {
+                state.fileContents[file.path] = {
+                    chunks: {},
+                    filter: {
+                        level: undefined,
+                        tag: undefined,
+                        keyword: undefined,
+                        startTime: undefined,
+                        endTime: undefined,
+                        pid: undefined,
+                        tid: undefined
+                    }
+                };
             }
+            state.openFiles.push(file);
         },
         
         // 移除文件
         removeLogFile: (state, action: PayloadAction<string>) => {
-            const index = state.openFiles.findIndex(file => file.path === action.payload);
-            if (index !== -1) {
-                state.openFiles.splice(index, 1);
-                
-                // 如果删除的是活动文件，设置新的活动文件
-                if (action.payload === state.activeFilePath) {
-                    if (state.openFiles.length > 0) {
-                        state.activeFilePath = state.openFiles[0].path;
-                        state.openFiles[0].isActive = true;
-                    } else {
-                        state.activeFilePath = null;
+            const path = action.payload;
+            state.openFiles = state.openFiles.filter(file => file.path !== path);
+            if (state.fileContents[path]) {
+                state.fileContents[path] = {
+                    chunks: {},
+                    filter: {
+                        level: undefined,
+                        tag: undefined,
+                        keyword: undefined,
+                        startTime: undefined,
+                        endTime: undefined,
+                        pid: undefined,
+                        tid: undefined
                     }
-                }
-                
-                // 从文件内容中删除
-                if (state.fileContents[action.payload]) {
-                    delete state.fileContents[action.payload];
-                }
+                };
+            }
+            if (state.activeFilePath === path) {
+                state.activeFilePath = state.openFiles[0]?.path || null;
             }
         },
         
         // 设置活动文件
         setActiveLogFile: (state, action: PayloadAction<string>) => {
-            if (state.activeFilePath !== action.payload) {
-                // 先保存当前文件的过滤器状态
-                if (state.activeFilePath) {
-                    state.fileFilters[state.activeFilePath] = { ...state.filter };
-                }
-                
-                // 重置当前活动文件
-                state.openFiles.forEach(file => {
-                    file.isActive = file.path === action.payload;
-                });
-                state.activeFilePath = action.payload;
-                
-                // 加载新文件的过滤器状态
-                if (state.fileFilters[action.payload]) {
-                    state.filter = { ...state.fileFilters[action.payload] };
-                }
-                
-                // 更新文件内容的最后访问时间，以便缓存管理
-                if (state.fileContents[action.payload]) {
-                    state.fileContents[action.payload].lastAccessed = Date.now();
-                }
-            }
+            // 更新所有文件的活动状态
+            state.openFiles.forEach(file => {
+                file.isActive = file.path === action.payload;
+            });
+            state.activeFilePath = action.payload;
         },
         
         // 添加日志块
@@ -154,79 +138,52 @@ export const logParseSlice = createSlice({
             endByte: number;
         }>) => {
             const { path, chunk, content, startByte, endByte } = action.payload;
-            
-            // 如果文件内容不存在，创建它
             if (!state.fileContents[path]) {
                 state.fileContents[path] = {
-                    path,
-                    totalSize: 0,
                     chunks: {},
-                    lastAccessed: Date.now()
+                    filter: {
+                        level: undefined,
+                        tag: undefined,
+                        keyword: undefined,
+                        startTime: undefined,
+                        endTime: undefined,
+                        pid: undefined,
+                        tid: undefined
+                    }
                 };
             }
-            
-            // 更新文件内容
             state.fileContents[path].chunks[chunk] = {
+                content,
                 startByte,
                 endByte,
-                content,
-                timestamp: Date.now()
+                lastAccessed: Date.now()
             };
-            
-            // 更新总大小
-            state.fileContents[path].totalSize = Math.max(
-                state.fileContents[path].totalSize,
-                endByte
-            );
-            
-            // 更新最后访问时间
-            state.fileContents[path].lastAccessed = Date.now();
         },
         
         // 清除旧的日志块 - 增强版本，支持排除当前活动文件
-        clearOldChunks: (state, action: PayloadAction<number | { maxAge: number, excludePath?: string }>) => {
-            // 支持两种参数形式：简单的数字或带排除路径的对象
-            let maxAge: number;
-            let excludePath: string | undefined;
-            
-            if (typeof action.payload === 'number') {
-                maxAge = action.payload;
-            } else {
-                maxAge = action.payload.maxAge;
-                excludePath = action.payload.excludePath;
-            }
-            
+        clearOldChunks: (state, action: PayloadAction<{
+            maxAge: number;
+            excludePath?: string;
+        }>) => {
             const now = Date.now();
-            
-            // 遍历所有文件内容
-            Object.keys(state.fileContents).forEach(path => {
-                // 如果是活动文件或指定排除的文件，不清理
-                if (path === state.activeFilePath || path === excludePath) {
-                    return;
-                }
+            Object.entries(state.fileContents).forEach(([path, fileContent]) => {
+                if (path === action.payload.excludePath) return;
                 
-                const fileContent = state.fileContents[path];
-                
-                // 如果文件最后访问时间超过最大年龄，删除所有块
-                if (now - fileContent.lastAccessed > maxAge) {
-                    Object.keys(fileContent.chunks).forEach(chunkKey => {
-                        const chunk = fileContent.chunks[Number(chunkKey)];
-                        if (now - chunk.timestamp > maxAge) {
-                            delete fileContent.chunks[Number(chunkKey)];
-                        }
-                    });
-                }
+                Object.entries(fileContent.chunks).forEach(([chunkIndex, chunk]) => {
+                    if (now - chunk.lastAccessed > action.payload.maxAge) {
+                        delete fileContent.chunks[Number(chunkIndex)];
+                    }
+                });
             });
         },
         
         // 设置过滤器
-        setLogFilter: (state, action: PayloadAction<Partial<LogFilter>>) => {
-            state.filter = { ...state.filter, ...action.payload };
-            
-            // 如果有活动文件，同时更新该文件的过滤器
-            if (state.activeFilePath) {
-                state.fileFilters[state.activeFilePath] = { ...state.filter };
-            }
+        setLogFilter: (state, action: PayloadAction<{
+            path: string;
+            filter: Partial<LogFilter>;
+        }>) => {
+            const { path, filter } = action.payload;
+            state.fileFilters[path] = { ...state.fileFilters[path], ...filter };
         },
         
         // 初始化文件过滤器
@@ -236,20 +193,15 @@ export const logParseSlice = createSlice({
             maxTime?: string;
         }>) => {
             const { path, minTime, maxTime } = action.payload;
-            
-            // 创建默认过滤器：级别和标签为“全部”，关键字为空，时间范围为文件的最小和最大时间
             state.fileFilters[path] = {
-                level: null, // null 表示“全部”
-                tag: null,   // null 表示“全部”
-                keyword: null,
-                startTime: minTime || null,
-                endTime: maxTime || null
+                level: undefined,
+                tag: undefined,
+                keyword: undefined,
+                startTime: undefined,
+                endTime: undefined,
+                pid: undefined,
+                tid: undefined
             };
-            
-            // 如果这是当前活动文件，也更新当前过滤器
-            if (state.activeFilePath === path) {
-                state.filter = { ...state.fileFilters[path] };
-            }
         },
         
         // 设置加载状态
@@ -280,12 +232,12 @@ export const {
 // 选择器
 export const selectOpenLogFiles = (state: RootState) => state.logParse.openFiles;
 export const selectActiveLogFilePath = (state: RootState) => state.logParse.activeFilePath;
-export const selectActiveLogFile = (state: RootState) => {
-    const activeFilePath = state.logParse.activeFilePath;
-    return activeFilePath ? state.logParse.openFiles.find(file => file.path === activeFilePath) : null;
-};
-export const selectLogFileContents = (state: RootState, path: string) => state.logParse.fileContents[path] || null;
-export const selectLogFilter = (state: RootState) => state.logParse.filter;
+export const selectActiveLogFile = (state: RootState) => 
+    state.logParse.openFiles.find(file => file.path === state.logParse.activeFilePath);
+export const selectLogFileContents = (state: RootState, path: string) => 
+    state.logParse.fileContents[path];
+export const selectLogFilter = (state: RootState, path: string) => 
+    state.logParse.fileFilters[path] || {};
 export const selectIsLoading = (state: RootState) => state.logParse.isLoading;
 export const selectError = (state: RootState) => state.logParse.error;
 

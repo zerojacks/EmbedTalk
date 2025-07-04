@@ -142,6 +142,7 @@ fn main() {
             taurihandler::channel_handler::unsubscribe_mqtt_topic,
             taurihandler::handler::export_frames,
             parse_item_data,
+            taurihandler::handler::export_logs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

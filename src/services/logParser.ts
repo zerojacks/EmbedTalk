@@ -390,7 +390,7 @@ function parseLogMessage(data: string): LogEntry | null {
                     level,
                     tag: tagPrefix || '',
                     func: func, // 使用正确提取的函数名
-                    line: line ? parseInt(line) : null,
+                    line: line ? line : undefined,
                     message: messageContent, // 返回完整内容作为消息
                     rawData: messageContent
                 };
@@ -407,7 +407,7 @@ function parseLogMessage(data: string): LogEntry | null {
                 level,
                 tag: tagPrefix, // 标签应该是前缀部分
                 func: func, // 使用正确提取的函数名
-                line: line ? parseInt(line) : null,
+                line: line ? line : undefined,
                 message: messageContent.substring(bracketPos + 1).trim(), // 消息是括号后的内容
                 rawData: messageContent // 直接使用原始内容
             };
@@ -447,7 +447,7 @@ function parseLogMessage(data: string): LogEntry | null {
                         level,
                         tag: fullTag,
                         func: tag, // 在这种情况下tag确实是函数名
-                        line: line ? parseInt(line) : null,
+                        line: line ? line : undefined,
                         message: lines.slice(3).join(' ').trim(),
                         rawData: formattedContent
                     };
@@ -457,13 +457,13 @@ function parseLogMessage(data: string): LogEntry | null {
             // 如果所有尝试都失败，创建一个基本条目而不是返回null
             return {
                 id: uuidv4().toString(),
-                pid:null,
-                tid: null,
+                pid:undefined,
+                tid: undefined,
                 timeStamp: new Date().toISOString().replace('T', ' ').substring(0, 23),
                 level: level || 'INFO',
                 tag: tagPrefix || '',
                 func: tagPrefix,
-                line: null,
+                line: undefined,
                 message: messageContent || '无法解析的日志消息',
                 rawData: data
             };
@@ -473,13 +473,13 @@ function parseLogMessage(data: string): LogEntry | null {
         // 出错时返回基本条目而不是null
         return {
             id: uuidv4().toString(),
-            pid: null,
-            tid: null,
+            pid: undefined,
+            tid: undefined,
             timeStamp: new Date().toISOString().replace('T', ' ').substring(0, 23),
             level: 'ERROR',
             tag: 'ParseError',
             func: 'ParseError',
-            line: null,
+            line: undefined,
             message: `解析错误: ${e instanceof Error ? e.message : String(e)}`,
             rawData: data || ''
         };

@@ -790,3 +790,79 @@ pub async fn export_frames(
 
     Ok(())
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LogEntry {
+    #[serde(rename = "timeStamp")]
+    pub time_stamp: String,
+    pub level: Option<String>,
+    pub tag: Option<String>,
+    pub pid: Option<String>,
+    pub tid: Option<String>,
+    pub func: Option<String>,
+    pub line: Option<String>,
+    pub message: Option<String>,
+    #[serde(rename = "rawData")]
+    pub raw_data: Option<String>,
+}
+
+#[tauri::command]
+pub async fn export_logs(
+    window: tauri::AppHandle,
+    file_path: String,
+    entries: Vec<LogEntry>,
+) -> Result<(), String> {
+    // 创建文件
+    let file = File::create(&file_path).map_err(|e| e.to_string())?;
+    let mut writer = BufWriter::new(file);
+    
+    let total_entries = entries.len();
+    let mut processed_entries = 0;
+
+    // 写入日志条目
+    for entry in entries {
+        let pid_tid = match (entry.pid, entry.tid) {
+            (Some(pid), Some(tid)) => format!("[pid:{} tid:{}]", pid, tid),
+            (Some(pid), None) => format!("[pid:{}]", pid),
+            (None, Some(tid)) => format!("[tid:{}]", tid),
+            (None, None) => String::new(),
+        };
+
+        let func_line = match (entry.func, entry.line) {
+            (Some(func), Some(line)) => format!("{}:{} ", func, line),
+            (Some(func), None) => format!("{} ", func),
+            (None, Some(line)) => format!("line:{} ", line),
+            (None, None) => String::new(),
+        };
+
+        let message = entry.message.unwrap_or_else(|| 
+            entry.raw_data.unwrap_or_default()
+        );
+
+        let log_line = format!(
+            "{} {} {} {} {}{}\n",
+            entry.time_stamp,
+            entry.level.unwrap_or_default(),
+            entry.tag.unwrap_or_default(),
+            pid_tid,
+            func_line,
+            message
+        );
+
+        writer.write_all(log_line.as_bytes()).map_err(|e| e.to_string())?;
+
+        // 更新进度
+        processed_entries += 1;
+        if processed_entries % 100 == 0 || processed_entries == total_entries {
+            let progress = (processed_entries as f32 / total_entries as f32) * 100.0;
+            if let Some(main_window) = window.get_webview_window("main") {
+                main_window.emit("export-progress", progress).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
+    // 刷新缓冲区
+    writer.flush().map_err(|e| e.to_string())?;
+
+    Ok(())
+}

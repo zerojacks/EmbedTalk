@@ -3,6 +3,7 @@ import splitSizeReducer from './slices/splitSizeSlice';
 import fileParseReducer from './slices/fileParseSlice';
 import frameParseReducer from './slices/frameParseSlice'
 import settingsReducer from './slices/settingsSlice';
+import logParseReducer from './slices/logParseSlice';
 
 export const store = configureStore({
     reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
         fileParse: fileParseReducer,
         frameParse: frameParseReducer,
         settings: settingsReducer,
+        logParse: logParseReducer
     },
 });
 
