@@ -1,7 +1,7 @@
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../store';
-import { setLogFilter, selectActiveLogFilePath, selectLogFilter } from '../store/slices/logParseSlice';
+import { RootState } from '../../store';
+import { setLogFilter, selectActiveLogFilePath, selectLogFilter } from '../../store/slices/logParseSlice';
 
 interface LogFilterProps {
     availableTags: string[];

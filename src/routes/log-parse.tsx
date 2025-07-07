@@ -30,9 +30,9 @@ import { UnlistenFn } from '@tauri-apps/api/event';
 import { selectEffectiveTheme } from '../store/slices/themeSlice';
 import { parseLogChunk } from '../services/logParser';
 import { FileText } from 'lucide-react';
-import { LogContent } from '../components/LogContent';
-import { LogFilter } from '../components/LogFilter';
-import { FileTabs } from '../components/FileTabs';
+import { LogContent } from '../components/logsprase/LogContent';
+import { LogFilter } from '../components/logsprase/LogFilter';
+import { FileTabs } from '../components/logsprase/FileTabs';
 import { normalizePath } from '../lib/utils';
 
 // 常量定义

@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { selectOpenLogFiles, selectActiveLogFilePath, removeLogFile, setActiveLogFile } from '../store/slices/logParseSlice';
+import { selectOpenLogFiles, selectActiveLogFilePath, removeLogFile, setActiveLogFile } from '../../store/slices/logParseSlice';
 import { FileText, X, FolderOpen, ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
-import { normalizePath } from '../lib/utils';
+import { normalizePath } from '../../lib/utils';
 
 interface FileTabsProps {
     onOpenFile: () => void;

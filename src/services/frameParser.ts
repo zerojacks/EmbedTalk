@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { v4 as uuidv4 } from 'uuid';
+import { store } from '../store';
+import { selectFrameFileContents, selectFrameFilter } from '../store/slices/frameParseSlice';
 
 // 常量定义
 export const FRM_RECORD_FLAG = 0x22222223;
@@ -26,8 +28,9 @@ const directionNames: { [key in FrameDirection]: string } = {
 };
 
 export function getDirectionName(direction: number): string {
-    if (direction in FrameDirection) {
-        return directionNames[direction as FrameDirection] || `未知方向(${direction})`;
+    // 检查方向值是否为有效的枚举值
+    if (direction === FrameDirection.IN || direction === FrameDirection.OUT) {
+        return directionNames[direction as FrameDirection];
     }
     return `未知方向(${direction})`;
 }
@@ -272,7 +275,13 @@ function parseFrameRange(buffer: Uint8Array, startPos: number, endPos: number): 
                 const tag = buffer[pos + FRAME_TAG_OFFSET];
                 const port = buffer[pos + FRAME_PORT_OFFSET];
                 const protocol = buffer[pos + FRAME_PROTOCOL_OFFSET];
-                const direction = buffer[pos + FRAME_DIRECTION_OFFSET];
+                let direction = buffer[pos + FRAME_DIRECTION_OFFSET];
+
+                // 验证方向字段，如果不是有效值则设为默认值（接收）
+                if (direction !== FrameDirection.IN && direction !== FrameDirection.OUT) {
+                    console.warn(`无效的方向值: ${direction}，设置为默认值（接收）`);
+                    direction = FrameDirection.IN; // 默认为接收
+                }
                 
                 const timestamp = new DataView(buffer.buffer).getUint32(pos + FRAME_TIMESTAMP_OFFSET, false);
                 const milliseconds = new DataView(buffer.buffer).getUint16(pos + FRAME_MILLISEC_OFFSET, false);
@@ -330,68 +339,188 @@ function parseFrameRange(buffer: Uint8Array, startPos: number, endPos: number): 
 }
 
 /**
- * 解析报文块
+ * 解析指定位置的单个报文
+ * @param buffer 报文文件内容
+ * @param frameStart 报文开始位置
+ * @param maxEnd 最大结束位置（下一个报文开始位置或缓冲区结束）
+ * @returns 解析的报文条目，如果解析失败返回null
+ */
+function parseFrameAt(buffer: Uint8Array, frameStart: number, maxEnd: number): FrameEntry | null {
+    const pos = frameStart;
+
+    // 检查是否有足够的空间读取报文头
+    if (pos + FRAME_CONTENT_OFFSET > maxEnd || pos + FRAME_CONTENT_OFFSET > buffer.length) {
+        console.warn(`位置 ${pos} 处没有足够的空间读取报文头`);
+        return null;
+    }
+
+    try {
+        // 验证报文标志
+        const flag = new DataView(buffer.buffer).getUint32(pos, false);
+        if (flag !== FRM_RECORD_FLAG) {
+            console.warn(`位置 ${pos} 处的报文标志不匹配，跳过此位置`);
+            return null;
+        }
+
+        // 读取报文基本信息
+        const pid = buffer[pos + FRAME_PID_OFFSET];
+        const contentLength = new DataView(buffer.buffer).getUint16(pos + FRAME_LENGTH_OFFSET, false);
+
+        // 验证内容长度
+        if (contentLength <= 0 || contentLength > 10000) {
+            console.warn(`位置 ${pos} 处的报文内容长度不合法: ${contentLength}`);
+            return null;
+        }
+
+        const totalFrameLength = FRAME_CONTENT_OFFSET + contentLength;
+
+        console.log(`pos: ${pos}, totalFrameLength: ${totalFrameLength}, maxEnd: ${maxEnd}, buffer.length: ${buffer.length}`);
+
+        // 检查报文是否完整
+        // 优先检查缓冲区边界，然后检查maxEnd边界
+        if (pos + totalFrameLength > buffer.length) {
+            console.warn(`位置 ${pos} 处的报文超出缓冲区边界，跳过此位置 (需要: ${pos + totalFrameLength}, 可用: ${buffer.length})`);
+            return null;
+        }
+
+        // 读取报文详细信息
+        const tag = buffer[pos + FRAME_TAG_OFFSET];
+        const port = buffer[pos + FRAME_PORT_OFFSET];
+        const protocol = buffer[pos + FRAME_PROTOCOL_OFFSET];
+        let direction = buffer[pos + FRAME_DIRECTION_OFFSET];
+
+        // 验证方向字段，如果不是有效值则设为默认值（接收）
+        if (direction !== FrameDirection.IN && direction !== FrameDirection.OUT) {
+            direction = FrameDirection.IN; // 默认为接收
+        }
+
+        // 读取时间戳
+        const timestamp = new DataView(buffer.buffer).getUint32(pos + FRAME_TIMESTAMP_OFFSET, false);
+        const milliseconds = new DataView(buffer.buffer).getUint16(pos + FRAME_MILLISEC_OFFSET, false);
+
+        const date = new Date(timestamp * 1000 + milliseconds);
+        const timeStr = date.toLocaleString('zh-CN', {
+            hour12: false,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        }).replace(/\//g, '-') + '.' + String(date.getMilliseconds()).padStart(3, '0');
+
+        // 读取报文内容
+        const contentStart = pos + FRAME_CONTENT_OFFSET;
+        const contentEnd = contentStart + (contentLength - 10);
+
+        const content = Array.from(buffer.slice(contentStart, contentEnd))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+
+        const rawData = Array.from(buffer.slice(pos, contentEnd))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+
+        return {
+            id: uuidv4(),
+            pid,
+            tag,
+            tag_name: getRecordTypeName(tag),
+            port,
+            port_name: getPortName(port),
+            protocol,
+            protocol_name: getProtocolName(protocol),
+            direction,
+            direction_name: getDirectionName(direction),
+            timestamp: timeStr,
+            content,
+            raw_data: rawData,
+            position: pos
+        };
+
+    } catch (error) {
+        console.error(`解析报文失败，位置: ${pos}, 错误:`, error);
+        return null;
+    }
+}
+
+/**
+ * 解析报文块 - 优化版本，直接基于扫描结果解析
  * @param buffer 报文文件内容
  * @param startPos 起始位置
  * @param endPos 结束位置
- * @param segmentSize 分段大小，默认1MB
  */
 export function parseFrameChunk(
-    buffer: Uint8Array, 
-    startPos: number = 0, 
-    endPos: number = 0,
-    segmentSize: number = 1024 * 1024 // 1MB
+    buffer: Uint8Array,
+    startPos: number = 0,
+    endPos: number = 0
 ): { entries: FrameEntry[], segments: number } {
     const bufferLength = buffer.length;
     const safeStartPos = Math.max(0, startPos);
     const safeEndPos = endPos > 0 && endPos <= bufferLength ? endPos : bufferLength;
 
     console.log(`开始扫描报文头，总长度: ${bufferLength}字节，扫描范围: ${safeStartPos}-${safeEndPos}`);
-    
+
     // 扫描所有报文头位置
     const framePositions = scanFrameHeaders(buffer, safeStartPos, safeEndPos);
     console.log(`找到 ${framePositions.length} 个可能的报文头`);
-    
+
     if (framePositions.length === 0) {
         return { entries: [], segments: 0 };
     }
 
-    // 根据报文头位置进行分段
-    const segments: { start: number; end: number }[] = [];
-    let currentStart = safeStartPos;
-    let segmentCount = 0;
-
-    while (currentStart < safeEndPos) {
-        let segmentEnd = Math.min(currentStart + segmentSize, safeEndPos);
-        
-        // 找到段结束位置之后的第一个报文头
-        const nextFrameIndex = framePositions.findIndex(pos => pos > segmentEnd);
-        if (nextFrameIndex !== -1) {
-            // 将段结束位置调整到上一个报文头之后
-            const lastFrameInSegment = framePositions[nextFrameIndex - 1];
-            if (lastFrameInSegment > currentStart) {
-                segmentEnd = lastFrameInSegment;
-            }
-        }
-
-        segments.push({ start: currentStart, end: segmentEnd });
-        currentStart = segmentEnd;
-        segmentCount++;
-    }
-
-    // 并行解析所有段
+    console.log("所有可能的位置:",framePositions)
+    // 直接基于扫描到的报文位置进行解析，不再使用固定分段
     const allEntries: FrameEntry[] = [];
-    for (const segment of segments) {
-        const segmentEntries = parseFrameRange(buffer, segment.start, segment.end);
-        allEntries.push(...segmentEntries);
+    let successCount = 0;
+    let errorCount = 0;
+
+    // 逐个解析每个报文
+    for (let i = 0; i < framePositions.length; i++) {
+        const frameStart = framePositions[i];
+
+        // 确定报文结束位置：下一个报文的开始位置或缓冲区结束
+        // 对于最后一个报文，使用缓冲区的实际长度而不是safeEndPos
+        const frameEnd = i < framePositions.length - 1 ? framePositions[i + 1] : buffer.length;
+
+        try {
+            // 解析单个报文
+            const entry = parseFrameAt(buffer, frameStart, frameEnd);
+            if (entry) {
+                allEntries.push(entry);
+                successCount++;
+            }
+        } catch (error) {
+            console.warn(`解析报文失败，位置: ${frameStart}, 错误:`, error);
+            errorCount++;
+        }
     }
 
-    // 按照位置排序确保顺序正确
-    allEntries.sort((a, b) => (a.position || 0) - (b.position || 0));
+    console.log(`解析完成: 成功 ${successCount} 个，失败 ${errorCount} 个，总计 ${framePositions.length} 个报文头`);
 
-    console.log(`成功解析 ${allEntries.length} 个报文，使用了 ${segmentCount} 个段`);
+    // 如果解析失败的报文太多，可能是扫描算法有问题
+    if (errorCount > successCount) {
+        console.warn(`警告: 解析失败率过高 (${(errorCount / framePositions.length * 100).toFixed(1)}%)，可能需要调整扫描算法`);
+    }
 
-    return { entries: allEntries, segments: segmentCount };
+    // 按照时间戳排序，确保报文按时间顺序排列
+    // 在解析阶段就完成排序，避免在UI渲染时重复排序，提高性能
+    allEntries.sort((a, b) => {
+        // 首先按时间戳排序
+        const timeCompare = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+        if (timeCompare !== 0) return timeCompare;
+
+        // 如果时间戳相同，按照 PID 排序
+        const pidCompare = a.pid - b.pid;
+        if (pidCompare !== 0) return pidCompare;
+
+        // 最后按照位置排序，确保完全确定的顺序
+        return (a.position || 0) - (b.position || 0);
+    });
+
+    console.log(`成功解析 ${allEntries.length} 个报文，基于 ${framePositions.length} 个扫描位置`);
+
+    return { entries: allEntries, segments: 1 }; // 现在是单次解析，不再分段
 }
 
 /**
@@ -471,4 +600,53 @@ export async function exportFrames(params: {
         console.error('导出失败:', error);
         throw error;
     }
+}
+
+// 获取所有报文条目（不带过滤）
+export function getAllFrameEntries(): FrameEntry[] {
+    const activeFilePath = store.getState().frameParse.activeFilePath;
+    if (!activeFilePath) return [];
+
+    const fileContents = selectFrameFileContents(store.getState(), activeFilePath);
+    if (!fileContents || !fileContents.chunks) return [];
+
+    return Object.values(fileContents.chunks)
+        .flatMap(chunk => chunk.content || [])
+        .filter(entry => entry !== null && entry !== undefined);
+}
+
+// 获取当前过滤后的报文条目
+export function getFilteredFrameEntries(): FrameEntry[] {
+    const state = store.getState();
+    const activeFilePath = state.frameParse.activeFilePath;
+    if (!activeFilePath) return [];
+
+    const filter = selectFrameFilter(state);
+    const entries = getAllFrameEntries();
+
+    return entries
+        .filter(entry => !filter.port || entry.port === filter.port)
+        .filter(entry => !filter.protocol || entry.protocol === filter.protocol)
+        .filter(entry => !filter.direction || entry.direction === filter.direction)
+        .filter(entry => {
+            if (!filter.startTime && !filter.endTime) return true;
+            const entryTime = new Date(entry.timestamp).getTime();
+            
+            let startTime = -Infinity;
+            let endTime = Infinity;
+            
+            if (filter.startTime) {
+                const startDate = new Date(filter.startTime);
+                startDate.setMilliseconds(0);
+                startTime = startDate.getTime();
+            }
+            
+            if (filter.endTime) {
+                const endDate = new Date(filter.endTime);
+                endDate.setMilliseconds(999);
+                endTime = endDate.getTime();
+            }
+            
+            return entryTime >= startTime && entryTime <= endTime;
+        });
 }

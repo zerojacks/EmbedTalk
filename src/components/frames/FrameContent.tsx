@@ -1,16 +1,19 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
-import { LogEntry } from '../store/slices/logParseSlice';
-import { VirtualLogList } from './VirtualLogList';
-import { LogContextMenu } from './LogContextMenu';
+import { FrameEntry } from '../../services/frameParser';
+import { VirtualFrameList } from './VirtualFrameList';
+import { FrameContextMenu } from './FrameContextMenu';
 
-interface LogContentProps {
-    entries: LogEntry[];
-    allEntries: LogEntry[];
+interface FrameContentProps {
+    entries: FrameEntry[];
+    allEntries: FrameEntry[];
+    height?: number;
 }
 
-export const LogContent: React.FC<LogContentProps> = ({ entries, allEntries }) => {
+export const FrameContent: React.FC<FrameContentProps> = ({
+    entries,
+    allEntries,
+    height = window.innerHeight - 200
+}) => {
     const [contextMenu, setContextMenu] = useState<{
         show: boolean;
         x: number;
@@ -42,18 +45,18 @@ export const LogContent: React.FC<LogContentProps> = ({ entries, allEntries }) =
     }, [handleCloseContextMenu]);
 
     return (
-        <div 
+        <div
             className="h-full overflow-hidden relative"
             onContextMenu={handleContextMenu}
         >
             {entries.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-base-content/50">
-                    <p>没有日志内容</p>
+                    <p>没有报文数据</p>
                 </div>
             ) : (
-                <VirtualLogList entries={entries} />
+                <VirtualFrameList entries={entries} />
             )}
-            <LogContextMenu
+            <FrameContextMenu
                 show={contextMenu.show}
                 x={contextMenu.x}
                 y={contextMenu.y}
@@ -63,4 +66,4 @@ export const LogContent: React.FC<LogContentProps> = ({ entries, allEntries }) =
             />
         </div>
     );
-}; 
+};

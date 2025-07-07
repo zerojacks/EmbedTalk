@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { LogEntry } from '../store/slices/logParseSlice';
+import { LogEntry } from '../../store/slices/logParseSlice';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 interface VirtualLogListProps {

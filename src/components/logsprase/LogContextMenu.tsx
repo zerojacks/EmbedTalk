@@ -2,10 +2,10 @@ import React from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import { listen } from '@tauri-apps/api/event';
-import { toast } from '../context/ToastProvider';
-import { LogEntry } from '../store/slices/logParseSlice';
+import { toast } from '../../context/ToastProvider';
+import { LogEntry } from '../../store/slices/logParseSlice';
 import { useSelector } from 'react-redux';
-import { selectActiveLogFile } from '../store/slices/logParseSlice';
+import { selectActiveLogFile } from '../../store/slices/logParseSlice';
 
 interface LogContextMenuProps {
     show: boolean;
