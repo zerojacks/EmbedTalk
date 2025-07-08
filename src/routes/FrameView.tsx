@@ -1,13 +1,12 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../store';
-import { store } from '../store';
+import { RootState } from '../store/index';
+import { store } from '../store/index';
 import {
     addFrameFile,
     removeFrameFile,
     setActiveFrameFile,
     addFrameChunk,
-    clearOldChunks,
     setFrameFilter,
     initializeFrameFilter,
     setLoading,
@@ -21,13 +20,16 @@ import {
     selectError,
     FrameFile
 } from '../store/slices/frameParseSlice';
-import { FrameEntry } from '../services/frameParser';
+import { parseFrameChunkParallel } from '../services/frameParser';
+import { FrameEntry } from '../types/frameTypes';
 import { toast } from '../context/ToastProvider';
+import ParseProgress from '../components/ui/ParseProgress';
+import { useParseProgress } from '../hooks/useParseProgress';
 import { open } from '@tauri-apps/plugin-dialog';
 import { lstat, readFile } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
 import { UnlistenFn } from '@tauri-apps/api/event';
-import { parseFrameChunk } from '../services/frameParser';
+
 import { FileText, XCircle } from 'lucide-react';
 import { FileTabs } from '../components/frames/FileTabs';
 import { FrameFilter } from '../components/frames/FrameFilter';
@@ -44,9 +46,6 @@ import { FrameContent } from '../components/frames/FrameContent';
 
 
 
-// 常量定义
-const CACHE_MAX_AGE = 5 * 60 * 1000; // 5分钟缓存过期时间
-
 // 主组件
 const FrameView: React.FC = () => {
     const [isDragging, setIsDragging] = useState(false);
@@ -54,6 +53,16 @@ const FrameView: React.FC = () => {
     const dragTargetRef = useRef<HTMLDivElement>(null);
 
     const dispatch = useDispatch();
+
+    // 进度管理
+    const {
+        progressItems,
+        addProgressItem,
+        updateProgressItem,
+        removeProgressItem,
+        clearProgressItems,
+        isFileProcessing,
+    } = useParseProgress();
     const openFiles = useSelector(selectOpenFrameFiles);
     const activeFilePath = useSelector(selectActiveFrameFilePath);
     const activeFile = useSelector(selectActiveFrameFile);
@@ -247,8 +256,13 @@ const FrameView: React.FC = () => {
         }
     }, [activeFilePath, fileContents, filter, initializeFileFilterWithDefaults]);
 
-    // 加载整个文件 - 一次性加载所有内容
+    // 加载整个文件 - 使用并行多线程解析
     const loadFileContent = async (filePath: string) => {
+        const fileName = filePath.split(/[\/\\]/).pop() || '未命名文件';
+        let progressId: string | null = null;
+
+        console.log(`[FRAME] 开始加载文件: ${filePath}`);
+
         try {
             // 首先检查文件是否已经在缓存中
             const state = store.getState() as RootState;
@@ -256,18 +270,63 @@ const FrameView: React.FC = () => {
 
             // 如果文件内容已经存在于缓存中，则直接返回
             if (fileContents && Object.keys(fileContents.chunks).length > 0) {
-                console.log(`使用缓存的文件内容: ${filePath}`);
+                console.log(`[FRAME] 使用缓存的文件内容: ${filePath}`);
                 return;
             }
+
+            // 检查是否已经有相同文件正在解析
+            if (isFileProcessing(filePath, 'frame')) {
+                console.warn(`[FRAME] 文件 ${filePath} 正在解析中，跳过重复请求`);
+                return;
+            }
+
+            // 添加进度项
+            progressId = addProgressItem({
+                fileName,
+                filePath: filePath, // 传递完整路径
+                type: 'frame',
+                status: 'parsing',
+                progress: 0,
+                currentEntries: 0,
+                segments: 1,
+            });
+
+            // 如果进度项创建失败（重复），直接返回
+            if (!progressId) {
+                console.warn(`[FRAME] 文件 ${filePath} 进度项创建失败，可能正在处理中`);
+                return;
+            }
+
+            console.log(`[FRAME] 创建进度项成功: ${progressId} for ${filePath}`);
 
             dispatch(setLoading(true));
 
             // 读取整个文件
+            updateProgressItem(progressId, { progress: 20 });
             const buffer = await readFile(filePath);
 
-            // 使用 frameParser 服务解析整个文件的报文
-            // 这里仍然使用 parseFrameChunk，但是传入整个文件的范围
-            const { entries } = parseFrameChunk(buffer, 0, buffer.length);
+            // 性能监控
+            const startTime = performance.now();
+            console.log(`开始解析报文文件: ${filePath}, 大小: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
+
+            // 更新进度
+            updateProgressItem(progressId, { progress: 30 });
+
+            // 使用并行多线程解析报文，使用1MB分段大小
+            const segmentSize = 1024 * 1024; // 1MB
+            const { entries, segments } = await parseFrameChunkParallel(buffer, 0, buffer.length, segmentSize);
+
+            // 计算解析时间
+            const endTime = performance.now();
+            const parseTime = ((endTime - startTime) / 1000).toFixed(2);
+            console.log(`报文解析完成，耗时: ${parseTime}s, 解析 ${entries.length} 个报文，使用 ${segments} 个线程段`);
+
+            // 更新进度
+            updateProgressItem(progressId, {
+                progress: 80,
+                currentEntries: entries.length,
+                segments
+            });
 
             // 将解析的报文条目作为单个块添加到Redux存储中
             dispatch(addFrameChunk({
@@ -283,15 +342,33 @@ const FrameView: React.FC = () => {
 
             dispatch(setLoading(false));
 
-            if (entries.length > 0) {
-                toast.success(`成功解析 ${entries.length} 个报文，文件大小: ${(buffer.length / 1024).toFixed(2)} KB`);
-            }
+            // 完成进度
+            updateProgressItem(progressId, {
+                progress: 100,
+                status: 'completed',
+                totalEntries: entries.length,
+                currentEntries: entries.length,
+                segments
+            });
+
         } catch (error) {
             console.error('加载文件失败:', error);
             const errorMessage = error instanceof Error ? error.message : String(error);
             dispatch(setError(errorMessage));
             dispatch(setLoading(false));
-            toast.error(`加载文件失败: ${errorMessage}`);
+
+            if (progressId) {
+                updateProgressItem(progressId, {
+                    status: 'error',
+                    progress: 0,
+                    errorMessage
+                });
+            }
+
+            // 只在严重错误时显示 toast
+            if (errorMessage.includes('权限') || errorMessage.includes('不存在')) {
+                toast.error(`文件 ${fileName} 加载失败: ${errorMessage}`);
+            }
         }
     };
 
@@ -350,14 +427,20 @@ const FrameView: React.FC = () => {
     const handleOpenFile = async () => {
         try {
             const selected = await open({
-                multiple: false,
+                multiple: true, // 支持多文件选择
                 filters: [
                     { name: '所有文件', extensions: ['*'] }
                 ]
             });
 
             if (selected) {
-                await loadFile(selected as string);
+                if (typeof selected === 'string') {
+                    await loadFile(selected);
+                }
+                // 如果选择了多个文件，并行加载所有文件
+                else if (Array.isArray(selected)) {
+                    await Promise.all(selected.map(path => loadFile(path as string)));
+                }
             }
         } catch (error) {
             console.error('打开文件失败:', error);
@@ -425,16 +508,7 @@ const FrameView: React.FC = () => {
         };
     }, []);
 
-    // 定期清理旧的缓存块
-    useEffect(() => {
-        const cleanupInterval = setInterval(() => {
-            dispatch(clearOldChunks({
-                maxAge: CACHE_MAX_AGE
-            }));
-        }, CACHE_MAX_AGE);
 
-        return () => clearInterval(cleanupInterval);
-    }, [dispatch]);
 
     // 组件卸载时清理监听器
     useEffect(() => {
@@ -541,6 +615,13 @@ const FrameView: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            {/* 进度展示组件 */}
+            <ParseProgress
+                items={progressItems}
+                onRemove={removeProgressItem}
+                onClear={clearProgressItems}
+            />
         </div>
     );
 };

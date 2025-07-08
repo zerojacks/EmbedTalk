@@ -6,6 +6,7 @@ import { toast } from '../../context/ToastProvider';
 import { LogEntry } from '../../store/slices/logParseSlice';
 import { useSelector } from 'react-redux';
 import { selectActiveLogFile } from '../../store/slices/logParseSlice';
+import { Filter, FileDown } from 'lucide-react';
 
 interface LogContextMenuProps {
     show: boolean;
@@ -96,37 +97,38 @@ export const LogContextMenu: React.FC<LogContextMenuProps> = ({
 
     return (
         <div
-            className="fixed z-50 bg-base-100 shadow-lg rounded-lg border border-base-300"
+            className="fixed z-50 bg-base-100 shadow-xl rounded-lg border border-base-300 backdrop-blur-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200"
             style={{
                 left: x,
                 top: y,
-                minWidth: '200px'
+                minWidth: '240px',
+                transformOrigin: 'top left',
             }}
         >
-            <ul className="menu p-2">
-                <li>
-                    <button
-                        onClick={() => {
-                            handleExport(true);
-                            onClose();
-                        }}
-                        className="flex items-center px-4 py-2 hover:bg-base-200"
-                    >
-                        导出已过滤日志
-                    </button>
-                </li>
-                <li>
-                    <button
-                        onClick={() => {
-                            handleExport(false);
-                            onClose();
-                        }}
-                        className="flex items-center px-4 py-2 hover:bg-base-200"
-                    >
-                        导出全部日志
-                    </button>
-                </li>
-            </ul>
+            <div className="py-2">
+                <div
+                    onClick={() => {
+                        handleExport(true);
+                        onClose();
+                    }}
+                    className="group px-4 py-2.5 hover:bg-base-200 active:bg-base-300 flex items-center gap-3 cursor-pointer text-sm transition-all duration-150 select-none hover:pl-5 min-h-[36px]"
+                >
+                    <Filter className="w-4 h-4 flex-shrink-0 transition-transform duration-150 group-hover:scale-110 text-blue-500" />
+                    <span className="flex-1 font-medium whitespace-nowrap">导出已过滤日志</span>
+                    <span className="text-xs text-base-content/60 font-mono opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap">Ctrl+Shift+E</span>
+                </div>
+                <div
+                    onClick={() => {
+                        handleExport(false);
+                        onClose();
+                    }}
+                    className="group px-4 py-2.5 hover:bg-base-200 active:bg-base-300 flex items-center gap-3 cursor-pointer text-sm transition-all duration-150 select-none hover:pl-5 min-h-[36px]"
+                >
+                    <FileDown className="w-4 h-4 flex-shrink-0 transition-transform duration-150 group-hover:scale-110 text-green-500" />
+                    <span className="flex-1 font-medium whitespace-nowrap">导出全部日志</span>
+                    <span className="text-xs text-base-content/60 font-mono opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap">Ctrl+E</span>
+                </div>
+            </div>
         </div>
     );
 }; 

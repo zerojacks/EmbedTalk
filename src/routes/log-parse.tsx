@@ -1,13 +1,12 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../store';
-import { store } from '../store';
+import { RootState } from '../store/index';
+import { store } from '../store/index';
 import {
     addLogFile,
     removeLogFile,
     setActiveLogFile,
     addLogChunk,
-    clearOldChunks,
     setLogFilter,
     initializeFileFilter,
     setLoading,
@@ -23,6 +22,8 @@ import {
     LogFile
 } from '../store/slices/logParseSlice';
 import { toast } from '../context/ToastProvider';
+import ParseProgress from '../components/ui/ParseProgress';
+import { useParseProgress } from '../hooks/useParseProgress';
 import { open } from '@tauri-apps/plugin-dialog';
 import { lstat, readFile } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
@@ -37,7 +38,6 @@ import { normalizePath } from '../lib/utils';
 
 // 常量定义
 const CHUNK_SIZE = 64 * 1024; // 64KB 块大小
-const CACHE_MAX_AGE = 5 * 60 * 1000; // 5分钟缓存过期时间
 
 // 主日志解析组件
 export default function LogParse() {
@@ -53,6 +53,16 @@ export default function LogParse() {
     const isLoading = useSelector(selectIsLoading);
     const error = useSelector(selectError);
     const filter = useSelector((state: RootState) => activeFilePath ? selectLogFilter(state, activeFilePath) : {});
+
+    // 进度管理
+    const {
+        progressItems,
+        addProgressItem,
+        updateProgressItem,
+        removeProgressItem,
+        clearProgressItems,
+        isFileProcessing,
+    } = useParseProgress();
 
     // 获取所有日志条目 - 使用 useMemo 优化
     const allLogEntries = useMemo(() => {
@@ -245,12 +255,7 @@ export default function LogParse() {
                 endByte: end
             }));
             
-            // 清理旧的块，保持内存使用量合理
-            dispatch(clearOldChunks({
-                maxAge: CACHE_MAX_AGE,
-                excludePath: filePath // 不清理当前文件的块
-            }));
-            
+
             // 在加载完第一个块后初始化过滤器
             if (chunk === 0) {
                 initializeFileFilterWithDefaults(filePath);
@@ -268,36 +273,91 @@ export default function LogParse() {
 
     // 加载文件 - 优化版本，避免重复解析
     const loadFile = async (path: string) => {
+        const fileName = path.split(/[\/\\]/).pop() || '未命名文件';
+        let progressId: string | null = null;
+
+        console.log(`[LOG] 开始加载文件: ${path}`);
+
         try {
             // 检查文件是否已经在打开列表中
             const existingFile = openFiles.find(file => file.path === path);
             if (existingFile) {
+                console.log(`[LOG] 文件已打开，设置为活动文件: ${path}`);
                 // 如果文件已经打开，只需要设置为活动文件
                 dispatch(setActiveLogFile(path));
                 return;
             }
-            
+
+            // 检查是否已经有相同文件正在解析
+            if (isFileProcessing(path, 'log')) {
+                console.warn(`[LOG] 文件 ${path} 正在解析中，跳过重复请求`);
+                return;
+            }
+
             const fileStats = await lstat(path);
-            
+
+            // 添加进度项
+            progressId = addProgressItem({
+                fileName,
+                filePath: path, // 传递完整路径
+                type: 'log',
+                status: 'parsing',
+                progress: 0,
+                currentEntries: 0,
+                segments: 1,
+            });
+
+            // 如果进度项创建失败（重复），直接返回
+            if (!progressId) {
+                console.warn(`[LOG] 文件 ${path} 进度项创建失败，可能正在处理中`);
+                return;
+            }
+
+            console.log(`[LOG] 创建进度项成功: ${progressId} for ${path}`);
+
             // 创建文件对象
             const fileTab: LogFile = {
                 path,
-                name: path.split(/[\/\\]/).pop() || '未命名文件',
+                name: fileName,
                 size: fileStats.size,
                 lastModified: Date.now(),
                 isActive: false
             };
-            
+
             // 添加文件到列表
             dispatch(addLogFile(fileTab));
-            
+
+            // 更新进度
+            updateProgressItem(progressId, { progress: 30 });
+
             // 获取当前的Redux状态中的文件内容缓存
             const state = store.getState() as RootState;
             const cachedContents = selectLogFileContents(state, path);
-            
+
             // 如果没有缓存内容或内容为空，加载第一个块
             if (!cachedContents || Object.keys(cachedContents.chunks).length === 0) {
+                updateProgressItem(progressId, { progress: 50 });
                 await loadFileChunk(path, 0);
+
+                // 获取解析后的条目数量
+                const updatedState = store.getState() as RootState;
+                const updatedContents = selectLogFileContents(updatedState, path);
+                const totalEntries = updatedContents ?
+                    Object.values(updatedContents.chunks).reduce((sum, chunk) => sum + chunk.content.length, 0) : 0;
+
+                updateProgressItem(progressId, {
+                    progress: 100,
+                    status: 'completed',
+                    totalEntries,
+                    currentEntries: totalEntries
+                });
+            } else {
+                // 文件已缓存
+                updateProgressItem(progressId, {
+                    progress: 100,
+                    status: 'completed',
+                    totalEntries: Object.values(cachedContents.chunks).reduce((sum, chunk) => sum + chunk.content.length, 0)
+                });
             }
 
             // 确保在内容加载完成后设置活动文件
@@ -306,7 +366,19 @@ export default function LogParse() {
             console.error('加载文件失败:', error);
             const errorMessage = error instanceof Error ? error.message : String(error);
             dispatch(setError(errorMessage));
-            toast.error(`文件 ${path} 加载失败: ${errorMessage}`);
+
+            if (progressId) {
+                updateProgressItem(progressId, {
+                    status: 'error',
+                    progress: 0,
+                    errorMessage
+                });
+            }
+
+            // 只在严重错误时显示 toast
+            if (errorMessage.includes('权限') || errorMessage.includes('不存在')) {
+                toast.error(`文件 ${fileName} 加载失败: ${errorMessage}`);
+            }
         }
     };
 
@@ -373,10 +445,9 @@ export default function LogParse() {
                         
                         try {
                             await Promise.all(paths.map(path => loadFile(path)));
-                            toast.success(`成功加载 ${paths.length} 个文件`);
                         } catch (error) {
                             const errorMessage = error instanceof Error ? error.message : String(error);
-                            toast.error('文件读取失败');
+                            console.error('拖放文件读取失败:', errorMessage);
                             dispatch(setError(errorMessage));
                         } finally {
                             dispatch(setLoading(false));
@@ -401,17 +472,6 @@ export default function LogParse() {
             // 清理函数会在 unlistenFns 的 useEffect 中处理
         };
     }, []);
-
-    // 定期清理旧的缓存块
-    useEffect(() => {
-        const cleanupInterval = setInterval(() => {
-            dispatch(clearOldChunks({
-                maxAge: CACHE_MAX_AGE
-            }));
-        }, CACHE_MAX_AGE);
-        
-        return () => clearInterval(cleanupInterval);
-    }, [dispatch]);
 
     // 组件卸载时清理监听器
     useEffect(() => {
@@ -467,6 +527,13 @@ export default function LogParse() {
                     )}
                 </div>
             </div>
+
+            {/* 进度展示组件 */}
+            <ParseProgress
+                items={progressItems}
+                onRemove={removeProgressItem}
+                onClear={clearProgressItems}
+            />
         </div>
     );
 }

@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { RootState } from '../store';
+import { RootState } from '../index';
 import { createAction } from '@reduxjs/toolkit';
 
 // 日志条目接口定义
@@ -80,6 +80,16 @@ const logParseSlice = createSlice({
         // 添加文件
         addLogFile: (state, action: PayloadAction<LogFile>) => {
             const file = action.payload;
+
+            // 检查文件是否已经在打开列表中，避免重复添加
+            const existingFileIndex = state.openFiles.findIndex(f => f.path === file.path);
+            if (existingFileIndex !== -1) {
+                // 如果文件已存在，更新文件信息而不是添加新的
+                state.openFiles[existingFileIndex] = file;
+                return;
+            }
+
+            // 初始化文件内容存储
             if (!state.fileContents[file.path]) {
                 state.fileContents[file.path] = {
                     chunks: {},
@@ -94,6 +104,8 @@ const logParseSlice = createSlice({
                     }
                 };
             }
+
+            // 添加新文件到打开列表
             state.openFiles.push(file);
         },
         
@@ -101,20 +113,9 @@ const logParseSlice = createSlice({
         removeLogFile: (state, action: PayloadAction<string>) => {
             const path = action.payload;
             state.openFiles = state.openFiles.filter(file => file.path !== path);
-            if (state.fileContents[path]) {
-                state.fileContents[path] = {
-                    chunks: {},
-                    filter: {
-                        level: undefined,
-                        tag: undefined,
-                        keyword: undefined,
-                        startTime: undefined,
-                        endTime: undefined,
-                        pid: undefined,
-                        tid: undefined
-                    }
-                };
-            }
+            // 完全删除文件内容和过滤器，释放内存
+            delete state.fileContents[path];
+            delete state.fileFilters[path];
             if (state.activeFilePath === path) {
                 state.activeFilePath = state.openFiles[0]?.path || null;
             }
@@ -229,17 +230,29 @@ export const {
     setError
 } = logParseSlice.actions;
 
-// 选择器
-export const selectOpenLogFiles = (state: RootState) => state.logParse.openFiles;
-export const selectActiveLogFilePath = (state: RootState) => state.logParse.activeFilePath;
-export const selectActiveLogFile = (state: RootState) => 
-    state.logParse.openFiles.find(file => file.path === state.logParse.activeFilePath);
-export const selectLogFileContents = (state: RootState, path: string) => 
-    state.logParse.fileContents[path];
-export const selectLogFilter = (state: RootState, path: string) => 
-    state.logParse.fileFilters[path] || {};
-export const selectIsLoading = (state: RootState) => state.logParse.isLoading;
-export const selectError = (state: RootState) => state.logParse.error;
+// 选择器 - 添加类型保护以兼容 Redux Persist
+export const selectOpenLogFiles = (state: RootState) =>
+    state.logParse?.openFiles || [];
+
+export const selectActiveLogFilePath = (state: RootState) =>
+    state.logParse?.activeFilePath || null;
+
+export const selectActiveLogFile = (state: RootState) => {
+    if (!state.logParse?.openFiles || !state.logParse?.activeFilePath) return undefined;
+    return state.logParse.openFiles.find((file: LogFile) => file.path === state.logParse.activeFilePath);
+};
+
+export const selectLogFileContents = (state: RootState, path: string) =>
+    state.logParse?.fileContents?.[path] || null;
+
+export const selectLogFilter = (state: RootState, path: string) =>
+    state.logParse?.fileFilters?.[path] || {};
+
+export const selectIsLoading = (state: RootState) =>
+    state.logParse?.isLoading || false;
+
+export const selectError = (state: RootState) =>
+    state.logParse?.error || null;
 
 // 导出 reducer
 export default logParseSlice.reducer;

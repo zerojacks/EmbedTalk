@@ -7,8 +7,17 @@ import {
     selectActiveFrameFilePath,
     FrameFile
 } from '../../store/slices/frameParseSlice';
-import { FolderOpen, X } from 'lucide-react';
-import { XIcon, FolderIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from '@heroicons/react/outline';
+import {
+    FolderOpen,
+    X,
+    MoreHorizontal,
+    FileText,
+    XCircle,
+    Layers,
+    ArrowLeft,
+    ArrowRight,
+    Folder
+} from 'lucide-react';
 import { Command } from '@tauri-apps/plugin-shell';
 import { FileCloseConfirmDialog } from './FileCloseConfirmDialog';
 
@@ -21,6 +30,7 @@ export const FileTabs: React.FC<FileTabsProps> = ({ onOpenFile }) => {
     const openFiles = useSelector(selectOpenFrameFiles);
     const activeFilePath = useSelector(selectActiveFrameFilePath);
     const [fileToClose, setFileToClose] = useState<string | null>(null);
+    const [hoveredTab, setHoveredTab] = useState<string | null>(null);
     const [showDropdown, setShowDropdown] = useState(false);
 
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -194,7 +204,7 @@ export const FileTabs: React.FC<FileTabsProps> = ({ onOpenFile }) => {
                 onClick={toggleDropdown}
                 title="更多文件"
             >
-                <span className="text-xs font-medium">...</span>
+                <MoreHorizontal className="h-4 w-4" />
             </button>
             {showDropdown && (
                 <>
@@ -246,6 +256,7 @@ export const FileTabs: React.FC<FileTabsProps> = ({ onOpenFile }) => {
     // 渲染单个标签
     const renderTab = (file: FrameFile) => {
         const isActive = file.path === activeFilePath;
+        const isHovered = file.path === hoveredTab;
 
         return (
             <div
@@ -259,21 +270,33 @@ export const FileTabs: React.FC<FileTabsProps> = ({ onOpenFile }) => {
                 `}
                 onClick={() => handleTabClick(file.path)}
                 onContextMenu={(e) => handleContextMenu(e, file.path)}
+                onMouseEnter={() => setHoveredTab(file.path)}
+                onMouseLeave={() => setHoveredTab(null)}
+                title={file.path}
             >
-                <div className="flex items-center w-full overflow-hidden">
-                    <span className="truncate flex-grow text-xs">{file.name}</span>
-                    <button
-                        className="ml-1 p-0.5 rounded-full hover:bg-base-300 text-base-content/70 flex-shrink-0"
-                        onClick={(e) => handleCloseClick(e, file.path)}
-                    >
-                        <X className="w-3 h-3" />
-                    </button>
-                </div>
+                <FileText className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate flex-grow text-sm" title={file.name}>{file.name}</span>
+                <button
+                    className={`
+                        flex-shrink-0 rounded-full p-0.5
+                        hover:bg-base-300 hover:text-error
+                        ${isHovered ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
+                    `}
+                    onClick={(e) => handleCloseClick(e, file.path)}
+                    title="关闭"
+                >
+                    <X className="h-3 w-3" />
+                </button>
             </div>
         );
     };
 
-    const menuItemClass = "px-4 py-2 hover:bg-base-200 flex items-center gap-2 cursor-pointer";
+    // 右键菜单样式类
+    const menuItemClass = "group px-4 py-2.5 hover:bg-base-200 active:bg-base-300 flex items-center gap-3 cursor-pointer text-sm transition-all duration-150 select-none hover:pl-5 min-h-[36px]";
+    const menuSeparatorClass = "border-t border-base-300 my-1 mx-2";
+    const menuIconClass = "w-4 h-4 flex-shrink-0 transition-transform duration-150 group-hover:scale-110";
+    const menuTextClass = "flex-1 font-medium whitespace-nowrap";
+    const menuShortcutClass = "text-xs text-base-content/60 font-mono opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap";
 
     return (
         <div className="h-9 w-full border-b border-base-300 bg-base-100 relative">
@@ -340,36 +363,47 @@ export const FileTabs: React.FC<FileTabsProps> = ({ onOpenFile }) => {
                         onClick={closeContextMenu}
                     ></div>
                     <div
-                        className="bg-base-100 border border-base-300 rounded shadow-lg w-64 z-50"
+                        className="bg-base-100 border border-base-300 rounded-lg shadow-xl backdrop-blur-sm w-64 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
                         style={{
                             position: 'fixed',
                             top: contextMenu.y,
                             left: contextMenu.x,
+                            transformOrigin: 'top left',
                         }}
                     >
-                        <ul className="py-1">
-                            <li className={menuItemClass} onClick={closeCurrentFile}>
-                                <XIcon className="w-4 h-4" />
-                                <span>关闭</span>
-                            </li>
-                            <li className={menuItemClass} onClick={closeOtherFiles}>
-                                <XIcon className="w-4 h-4" />
-                                <span>关闭其他</span>
-                            </li>
-                            <li className={menuItemClass} onClick={closeRightFiles}>
-                                <ChevronDoubleLeftIcon className="w-4 h-4" />
-                                <span>关闭右侧</span>
-                            </li>
-                            <li className={menuItemClass} onClick={closeLeftFiles}>
-                                <ChevronDoubleRightIcon className="w-4 h-4" />
-                                <span>关闭左侧</span>
-                            </li>
-                            <li className="border-t border-base-300 my-1"></li>
-                            <li className={menuItemClass} onClick={showInExplorer}>
-                                <FolderIcon className="w-4 h-4" />
-                                <span>在资源管理器中显示</span>
-                            </li>
-                        </ul>
+                        <div className="py-2">
+                            {/* 关闭操作 */}
+                            <div className={menuItemClass} onClick={closeCurrentFile}>
+                                <XCircle className={`${menuIconClass} text-red-500`} />
+                                <span className={menuTextClass}>关闭</span>
+                                <span className={menuShortcutClass}>Ctrl+W</span>
+                            </div>
+                            <div className={menuItemClass} onClick={closeOtherFiles}>
+                                <Layers className={`${menuIconClass} text-orange-500`} />
+                                <span className={menuTextClass}>关闭其他</span>
+                                <span className={menuShortcutClass}>Ctrl+K O</span>
+                            </div>
+                            <div className={menuItemClass} onClick={closeRightFiles}>
+                                <ArrowRight className={`${menuIconClass} text-purple-500`} />
+                                <span className={menuTextClass}>关闭右侧</span>
+                                <span className={menuShortcutClass}>Ctrl+K →</span>
+                            </div>
+                            <div className={menuItemClass} onClick={closeLeftFiles}>
+                                <ArrowLeft className={`${menuIconClass} text-green-500`} />
+                                <span className={menuTextClass}>关闭左侧</span>
+                                <span className={menuShortcutClass}>Ctrl+K ←</span>
+                            </div>
+
+                            {/* 分隔线 */}
+                            <div className={menuSeparatorClass}></div>
+
+                            {/* 文件操作 */}
+                            <div className={menuItemClass} onClick={showInExplorer}>
+                                <Folder className={`${menuIconClass} text-blue-500`} />
+                                <span className={menuTextClass}>显示文件位置</span>
+                                <span className={menuShortcutClass}>Shift+Alt+R</span>
+                            </div>
+                        </div>
                     </div>
                 </>
             )}

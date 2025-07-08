@@ -1,8 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectOpenLogFiles, selectActiveLogFilePath, removeLogFile, setActiveLogFile } from '../../store/slices/logParseSlice';
-import { FileText, X, FolderOpen, ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
+import {
+    FileText,
+    X,
+    FolderOpen,
+    ChevronLeft,
+    ChevronRight,
+    MoreHorizontal,
+    ExternalLink,
+    XCircle,
+    Layers,
+    ArrowLeft,
+    ArrowRight,
+    Folder
+} from 'lucide-react';
 import { normalizePath } from '../../lib/utils';
+import { FileCloseConfirmDialog } from '../frames/FileCloseConfirmDialog';
+import { Command } from '@tauri-apps/plugin-shell';
 
 interface FileTabsProps {
     onOpenFile: () => void;
@@ -30,27 +45,40 @@ export const FileTabs: React.FC<FileTabsProps> = ({ onOpenFile }) => {
         y: 0,
         path: ''
     });
+    const [fileToClose, setFileToClose] = useState<string | null>(null);
 
     // 处理关闭标签
     const handleCloseTab = async (path: string, event: React.MouseEvent) => {
         event.stopPropagation();
-        
-        // 如果关闭的是当前活动标签，需要切换到其他标签
-        if (path === activeFilePath) {
-            const currentIndex = openFiles.findIndex(file => file.path === path);
-            // 如果有下一个标签，切换到下一个；否则切换到前一个
-            const nextFile = openFiles[currentIndex + 1] || openFiles[currentIndex - 1];
-            if (nextFile) {
-                // 先移除当前文件
-                dispatch(removeLogFile(path));
-                // 然后设置新的活动文件
-                dispatch(setActiveLogFile(nextFile.path));
+        setFileToClose(path);
+    };
+
+    // 确认关闭文件
+    const confirmCloseFile = () => {
+        if (fileToClose) {
+            // 如果关闭的是当前活动标签，需要切换到其他标签
+            if (fileToClose === activeFilePath) {
+                const currentIndex = openFiles.findIndex(file => file.path === fileToClose);
+                // 如果有下一个标签，切换到下一个；否则切换到前一个
+                const nextFile = openFiles[currentIndex + 1] || openFiles[currentIndex - 1];
+                if (nextFile) {
+                    // 先移除当前文件
+                    dispatch(removeLogFile(fileToClose));
+                    // 然后设置新的活动文件
+                    dispatch(setActiveLogFile(nextFile.path));
+                } else {
+                    dispatch(removeLogFile(fileToClose));
+                }
             } else {
-                dispatch(removeLogFile(path));
+                dispatch(removeLogFile(fileToClose));
             }
-        } else {
-            dispatch(removeLogFile(path));
+            setFileToClose(null);
         }
+    };
+
+    // 取消关闭文件
+    const cancelCloseFile = () => {
+        setFileToClose(null);
     };
 
     // 处理切换标签
@@ -76,7 +104,7 @@ export const FileTabs: React.FC<FileTabsProps> = ({ onOpenFile }) => {
 
     // 关闭当前文件
     const closeCurrentFile = () => {
-        handleCloseTab(contextMenu.path, { stopPropagation: () => {} } as React.MouseEvent);
+        setFileToClose(contextMenu.path);
         closeContextMenu();
     };
 
@@ -121,6 +149,30 @@ export const FileTabs: React.FC<FileTabsProps> = ({ onOpenFile }) => {
         closeContextMenu();
     };
 
+    // 在资源管理器中显示文件
+    const showInExplorer = async () => {
+        try {
+            const path = contextMenu.path;
+            const dirPath = path.substring(0, path.lastIndexOf('\\'));
+            
+            const { platform } = await import('@tauri-apps/plugin-os');
+            const os = platform();
+            
+            let commandName = 'explorer-dir'; // Windows默认
+            if (os.toLowerCase() === 'darwin') {
+                commandName = 'open-dir-mac';
+            } else if (os.toLowerCase() === 'linux') {
+                commandName = 'open-dir-linux';
+            }
+            
+            const command = Command.create(commandName, [dirPath]);
+            await command.execute();
+        } catch (error) {
+            console.error('打开文件夹失败:', error);
+        }
+        closeContextMenu();
+    };
+
     // 点击外部关闭更多菜单
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -135,7 +187,12 @@ export const FileTabs: React.FC<FileTabsProps> = ({ onOpenFile }) => {
         };
     }, []);
 
-    const menuItemClass = "px-4 py-2 hover:bg-base-200 flex items-center gap-2 cursor-pointer";
+    // 右键菜单样式类
+    const menuItemClass = "group px-4 py-2.5 hover:bg-base-200 active:bg-base-300 flex items-center gap-3 cursor-pointer text-sm transition-all duration-150 select-none hover:pl-5 min-h-[36px]";
+    const menuSeparatorClass = "border-t border-base-300 my-1 mx-2";
+    const menuIconClass = "w-4 h-4 flex-shrink-0 transition-transform duration-150 group-hover:scale-110";
+    const menuTextClass = "flex-1 font-medium whitespace-nowrap";
+    const menuShortcutClass = "text-xs text-base-content/60 font-mono opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap";
 
     // 处理文件列表点击
     const handleFileListClick = (path: string) => {
@@ -319,34 +376,56 @@ export const FileTabs: React.FC<FileTabsProps> = ({ onOpenFile }) => {
                         onClick={closeContextMenu}
                     ></div>
                     <div
-                        className="bg-base-100 border border-base-300 rounded shadow-lg w-64 z-50"
+                        className="bg-base-100 border border-base-300 rounded-lg shadow-xl backdrop-blur-sm w-64 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
                         style={{
                             position: 'fixed',
                             top: contextMenu.y,
                             left: contextMenu.x,
+                            transformOrigin: 'top left',
                         }}
                     >
-                        <ul className="py-1">
-                            <li className={menuItemClass} onClick={closeCurrentFile}>
-                                <X className="w-4 h-4" />
-                                <span>关闭</span>
-                            </li>
-                            <li className={menuItemClass} onClick={closeOtherFiles}>
-                                <X className="w-4 h-4" />
-                                <span>关闭其他</span>
-                            </li>
-                            <li className={menuItemClass} onClick={closeRightFiles}>
-                                <ChevronLeft className="w-4 h-4" />
-                                <span>关闭右侧</span>
-                            </li>
-                            <li className={menuItemClass} onClick={closeLeftFiles}>
-                                <ChevronRight className="w-4 h-4" />
-                                <span>关闭左侧</span>
-                            </li>
-                        </ul>
+                        <div className="py-2">
+                            {/* 关闭操作 */}
+                            <div className={menuItemClass} onClick={closeCurrentFile}>
+                                <XCircle className={`${menuIconClass} text-red-500`} />
+                                <span className={menuTextClass}>关闭</span>
+                                <span className={menuShortcutClass}>Ctrl+W</span>
+                            </div>
+                            <div className={menuItemClass} onClick={closeOtherFiles}>
+                                <Layers className={`${menuIconClass} text-orange-500`} />
+                                <span className={menuTextClass}>关闭其他</span>
+                                <span className={menuShortcutClass}>Ctrl+K O</span>
+                            </div>
+                            <div className={menuItemClass} onClick={closeRightFiles}>
+                                <ArrowRight className={`${menuIconClass} text-purple-500`} />
+                                <span className={menuTextClass}>关闭右侧</span>
+                                <span className={menuShortcutClass}>Ctrl+K →</span>
+                            </div>
+                            <div className={menuItemClass} onClick={closeLeftFiles}>
+                                <ArrowLeft className={`${menuIconClass} text-green-500`} />
+                                <span className={menuTextClass}>关闭左侧</span>
+                                <span className={menuShortcutClass}>Ctrl+K ←</span>
+                            </div>
+                            {/* 分隔线 */}
+                            <div className={menuSeparatorClass}></div>
+                                                                                    {/* 文件操作 */}
+                            <div className={menuItemClass} onClick={showInExplorer}>
+                                <Folder className={`${menuIconClass} text-blue-500`} />
+                                <span className={menuTextClass}>显示文件位置</span>
+                                <span className={menuShortcutClass}>Shift+Alt+R</span>
+                            </div>
+                        </div>
                     </div>
                 </>
             )}
+
+            {fileToClose && (
+                <FileCloseConfirmDialog
+                    fileName={openFiles.find(f => f.path === fileToClose)?.name || ''}
+                    onCancel={cancelCloseFile}
+                    onConfirm={confirmCloseFile}
+                />
+            )}
         </div>
     );
-}; 
+};

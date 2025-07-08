@@ -153,14 +153,14 @@ export default function Layout() {
               title="数据提取"
             />
           </Link>
-          <Link className={linkClass} to="/task-analysis">
+          {/* <Link className={linkClass} to="/task-analysis">
             <TbReportAnalytics
               className={clsx(defaultClass, {
                 [selectedClass]: location.pathname === "/task-analysis",
               })}
               title="任务分析"
             />
-          </Link>
+          </Link> */}
           <Link className={linkClass} to="/log-parse">
             <VscOutput
               className={clsx(defaultClass, {

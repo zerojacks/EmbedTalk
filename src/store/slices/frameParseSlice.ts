@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { RootState } from '../store';
+import { RootState } from '../index';
 import { FrameEntry } from '../../services/frameParser';
 import { createAction } from '@reduxjs/toolkit';
 
@@ -140,15 +140,24 @@ export const frameParseSlice = createSlice({
     }
 });
 
-// Selectors
-export const selectOpenFrameFiles = (state: RootState) => state.frameParse.openFiles;
-export const selectActiveFrameFilePath = (state: RootState) => state.frameParse.activeFilePath;
-export const selectActiveFrameFile = (state: RootState) => 
-    state.frameParse.openFiles.find(file => file.path === state.frameParse.activeFilePath);
-export const selectFrameFileContents = (state: RootState, path: string) => state.frameParse.fileContents[path];
+// Selectors with type guards for Redux Persist compatibility
+export const selectOpenFrameFiles = (state: RootState) =>
+    state.frameParse?.openFiles || [];
+
+export const selectActiveFrameFilePath = (state: RootState) =>
+    state.frameParse?.activeFilePath || null;
+
+export const selectActiveFrameFile = (state: RootState) => {
+    if (!state.frameParse?.openFiles || !state.frameParse?.activeFilePath) return undefined;
+    return state.frameParse.openFiles.find(file => file.path === state.frameParse.activeFilePath);
+};
+
+export const selectFrameFileContents = (state: RootState, path: string) =>
+    state.frameParse?.fileContents?.[path] || null;
+
 export const selectFrameFilter = (state: RootState) => {
-    const path = state.frameParse.activeFilePath;
-    if (!path) {
+    const path = state.frameParse?.activeFilePath;
+    if (!path || !state.frameParse?.fileContents) {
         return {
             port: null,
             protocol: null,
@@ -169,8 +178,12 @@ export const selectFrameFilter = (state: RootState) => {
         maxTime: null
     } as FrameFilter;
 };
-export const selectIsLoading = (state: RootState) => state.frameParse.isLoading;
-export const selectError = (state: RootState) => state.frameParse.error;
+
+export const selectIsLoading = (state: RootState) =>
+    state.frameParse?.isLoading || false;
+
+export const selectError = (state: RootState) =>
+    state.frameParse?.error || null;
 
 export const {
     addFrameFile,

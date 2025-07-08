@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { FrameEntry } from '../../services/frameParser';
+import { FrameEntry } from '../../types/frameTypes';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 interface VirtualFrameListProps {

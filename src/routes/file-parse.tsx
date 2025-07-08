@@ -6,7 +6,7 @@ import { TreeItemType } from '../components/TreeItem';
 import { Column } from '../components/treeview';
 import { toast } from '../context/ToastProvider';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { RootState } from '../store/index';
 import { selectSplitSize, setSplitSize } from '../store/slices/splitSizeSlice';
 import {
     addFile,

@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { ChannelType, ConnectionState, ChannelMessage, ConnectionParams, TcpServerConfig, MqttConfig } from '../types/channel';
 import { ThunkDispatch, AnyAction } from '@reduxjs/toolkit';
-import { RootState } from '../store';
+import { RootState } from '../store/index';
 import { updateChannelState, updateMessageStats, updateTcpServerClient } from '../store/slices/channelSlice';
 import { SettingService } from './settingService';
 

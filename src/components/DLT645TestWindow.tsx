@@ -4,7 +4,7 @@ import { toast } from "../context/ToastProvider";
 import { TreeTable, Column } from './treeview';
 import { Card, CardHeader, CardContent } from './ui/card';
 import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { RootState } from '../store/index';
 import { 
   ChannelType, 
   ConnectionState, 

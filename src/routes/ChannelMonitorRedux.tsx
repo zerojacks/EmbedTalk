@@ -35,7 +35,7 @@ import {
     selectTcpServerClientMessageStats,
     clearChannelMessages 
 } from '../store/slices/channelSlice';
-import { RootState } from '../store';
+import { RootState } from '../store/index';
 import MessageSender from '../components/channels/MessageSender';
 import { ChannelService } from '../services/channelService';
 import { toast } from '../context/ToastProvider';

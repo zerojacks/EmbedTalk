@@ -67,7 +67,7 @@ function parseLogMessage(data: string): LogEntry | null {
                     level,
                     tag: tagPrefix || '',
                     func: func,
-                    line: line ? parseInt(line) : null,
+                    line: line ? line : undefined,
                     message: messageContent,
                     rawData: messageContent
                 };
@@ -81,7 +81,7 @@ function parseLogMessage(data: string): LogEntry | null {
                 level,
                 tag: tagPrefix,
                 func: func,
-                line: line ? parseInt(line) : null,
+                line: line ? line : undefined,
                 message: messageContent.substring(bracketPos + 1).trim(),
                 rawData: messageContent
             };
@@ -109,7 +109,7 @@ function parseLogMessage(data: string): LogEntry | null {
                         level,
                         tag: fullTag,
                         func: tag,
-                        line: line ? parseInt(line) : null,
+                        line: line ? line : undefined,
                         message: lines.slice(3).join(' ').trim(),
                         rawData: formattedContent
                     };
@@ -118,13 +118,13 @@ function parseLogMessage(data: string): LogEntry | null {
             
             return {
                 id: crypto.randomUUID(),
-                pid: null,
-                tid: null,
+                pid: undefined,
+                tid: undefined,
                 timeStamp: new Date().toISOString().replace('T', ' ').substring(0, 23),
                 level: level || 'INFO',
                 tag: tagPrefix || '',
                 func: tagPrefix,
-                line: null,
+                line: undefined,
                 message: messageContent || '无法解析的日志消息',
                 rawData: data
             };
@@ -132,13 +132,13 @@ function parseLogMessage(data: string): LogEntry | null {
     } catch (e) {
         return {
             id: crypto.randomUUID(),
-            pid: null,
-            tid: null,
+            pid: undefined,
+            tid: undefined,
             timeStamp: new Date().toISOString().replace('T', ' ').substring(0, 23),
             level: 'ERROR',
             tag: 'ParseError',
             func: 'ParseError',
-            line: null,
+            line: undefined,
             message: `解析错误: ${e instanceof Error ? e.message : String(e)}`,
             rawData: data || ''
         };

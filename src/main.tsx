@@ -67,10 +67,10 @@ const router = createBrowserRouter([
         path:"/frame-extractor",
         element: <FrameExtractorPage />
       },
-      {
-        path: "/task-analysis",
-        element: <TaskAnalysis />
-      },
+      // {
+      //   path: "/task-analysis",
+      //   element: <TaskAnalysis />
+      // },
       {
         path: "/log-parse",
         element: <LogParse />

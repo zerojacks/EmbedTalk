@@ -8,7 +8,8 @@ import {
     selectFrameFileContents,
     FrameFilter as FrameFilterType
 } from '../../store/slices/frameParseSlice';
-import { FrameDirection, getDirectionName } from '../../services/frameParser';
+import { FrameDirection } from '../../types/frameTypes';
+import { getDirectionName } from '../../utils/frameUtils';
 
 interface FrameFilterProps {
     availablePorts: number[];
