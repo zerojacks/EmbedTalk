@@ -4,12 +4,20 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 interface VirtualFrameListProps {
     entries: FrameEntry[];
+    onContentClick?: (frameId: string, frameContent: string) => void;
 }
 
-export const VirtualFrameList: React.FC<VirtualFrameListProps> = ({ entries }) => {
+export const VirtualFrameList: React.FC<VirtualFrameListProps> = ({ entries, onContentClick }) => {
     const parentRef = useRef<HTMLDivElement>(null);
     const [parentWidth, setParentWidth] = useState(0);
     const [rowHeights, setRowHeights] = useState<Map<number, number>>(new Map());
+
+    // 处理content点击事件
+    const handleContentClick = (entry: FrameEntry) => {
+        if (onContentClick && entry.content) {
+            onContentClick(entry.id, entry.content);
+        }
+    };
     
     // 创建一个 ResizeObserver 来监听容器大小变化
     useEffect(() => {
@@ -234,17 +242,18 @@ export const VirtualFrameList: React.FC<VirtualFrameListProps> = ({ entries }) =
                             >
                                 {directionName}
                             </div>
-                            <div 
-                                className="flex-1 text-xs text-base-content min-w-0 font-mono"
-                                style={{ 
+                            <div
+                                className="flex-1 text-xs text-base-content min-w-0 font-mono cursor-pointer hover:bg-base-200 transition-colors duration-150"
+                                style={{
                                     maxWidth: columnWidths.content,
                                     wordBreak: 'break-all',
                                     whiteSpace: 'pre-wrap',
                                     overflowWrap: 'break-word'
                                 }}
-                                title={entry.content}
+                                title={`${entry.content}\n\n点击查看解析结果`}
+                                onClick={() => handleContentClick(entry)}
                             >
-                                <div className="pl-2 py-1">
+                                <div className="pl-2 py-1 hover:bg-blue-50 hover:text-blue-700 rounded transition-colors duration-150">
                                     {entry.content}
                                 </div>
                             </div>

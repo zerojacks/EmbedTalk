@@ -90,12 +90,16 @@ fn main() {
         })
         .on_window_event(move |window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
-                let state_flags = tauri_plugin_window_state::StateFlags::all();
-                let app = window.app_handle();
-                let _ =
-                    tauri_plugin_window_state::AppHandleExt::save_window_state(app, state_flags);
-                api.prevent_close();
-                std::process::exit(0);
+                // 只对主窗口进行特殊处理，其他窗口允许正常关闭
+                if window.label() == "main" {
+                    let state_flags = tauri_plugin_window_state::StateFlags::all();
+                    let app = window.app_handle();
+                    let _ =
+                        tauri_plugin_window_state::AppHandleExt::save_window_state(app, state_flags);
+                    api.prevent_close();
+                    std::process::exit(0);
+                }
+                // 其他窗口（如解析窗口）允许正常关闭，不需要特殊处理
             }
             _ => {}
         })

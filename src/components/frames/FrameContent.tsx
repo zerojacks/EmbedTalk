@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { FrameEntry } from '../../services/frameParser';
+import { FrameEntry } from '../../types/frameTypes';
 import { VirtualFrameList } from './VirtualFrameList';
 import { FrameContextMenu } from './FrameContextMenu';
 
@@ -7,12 +7,14 @@ interface FrameContentProps {
     entries: FrameEntry[];
     allEntries: FrameEntry[];
     height?: number;
+    onContentClick?: (frameId: string, frameContent: string) => void;
 }
 
 export const FrameContent: React.FC<FrameContentProps> = ({
     entries,
     allEntries,
-    height = window.innerHeight - 200
+    height = window.innerHeight - 200,
+    onContentClick
 }) => {
     const [contextMenu, setContextMenu] = useState<{
         show: boolean;
@@ -54,7 +56,10 @@ export const FrameContent: React.FC<FrameContentProps> = ({
                     <p>没有报文数据</p>
                 </div>
             ) : (
-                <VirtualFrameList entries={entries} />
+                <VirtualFrameList
+                    entries={entries}
+                    onContentClick={onContentClick}
+                />
             )}
             <FrameContextMenu
                 show={contextMenu.show}

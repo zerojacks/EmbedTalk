@@ -4,7 +4,9 @@
   "description": "Capability for the main window",
   "windows": [
     "main",
-    "quickparse"
+    "quickparse",
+    "frame-parse",
+    "frame-parse-window"
   ],
   "permissions": [
     "fs:allow-read-file",
@@ -29,6 +31,7 @@
       "identifier": "fs:scope",
       "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**" }, { "path": "$RESOURCE/**" }, { "path": "$RESOURCE" }]
     },
+    "core:window:default",
     "core:window:allow-create",
     "core:window:allow-center",
     "core:window:allow-request-user-attention",
@@ -63,12 +66,14 @@
     "core:window:allow-set-ignore-cursor-events",
     "core:window:allow-start-dragging",
     "core:window:allow-is-visible",
+    "core:window:allow-get-all-windows",
     "core:menu:allow-new",
     "core:webview:allow-print",
     "core:webview:allow-internal-toggle-devtools",
     "core:event:allow-emit",
     "core:event:allow-unlisten",
     "core:event:allow-listen",
+    "core:event:allow-emit-to",
     "core:window:allow-theme",
     "core:window:allow-set-theme",
     "core:window:allow-current-monitor",
@@ -78,6 +83,10 @@
     "core:window:deny-is-resizable",
     "core:window:allow-is-minimized",
     "core:window:allow-is-maximized",
+    "core:webview:allow-create-webview-window",
+    "core:webview:allow-get-all-webviews",
+    "core:webview:allow-set-webview-focus",
+    "core:webview:default",
     "core:app:allow-set-app-theme",
     "global-shortcut:allow-is-registered",
     "global-shortcut:allow-register",
@@ -104,7 +113,6 @@
     "process:default",
     "process:allow-exit",
     "process:allow-restart",
-    "process:default",
     "core:path:allow-dirname",
     "core:path:allow-resolve-directory",
     "core:path:default",

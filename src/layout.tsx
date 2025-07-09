@@ -169,10 +169,10 @@ export default function Layout() {
               title="日志解析"
             />
           </Link>
-          <Link className={linkClass} to="/frame-parse">
+          <Link className={linkClass} to="/frame-view">
             <TbFileAnalytics
               className={clsx(defaultClass, {
-                [selectedClass]: location.pathname === "/frame-parse",
+                [selectedClass]: location.pathname === "/frame-view",
               })}
               title="报文解析"
             />

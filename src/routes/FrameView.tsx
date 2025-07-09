@@ -25,6 +25,7 @@ import { FrameEntry } from '../types/frameTypes';
 import { toast } from '../context/ToastProvider';
 import ParseProgress from '../components/ui/ParseProgress';
 import { useParseProgress } from '../hooks/useParseProgress';
+import { useFrameParseWindows } from '../hooks/useFrameParseWindows';
 import { open } from '@tauri-apps/plugin-dialog';
 import { lstat, readFile } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
@@ -63,6 +64,14 @@ const FrameView: React.FC = () => {
         clearProgressItems,
         isFileProcessing,
     } = useParseProgress();
+
+    // 窗口管理
+    const { openWindow } = useFrameParseWindows();
+
+    // 处理报文内容点击
+    const handleContentClick = (frameId: string, frameContent: string) => {
+        openWindow(frameId, frameContent);
+    };
     const openFiles = useSelector(selectOpenFrameFiles);
     const activeFilePath = useSelector(selectActiveFrameFilePath);
     const activeFile = useSelector(selectActiveFrameFile);
@@ -564,6 +573,7 @@ const FrameView: React.FC = () => {
             <FrameContent
                 entries={filteredFrameEntries}
                 allEntries={allFrameEntries}
+                onContentClick={handleContentClick}
             />
         );
     };
@@ -622,6 +632,8 @@ const FrameView: React.FC = () => {
                 onRemove={removeProgressItem}
                 onClear={clearProgressItems}
             />
+
+            {/* 注意：现在使用真正的Tauri窗口，不需要在这里渲染窗口组件 */}
         </div>
     );
 };
