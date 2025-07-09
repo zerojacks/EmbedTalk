@@ -495,6 +495,7 @@ export default function LogParse() {
                 ref={dragTargetRef}
                 className={`flex-1 overflow-hidden ${isDragging ? 'bg-primary/10 border-2 border-dashed border-primary' : ''}`}
             >
+                
                 {isDragging ? (
                     <div className="flex items-center justify-center h-full">
                         <div className="text-center">
@@ -502,12 +503,26 @@ export default function LogParse() {
                             <p className="text-lg font-medium">释放鼠标以添加日志文件</p>
                         </div>
                     </div>
+                ) : openFiles.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-base-content/50">
+                        <div className="text-center flex flex-col items-center">
+                            <FileText className="h-16 w-16 mb-4" strokeWidth={1} />
+                            <p className="text-lg mb-2">没有打开的日志文件</p>
+                            <p className="text-sm mb-6">拖放日志文件到此处或点击下方按钮打开</p>
+                            <button
+                                className="btn btn-primary"
+                                onClick={handleOpenFile}
+                            >
+                                打开日志文件
+                            </button>
+                        </div>
+                    </div>
                 ) : (
                     <div className="flex flex-col h-full">
                         <LogFilter availableTags={allTags} />
                         <div className="flex-1 overflow-hidden">
-                            <LogContent 
-                                entries={filteredLogEntries} 
+                            <LogContent
+                                entries={filteredLogEntries}
                                 allEntries={allLogEntries}
                             />
                         </div>

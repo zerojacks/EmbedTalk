@@ -316,19 +316,16 @@ const FrameView: React.FC = () => {
 
             // 性能监控
             const startTime = performance.now();
-            console.log(`开始解析报文文件: ${filePath}, 大小: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
 
             // 更新进度
             updateProgressItem(progressId, { progress: 30 });
 
             // 使用并行多线程解析报文，使用1MB分段大小
-            const segmentSize = 1024 * 1024; // 1MB
-            const { entries, segments } = await parseFrameChunkParallel(buffer, 0, buffer.length, segmentSize);
+            const { entries, segments } = await parseFrameChunkParallel(buffer, 0, buffer.length);
 
             // 计算解析时间
             const endTime = performance.now();
             const parseTime = ((endTime - startTime) / 1000).toFixed(2);
-            console.log(`报文解析完成，耗时: ${parseTime}s, 解析 ${entries.length} 个报文，使用 ${segments} 个线程段`);
 
             // 更新进度
             updateProgressItem(progressId, {

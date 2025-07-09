@@ -310,7 +310,7 @@ export const FileTabs: React.FC<FileTabsProps> = ({ onOpenFile }) => {
                             openFiles.map((file: FrameFile) => renderTab(file))
                         ) : (
                             <div className="h-full flex items-center px-3 text-base-content/50">
-                                <span className="text-xs">没有打开的文件</span>
+                                <span className="text-xs">没有打开的报文文件</span>
                             </div>
                         )}
                     </div>
