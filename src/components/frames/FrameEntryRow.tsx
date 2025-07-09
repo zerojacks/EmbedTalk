@@ -1,5 +1,5 @@
 import React from 'react';
-import { FrameEntry } from '../../services/frameParser';
+import { FrameEntry } from '../../types/frameTypes';
 
 interface FrameEntryRowProps {
     entry: FrameEntry;

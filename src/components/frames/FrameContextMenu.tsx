@@ -1,5 +1,5 @@
 import React from 'react';
-import { FrameEntry } from '../../services/frameParser';
+import { FrameEntry } from '../../types/frameTypes';
 import { useSelector } from 'react-redux';
 import { selectActiveFrameFile } from '../../store/slices/frameParseSlice';
 import { open } from '@tauri-apps/plugin-dialog';

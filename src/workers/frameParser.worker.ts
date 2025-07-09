@@ -1,8 +1,6 @@
 // frameParser.worker.ts - 报文解析 Worker
-import { FrameDirection, FrameEntry, FrameParseRequest } from '../types/frameTypes';
+import { FrameDirection, FrameEntry, FrameParseRequest, FRM_RECORD_FLAG } from '../types/frameTypes';
 import { getDirectionName,  getRecordTypeName, getPortName, getProtocolName } from '../utils/frameUtils'
-// 常量定义
-const FRM_RECORD_FLAG = 0x22222223;
 
 // 报文记录结构偏移量
 const FRAME_PID_OFFSET = 4;

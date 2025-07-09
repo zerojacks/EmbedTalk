@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../index';
-import { FrameEntry } from '../../services/frameParser';
+import { FrameEntry } from '../../types/frameTypes';
 import { createAction } from '@reduxjs/toolkit';
 
 export interface FrameFilter {

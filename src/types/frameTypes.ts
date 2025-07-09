@@ -1,4 +1,6 @@
 // frameTypes.ts - 报文相关的共享类型定义
+// 常量定义
+export const FRM_RECORD_FLAG = 0x22222223;
 
 /**
  * 报文方向枚举

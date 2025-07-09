@@ -1,4 +1,4 @@
-import { FRM_RECORD_FLAG } from './frameParser';
+import { FRM_RECORD_FLAG } from '../types/frameTypes';
 import { LOG_RECORD_FLAG } from './logParser'
 
 export enum FileType {
