@@ -13,10 +13,14 @@ export const useFrameParseWindows = () => {
       // 检查是否已经有解析窗口存在
       if (parseWindow) {
         try {
-          // 窗口已存在，聚焦并发送新的数据
+          // 检查窗口是否仍然有效
+          const isVisible = await parseWindow.isVisible();
+          console.log(`现有窗口可见性: ${isVisible}`);
+
+          // 窗口已存在且有效，聚焦并发送新的数据
           await parseWindow.setFocus();
           await parseWindow.unminimize();
-          
+
           // 通过事件发送新的报文数据到窗口
           console.log(`发送事件到现有窗口: frameId=${frameId}, 内容长度=${frameContent.length}`);
           await parseWindow.emit('update-frame-content', {
@@ -24,11 +28,11 @@ export const useFrameParseWindows = () => {
             frameContent
           });
           console.log(`事件发送到现有窗口完成`);
-          
+
           console.log(`成功更新现有解析窗口内容: ${frameId}`);
           return PARSE_WINDOW_LABEL;
         } catch (error) {
-          console.warn('现有窗口无效，将创建新窗口:', error);
+          console.warn('现有窗口无效或已关闭，将创建新窗口:', error);
           parseWindow = null;
         }
       }
@@ -77,17 +81,12 @@ export const useFrameParseWindows = () => {
         decorations: true,
         alwaysOnTop: false,
         skipTaskbar: false,
+        devtools: false
       });
 
       parseWindow = tauriWindow;
 
-      // 监听窗口关闭事件
-      tauriWindow.once('tauri://close-requested', () => {
-        console.log(`解析窗口关闭请求`);
-        parseWindow = null;
-      });
-
-      // 监听窗口销毁事件
+      // 只监听窗口销毁事件来清理引用
       tauriWindow.once('tauri://destroyed', () => {
         console.log(`解析窗口已销毁`);
         parseWindow = null;
@@ -134,11 +133,21 @@ export const useFrameParseWindows = () => {
   const closeWindow = useCallback(async () => {
     if (parseWindow) {
       try {
+        // 首先尝试正常关闭
         await parseWindow.close();
+        console.log('解析窗口已正常关闭');
       } catch (error) {
-        console.error('关闭窗口失败:', error);
+        console.error('正常关闭窗口失败:', error);
+        try {
+          // 如果正常关闭失败，尝试强制销毁
+          await parseWindow.destroy();
+          console.log('解析窗口已强制销毁');
+        } catch (destroyError) {
+          console.error('强制销毁窗口失败:', destroyError);
+        }
+      } finally {
+        parseWindow = null;
       }
-      parseWindow = null;
     }
   }, []);
 

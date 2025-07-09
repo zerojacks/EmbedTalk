@@ -169,10 +169,34 @@ export default function FrameParse() {
       unlistenFn = fn;
     });
 
+    // 添加页面级别的beforeunload处理，确保不阻止窗口关闭
+    const handleBeforeUnload = () => {
+      // 不设置returnValue，允许页面卸载
+      console.log('FrameParse页面即将卸载');
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // 添加键盘快捷键测试关闭功能
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        console.log('ESC键被按下，尝试关闭窗口');
+        currentWindow.close().catch(error => {
+          console.error('通过ESC关闭窗口失败:', error);
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
+      // 清理事件监听器
       if (unlistenFn) {
         unlistenFn();
       }
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('keydown', handleKeyDown);
+      console.log('FrameParse组件清理完成');
     };
   }, [currentFrameContent, handleParse]);
 

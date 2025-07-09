@@ -98,8 +98,11 @@ fn main() {
                         tauri_plugin_window_state::AppHandleExt::save_window_state(app, state_flags);
                     api.prevent_close();
                     std::process::exit(0);
+                } else {
+                    // 对于其他窗口（如解析窗口），明确允许关闭
+                    println!("允许窗口 {} 关闭", window.label());
+                    // 不调用 prevent_close()，让窗口正常关闭
                 }
-                // 其他窗口（如解析窗口）允许正常关闭，不需要特殊处理
             }
             _ => {}
         })
