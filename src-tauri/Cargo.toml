@@ -1,6 +1,6 @@
 [package]
 name = "EmbedTalk"
-version = "0.0.10"
+version = "0.0.11"
 description = "EmbedTalk"
 authors = ["zerojack"]
 license = ""
