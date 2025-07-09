@@ -244,7 +244,7 @@ export default function LogParse() {
             const end = buffer.length;
             
             // 使用 logParser 服务解析日志，现在使用并行处理
-            const entries = await parseLogChunk(buffer, start, end, CHUNK_SIZE);
+            const entries = await parseLogChunk(buffer, start, end);
             
             // 将解析的日志条目添加到Redux存储中
             dispatch(addLogChunk({
@@ -476,7 +476,15 @@ export default function LogParse() {
     // 组件卸载时清理监听器
     useEffect(() => {
         return () => {
-            unlistenFns.forEach(fn => fn());
+            unlistenFns.forEach(fn => {
+                if (fn && typeof fn === 'function') {
+                    try {
+                        fn();
+                    } catch (error) {
+                        console.error('清理监听器失败:', error);
+                    }
+                }
+            });
         };
     }, [unlistenFns]);
 

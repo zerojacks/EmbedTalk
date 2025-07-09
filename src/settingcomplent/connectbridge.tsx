@@ -267,9 +267,13 @@ const ConnectBridge = () => {
     };
     const cleanupChannelListener = async (channel: ChannelType) => {
         console.log(`Cleaning up listener for ${channel}`);
-        if (channelListeners.current[channel]) {
+        if (channelListeners.current[channel] && typeof channelListeners.current[channel] === 'function') {
             console.log(`exec Cleaning up listener for ${channel}`);
-            await channelListeners.current[channel]!();
+            try {
+                await channelListeners.current[channel]!();
+            } catch (error) {
+                console.error(`清理${channel}监听器失败:`, error);
+            }
             channelListeners.current[channel] = null;
         }
     };

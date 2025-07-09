@@ -103,7 +103,7 @@ class FrameParserWorkerPool {
         const request: FrameParseRequest = {
             buffer: task.buffer,
             startPos: task.startPos,
-            endPos: task.endPos
+            endPos: task.endPos,
         };
         worker.postMessage(request);
     }
@@ -119,32 +119,18 @@ class FrameParserWorkerPool {
 // 创建全局 Worker Pool 实例
 const workerPool = new FrameParserWorkerPool();
 
-/**
- * 创建解析段
- */
-function createParseSegments(bufferLength: number, segmentSize: number): Array<{ start: number; end: number }> {
-    const segments: Array<{ start: number; end: number }> = [];
 
-    for (let start = 0; start < bufferLength; start += segmentSize) {
-        const end = Math.min(start + segmentSize, bufferLength);
-        segments.push({ start, end });
-    }
-
-    return segments;
-}
 
 /**
  * 并行解析报文块 - 新的多线程版本
  * @param buffer 报文文件内容
  * @param startPos 起始位置
  * @param endPos 结束位置
- * @param segmentSize 分段大小，默认1MB
  */
 export async function parseFrameChunkParallel(
     buffer: Uint8Array,
     startPos: number = 0,
     endPos: number = 0,
-    segmentSize: number = 1024 * 1024 // 1MB
 ): Promise<{ entries: FrameEntry[], segments: number }> {
     // 输入验证和参数安全化
     if (!buffer || !(buffer instanceof Uint8Array)) {
@@ -161,47 +147,16 @@ export async function parseFrameChunkParallel(
         return { entries: [], segments: 0 };
     }
 
-    const actualLength = safeEndPos - safeStartPos;
-
-    // 如果数据量较小，直接使用单线程处理
-    if (actualLength < segmentSize) {
-        console.log('数据量较小，使用单线程处理');
-        const entries = await workerPool.processSegment(buffer, safeStartPos, safeEndPos);
-        return { entries, segments: 1 };
-    }
-
-    // 创建解析段
-    const segments = createParseSegments(actualLength, segmentSize).map(segment => ({
-        start: segment.start + safeStartPos,
-        end: segment.end + safeStartPos
-    }));
-
-    const segmentCount = segments.length;
-
-    console.log(`将使用 ${segmentCount} 个段进行并行解析，总长度: ${actualLength} 字节`);
-
     try {
-        // 并行处理所有段
-        const segmentPromises = segments.map(segment =>
-            workerPool.processSegment(buffer, segment.start, segment.end)
-        );
+        console.log(`开始解析报文，范围: ${safeStartPos} - ${safeEndPos}, 总长度: ${safeEndPos - safeStartPos} 字节`);
 
-        // 等待所有段处理完成
-        const segmentResults = await Promise.all(segmentPromises);
+        const entries = await workerPool.processSegment(buffer, safeStartPos, safeEndPos);
 
-        // 合并所有段的结果
-        const allEntries = segmentResults.flat();
+        console.log(`成功解析 ${entries.length} 个报文条目`);
 
-        // 按照时间戳排序确保顺序正确
-        allEntries.sort((a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        );
-
-        console.log(`成功解析 ${allEntries.length} 个报文条目，使用了 ${segmentCount} 个段`);
-
-        return { entries: allEntries, segments: segmentCount };
+        return { entries, segments: 1 };
     } catch (error) {
-        console.error('并行解析过程中发生错误:', error);
+        console.error('解析过程中发生错误:', error);
         return { entries: [], segments: 0 };
     }
 }

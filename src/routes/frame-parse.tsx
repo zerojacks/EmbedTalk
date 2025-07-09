@@ -167,6 +167,8 @@ export default function FrameParse() {
 
     setupWindow().then(fn => {
       unlistenFn = fn;
+    }).catch(error => {
+      console.error('设置窗口失败:', error);
     });
 
     // 添加页面级别的beforeunload处理，确保不阻止窗口关闭
@@ -190,12 +192,22 @@ export default function FrameParse() {
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      // 清理事件监听器
-      if (unlistenFn) {
-        unlistenFn();
+      // 清理事件监听器 - 添加更安全的检查
+      if (unlistenFn && typeof unlistenFn === 'function') {
+        try {
+          unlistenFn();
+        } catch (error) {
+          console.error('清理事件监听器失败:', error);
+        }
       }
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('keydown', handleKeyDown);
+
+      try {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('keydown', handleKeyDown);
+      } catch (error) {
+        console.error('移除事件监听器失败:', error);
+      }
+
       console.log('FrameParse组件清理完成');
     };
   }, [currentFrameContent, handleParse]);

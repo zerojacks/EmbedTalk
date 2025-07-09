@@ -181,16 +181,28 @@ export class ChannelService {
    * 清理所有监听器
    */
   static async cleanupListeners(): Promise<void> {
-    if (this.channelStateUnlistener) {
-      await this.channelStateUnlistener();
+    if (this.channelStateUnlistener && typeof this.channelStateUnlistener === 'function') {
+      try {
+        await this.channelStateUnlistener();
+      } catch (error) {
+        console.error('清理channelStateUnlistener失败:', error);
+      }
       this.channelStateUnlistener = null;
     }
-    if (this.messageUnlistener) {
-      await this.messageUnlistener();
+    if (this.messageUnlistener && typeof this.messageUnlistener === 'function') {
+      try {
+        await this.messageUnlistener();
+      } catch (error) {
+        console.error('清理messageUnlistener失败:', error);
+      }
       this.messageUnlistener = null;
     }
-    if (this.tcpClientEventUnlistener) {
-      await this.tcpClientEventUnlistener();
+    if (this.tcpClientEventUnlistener && typeof this.tcpClientEventUnlistener === 'function') {
+      try {
+        await this.tcpClientEventUnlistener();
+      } catch (error) {
+        console.error('清理tcpClientEventUnlistener失败:', error);
+      }
       this.tcpClientEventUnlistener = null;
     }
     this.dispatch = null;

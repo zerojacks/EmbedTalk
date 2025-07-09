@@ -522,7 +522,15 @@ const FrameView: React.FC = () => {
     // 组件卸载时清理监听器
     useEffect(() => {
         return () => {
-            unlistenFns.forEach(fn => fn());
+            unlistenFns.forEach(fn => {
+                if (fn && typeof fn === 'function') {
+                    try {
+                        fn();
+                    } catch (error) {
+                        console.error('清理监听器失败:', error);
+                    }
+                }
+            });
         };
     }, [unlistenFns]);
 

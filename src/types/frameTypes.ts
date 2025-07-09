@@ -111,6 +111,7 @@ export interface FrameParseRequest {
     buffer: Uint8Array;
     startPos: number;
     endPos: number;
+    segmentSize?: number; // 可选的分段大小，用于worker内部分段
 }
 
 /**

@@ -13,6 +13,7 @@ const FRAME_TIMESTAMP_OFFSET = 11;
 const FRAME_MILLISEC_OFFSET = 15;
 const FRAME_CONTENT_OFFSET = 17;
 
+const FRAME_SPECIAL_LEN = 7;
 
 /**
  * 扫描报文头位置
@@ -22,16 +23,43 @@ function scanFrameHeaders(buffer: Uint8Array, startPos: number = 0, endPos: numb
     const bufferLength = buffer.length;
     const safeStartPos = Math.max(0, startPos);
     const safeEndPos = endPos > 0 && endPos <= bufferLength ? endPos : bufferLength;
-    
+
     let pos = safeStartPos;
     while (pos < safeEndPos - 4) {
         const flag = new DataView(buffer.buffer).getUint32(pos, false);
         if (flag === FRM_RECORD_FLAG) {
             // 验证这个位置是否可能是一个有效的报文头
-            if (pos + FRAME_CONTENT_OFFSET < safeEndPos) {
+            if (pos + FRAME_CONTENT_OFFSET <= safeEndPos) {
                 const contentLength = new DataView(buffer.buffer).getUint16(pos + FRAME_LENGTH_OFFSET, false);
-                if (contentLength > 0 && contentLength <= 10000) {
-                    framePositions.push(pos);
+                if (contentLength > 0) {
+                    const totalFrameLength = FRAME_SPECIAL_LEN + contentLength;
+
+                    // 验证报文边界：检查报文结束位置后是否有下一个有效的FRM_RECORD_FLAG
+                    const frameEndPos = pos + totalFrameLength;
+                    let isValidFrame = true;
+
+                    // 如果不是最后一个报文，检查下一个位置是否有有效的FRM_RECORD_FLAG
+                    if (frameEndPos + 4 <= safeEndPos) {
+                        const nextFlag = new DataView(buffer.buffer).getUint32(frameEndPos, false);
+                        if (nextFlag !== FRM_RECORD_FLAG) {
+                            isValidFrame = false;
+                        }
+                    }
+                    // 如果是最后一个报文，检查是否超出边界太多
+                    else if (frameEndPos > bufferLength) {
+                        // 允许最后一个报文稍微超出边界（部分报文）
+                        if (frameEndPos - bufferLength > contentLength / 2) {
+                            isValidFrame = false; // 超出太多，可能是错误的报文头
+                        }
+                    }
+                    if (isValidFrame) {
+                        framePositions.push(pos);
+                        // 跳过整个报文，避免在报文内部找到假的FRM_RECORD_FLAG
+                        pos = frameEndPos - 1; // -1 因为循环末尾会 pos++
+                    } else
+                    {
+                        console.error("pos:", pos, "totalFrameLength:", totalFrameLength, "frameEndPos:", frameEndPos, "safeEndPos:", safeEndPos, "bufferLength:", bufferLength);
+                    }
                 }
             }
         }
@@ -65,17 +93,14 @@ function parseFrameAt(buffer: Uint8Array, frameStart: number, maxEnd: number): F
         const contentLength = new DataView(buffer.buffer).getUint16(pos + FRAME_LENGTH_OFFSET, false);
 
         // 验证内容长度
-        if (contentLength <= 0 || contentLength > 10000) {
+        if (contentLength <= 0 ) {
             console.warn(`位置 ${pos} 处的报文内容长度不合法: ${contentLength}`);
             return null;
         }
 
-        const totalFrameLength = FRAME_CONTENT_OFFSET + contentLength;
-
-        console.log(`pos: ${pos}, totalFrameLength: ${totalFrameLength}, maxEnd: ${maxEnd}, buffer.length: ${buffer.length}`);
+        const totalFrameLength = FRAME_SPECIAL_LEN + contentLength;
 
         // 检查报文是否完整
-        // 优先检查缓冲区边界，然后检查maxEnd边界
         if (pos + totalFrameLength > buffer.length) {
             console.warn(`位置 ${pos} 处的报文超出缓冲区边界，跳过此位置 (需要: ${pos + totalFrameLength}, 可用: ${buffer.length})`);
             return null;
@@ -141,17 +166,16 @@ function parseFrameAt(buffer: Uint8Array, frameStart: number, maxEnd: number): F
         return null;
     }
 }
-
 /**
  * 解析报文范围
  */
 function parseFrameRange(buffer: Uint8Array, startPos: number, endPos: number): FrameEntry[] {
     const entries: FrameEntry[] = [];
-    
+
     try {
         // 扫描报文头位置
         const framePositions = scanFrameHeaders(buffer, startPos, endPos);
-        
+
         if (framePositions.length === 0) {
             return entries;
         }
@@ -159,7 +183,8 @@ function parseFrameRange(buffer: Uint8Array, startPos: number, endPos: number): 
         // 逐个解析每个报文
         for (let i = 0; i < framePositions.length; i++) {
             const frameStart = framePositions[i];
-            const frameEnd = i < framePositions.length - 1 ? framePositions[i + 1] : endPos;
+            // 不再依赖下一个报文位置，而是使用缓冲区结束位置
+            const frameEnd = endPos;
 
             try {
                 const entry = parseFrameAt(buffer, frameStart, frameEnd);
@@ -173,7 +198,7 @@ function parseFrameRange(buffer: Uint8Array, startPos: number, endPos: number): 
     } catch (error) {
         console.error('解析报文范围时出错:', error);
     }
-    
+
     return entries;
 }
 
@@ -181,7 +206,10 @@ function parseFrameRange(buffer: Uint8Array, startPos: number, endPos: number): 
 self.onmessage = (e: MessageEvent<FrameParseRequest>) => {
     try {
         const { buffer, startPos, endPos } = e.data;
+
+        // 如果提供了segmentSize，使用内部分段解析；否则使用简单的范围解析
         const entries = parseFrameRange(buffer, startPos, endPos);
+
         self.postMessage({ entries });
     } catch (error) {
         self.postMessage({ error: error instanceof Error ? error.message : String(error) });
