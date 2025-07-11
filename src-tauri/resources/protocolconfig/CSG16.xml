@@ -17,16 +17,16 @@
             <name>错误状态字</name>
             <length>1</length>
             <type>BIN</type>
-            <value key="0">通信超时</value>
-            <value key="1">无效数据标识内容</value>
-            <value key="2">长度错误</value>
-            <value key="3">校验错误</value>
-            <value key="4">数据标识编码不存在</value>
-            <value key="5">格式错误</value>
-            <value key="6">表号重复</value>
-            <value key="7">表号不存在</value>
-            <value key="8">电表应用层无应答</value>
-            <value key="9">主节点忙</value>
+            <value key="00">通信超时</value>
+            <value key="01">无效数据标识内容</value>
+            <value key="02">长度错误</value>
+            <value key="03">校验错误</value>
+            <value key="04">数据标识编码不存在</value>
+            <value key="05">格式错误</value>
+            <value key="06">表号重复</value>
+            <value key="07">表号不存在</value>
+            <value key="08">电表应用层无应答</value>
+            <value key="09">主节点忙</value>
             <value key="10">主节点不支持此命令</value>
             <value key="11">从节点不应答</value>
             <value key="12">从节点不在网内</value>

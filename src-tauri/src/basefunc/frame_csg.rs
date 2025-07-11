@@ -1461,18 +1461,7 @@ impl FrameCsg {
         let mut item_element = item_element.unwrap();
         let (length, new_data) =
             Self::recalculate_sub_length(&mut item_element, data_segment, protocol, region, dir);
-        let next_item = FrameFun::get_data_str_reverser(&data_segment[2..6]);
-        if Some(next_item.clone()) == item_element.get_attribute("id").cloned() {
-            println!("next_item:{:?} item_element:{:?}", next_item, item_element);
-            return false;
-        }
 
-        let data_item_elem =
-            ProtocolConfigManager::get_config_xml(&next_item, protocol, region, dir);
-        if let Some(data_item_elem) = data_item_elem {
-            println!("data_item_elem:{:?}", data_item_elem);
-            return false;
-        }
         if (length + 6) > data_segment.len() {
             println!("length:{:?} data_segment.len():{:?}", length, data_segment.len());
             return false;
@@ -1480,8 +1469,21 @@ impl FrameCsg {
         println!("data_segment[length..length + 6]:{:?} data_time:{:?}", &data_segment[length..length + 6], data_time);
         if Self::is_valid_bcd_time(&data_segment[length..length + 6]) {
             if let Some(data_time) = data_time {
-                return Self::is_within_one_month(&data_segment[length..length + 6], data_time);
+                if Self::is_within_one_month(&data_segment[length..length + 6], data_time) {
+                    return true;
+                }
             }
+        }
+        let next_item = FrameFun::get_data_str_reverser(&data_segment[2..6]);
+        if Some(next_item.clone()) == item_element.get_attribute("id").cloned() {
+            println!("next_item:{:?} item_element:{:?}", next_item, item_element);
+            return false;
+        }
+        let data_item_elem =
+            ProtocolConfigManager::get_config_xml(&next_item, protocol, region, dir);
+        if let Some(data_item_elem) = data_item_elem {
+            println!("data_item_elem:{:?}", data_item_elem);
+            return false;
         }
         false
     }
