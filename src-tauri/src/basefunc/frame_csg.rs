@@ -1181,7 +1181,7 @@ impl FrameCsg {
         let mut length = 0;
         let mut length_map = std::collections::HashMap::new();
 
-        let all_items = match items {
+        let mut all_items = match items {
             Some(i) => i.to_vec(),
             None => element.get_items("splitByLength"),
         };
@@ -1206,43 +1206,27 @@ impl FrameCsg {
                         println!("rules:{:?} is not valid", rules);
                     }
                 } else {
-                    let length = element.get_child_text("length");
-                    if let Some(length) = length {
-                        if length.to_uppercase() == "UNKNOWN" {
-                            return Self::calculate_unknown_length(
-                                element,
-                                data,
-                                &mut length_map,
-                                protocol,
-                                region,
-                                dir,
-                            );
-                        } else {
-                            return length.parse::<usize>().unwrap_or(0);
+                    if let Some(data_type) = template_element.get_value().map(|s| s.to_uppercase()) {
+                        if !["BCD", "BIN", "ASCII"].contains(&data_type.as_str()) {
+                            if let Some(mut template) = ProtocolConfigManager::get_template_element(
+                                &data_type, protocol, region, dir,
+                            ) {
+                                let template_items = template.get_items("splitByLength");
+                                return Self::execute_calculation(
+                                    &mut template,
+                                    data,
+                                    protocol,
+                                    region,
+                                    dir,
+                                    Some(&template_items),
+                                );
+                            }
                         }
-                    }
-                }
-
-                if let Some(data_type) = template_element.get_value().map(|s| s.to_uppercase()) {
-                    if !["BCD", "BIN", "ASCII"].contains(&data_type.as_str()) {
-                        if let Some(mut template) = ProtocolConfigManager::get_template_element(
-                            &data_type, protocol, region, dir,
-                        ) {
-                            let template_items = template.get_items("splitByLength");
-                            return Self::execute_calculation(
-                                &mut template,
-                                data,
-                                protocol,
-                                region,
-                                dir,
-                                Some(&template_items),
-                            );
-                        }
-                    }
+                    } 
                 }
             }
         } else {
-            for (i, data_subitem_elem) in all_items.iter().enumerate() {
+            for (i, data_subitem_elem) in all_items.iter_mut().enumerate() {
                 let subitem_name_item = data_subitem_elem.get_child("name");
                 let sub_length_content = data_subitem_elem.get_child_text("length");
 
@@ -1299,7 +1283,7 @@ impl FrameCsg {
     }
 
     pub fn calculate_unknown_length(
-        data_subitem_elem: &XmlElement,
+        data_subitem_elem: &mut XmlElement,
         data_segment: &[u8],
         length_map: &HashMap<String, (usize, usize, &XmlElement)>,
         protocol: &str,
@@ -1441,7 +1425,14 @@ impl FrameCsg {
                 _ => sub_length = 0,
             }
         } else {
-            
+            sub_length = Self::execute_calculation(
+                data_subitem_elem,
+                data_segment,
+                protocol,
+                region,
+                dir,
+                None,
+            )
         }
         println!("calculate_unknown_length Sub length: {}", sub_length);
         sub_length
@@ -1458,7 +1449,7 @@ impl FrameCsg {
         if item_element.is_none() {
             return false;
         }
-        let mut item_element = item_element.unwrap();
+        let mut item_element: XmlElement = item_element.unwrap();
         let (length, new_data) =
             Self::recalculate_sub_length(&mut item_element, data_segment, protocol, region, dir);
 
@@ -1718,8 +1709,14 @@ impl FrameCsg {
     }
 
     pub fn prase_da_data(da: [u8; 2]) -> String {
+        info!("da:{:?}", da);
         let (total_measurement_points, measurement_points_array) =
             FrameFun::calculate_measurement_points(&da);
+        info!("total_measurement_points:{:?} {:?}", total_measurement_points, measurement_points_array);
+        if measurement_points_array.is_empty() {
+            return "Pn解析失败".to_string();
+        }
+        
         if measurement_points_array[0] == 0 && total_measurement_points == 1 {
             "Pn=测量点：0(终端)".to_string()
         } else if measurement_points_array[0] == 0xFFFF && total_measurement_points == 1 {
