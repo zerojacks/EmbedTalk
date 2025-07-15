@@ -122,42 +122,34 @@ const workerPool = new FrameParserWorkerPool();
 
 
 /**
- * 并行解析报文块 - 新的多线程版本
+ * 解析整个报文文件
  * @param buffer 报文文件内容
- * @param startPos 起始位置
- * @param endPos 结束位置
+ * @returns 解析结果
  */
-export async function parseFrameChunkParallel(
-    buffer: Uint8Array,
-    startPos: number = 0,
-    endPos: number = 0,
-): Promise<{ entries: FrameEntry[], segments: number }> {
-    // 输入验证和参数安全化
+export async function parseFrameFile(buffer: Uint8Array): Promise<FrameEntry[]> {
+    // 输入验证
     if (!buffer || !(buffer instanceof Uint8Array)) {
         console.error('无效的buffer类型', typeof buffer);
-        return { entries: [], segments: 0 };
+        return [];
     }
 
-    const bufferLength = buffer.length;
-    const safeStartPos = Math.max(0, startPos);
-    const safeEndPos = endPos > 0 && endPos <= bufferLength ? endPos : bufferLength;
-
-    if (bufferLength === 0 || safeEndPos <= safeStartPos) {
-        console.warn('Buffer为空或无效的范围');
-        return { entries: [], segments: 0 };
+    if (buffer.length === 0) {
+        console.warn('Buffer为空');
+        return [];
     }
 
     try {
-        console.log(`开始解析报文，范围: ${safeStartPos} - ${safeEndPos}, 总长度: ${safeEndPos - safeStartPos} 字节`);
+        console.log(`开始解析报文文件，大小: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
 
-        const entries = await workerPool.processSegment(buffer, safeStartPos, safeEndPos);
+        // 解析整个文件，分段逻辑在worker中处理
+        const entries = await workerPool.processSegment(buffer, 0, buffer.length);
 
-        console.log(`成功解析 ${entries.length} 个报文条目`);
+        console.log(`报文解析完成，找到 ${entries.length} 个条目`);
 
-        return { entries, segments: 1 };
+        return entries;
     } catch (error) {
         console.error('解析过程中发生错误:', error);
-        return { entries: [], segments: 0 };
+        return [];
     }
 }
 
@@ -256,11 +248,9 @@ export function getAllFrameEntries(): FrameEntry[] {
     if (!activeFilePath) return [];
 
     const fileContents = selectFrameFileContents(state, activeFilePath);
-    if (!fileContents || !fileContents.chunks) return [];
+    if (!fileContents || !fileContents.entries) return [];
 
-    return Object.values(fileContents.chunks)
-        .flatMap(chunk => chunk.content || [])
-        .filter(entry => entry !== null && entry !== undefined);
+    return fileContents.entries.filter(entry => entry !== null && entry !== undefined);
 }
 
 // 获取当前过滤后的报文条目

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../store';
+import { RootState, store } from '../../store';
 import { setLogFilter, selectActiveLogFilePath, selectLogFilter } from '../../store/slices/logParseSlice';
 
 interface LogFilterProps {
@@ -10,8 +10,13 @@ interface LogFilterProps {
 export const LogFilter: React.FC<LogFilterProps> = ({ availableTags }) => {
     const dispatch = useDispatch();
     const activeFilePath = useSelector(selectActiveLogFilePath);
-    const filter = useSelector((state: RootState) => 
-        activeFilePath ? selectLogFilter(state, activeFilePath) : {});
+
+    // 使用memoized selector避免不必要的重新渲染
+    const filter = useMemo(() => {
+        if (!activeFilePath) return {};
+        const state = store.getState() as RootState;
+        return selectLogFilter(state, activeFilePath);
+    }, [activeFilePath]);
 
     // 格式化时间为本地datetime-local格式
     const formatDateTimeLocal = (isoString?: string) => {

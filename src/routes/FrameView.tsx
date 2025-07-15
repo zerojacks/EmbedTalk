@@ -6,7 +6,7 @@ import {
     addFrameFile,
     removeFrameFile,
     setActiveFrameFile,
-    addFrameChunk,
+    addFrameEntries,
     setFrameFilter,
     initializeFrameFilter,
     setLoading,
@@ -20,7 +20,7 @@ import {
     selectError,
     FrameFile
 } from '../store/slices/frameParseSlice';
-import { parseFrameChunkParallel } from '../services/frameParser';
+import { parseFrameFile } from '../services/frameParser';
 import { FrameEntry } from '../types/frameTypes';
 import { toast } from '../context/ToastProvider';
 import ParseProgress from '../components/ui/ParseProgress';
@@ -88,24 +88,18 @@ const FrameView: React.FC = () => {
 
     // 获取所有报文条目 - 数据已在解析时按时间戳排序，无需UI层排序
     const allFrameEntries = useMemo(() => {
-        if (!activeFilePath || !fileContents) return [];
+        if (!activeFilePath || !fileContents || !fileContents.entries) return [];
 
-        // 直接合并所有块的内容，数据已在frameParser.parseFrameChunk中按时间戳排序
-        // 这样避免了在UI渲染时进行昂贵的排序操作，提高了性能
-        const entries = Object.values(fileContents.chunks).reduce<FrameEntry[]>((acc, chunk) => {
-            acc.push(...chunk.content);
-            return acc;
-        }, []);
-
-        return entries;
+        // 直接返回entries数组，数据已在worker中排序
+        return fileContents.entries;
     }, [activeFilePath, fileContents]);
 
     // 获取过滤后的报文条目 - 使用 useMemo 优化
     const filteredFrameEntries = useMemo(() => {
         // 如果没有任何过滤条件，直接返回原数组
-        const hasFilters = filter.port || filter.protocol ||
+        const hasFilters = filter.pid || filter.tag || filter.port || filter.protocol ||
                           (filter.direction !== undefined && filter.direction !== null) ||
-                          filter.startTime || filter.endTime;
+                          filter.startTime || filter.endTime || filter.contentKeyword;
 
         if (!hasFilters) {
             return allFrameEntries;
@@ -134,6 +128,12 @@ const FrameView: React.FC = () => {
 
         // 使用单次遍历进行所有过滤，提高性能
         const filtered = entries.filter(entry => {
+            // PID过滤
+            if (filter.pid && entry.pid !== filter.pid) return false;
+
+            // 标签过滤
+            if (filter.tag && entry.tag !== filter.tag) return false;
+
             // 端口过滤
             if (filter.port && entry.port !== filter.port) return false;
 
@@ -143,6 +143,13 @@ const FrameView: React.FC = () => {
             // 方向过滤（注意：0 是有效值）
             if ((filter.direction !== undefined && filter.direction !== null) &&
                 entry.direction !== filter.direction) return false;
+
+            // 内容关键字过滤
+            if (filter.contentKeyword) {
+                const keyword = filter.contentKeyword.toLowerCase();
+                const content = entry.content.toLowerCase();
+                if (!content.includes(keyword)) return false;
+            }
 
             // 时间过滤
             if (hasTimeFilter) {
@@ -156,21 +163,27 @@ const FrameView: React.FC = () => {
         return filtered;
     }, [allFrameEntries, filter]);
 
-    // 获取可用的端口和协议列表 - 优化版本，避免频繁重计算
-    const { availablePorts, availableProtocols } = useMemo(() => {
+    // 获取可用的PID、标签、端口和协议列表 - 优化版本，避免频繁重计算
+    const { availablePids, availableTags, availablePorts, availableProtocols } = useMemo(() => {
         // 对于大量数据，限制计算范围以提高性能
         const sampleSize = Math.min(allFrameEntries.length, 5000);
         const sampleEntries = allFrameEntries.slice(0, sampleSize);
 
+        const pids = new Set<number>();
+        const tags = new Set<number>();
         const ports = new Set<number>();
         const protocols = new Set<number>();
 
         sampleEntries.forEach(entry => {
+            pids.add(entry.pid);
+            tags.add(entry.tag);
             ports.add(entry.port);
             protocols.add(entry.protocol);
         });
 
         return {
+            availablePids: Array.from(pids).sort((a, b) => a - b),
+            availableTags: Array.from(tags).sort((a, b) => a - b),
             availablePorts: Array.from(ports).sort((a, b) => a - b),
             availableProtocols: Array.from(protocols).sort((a, b) => a - b)
         };
@@ -181,18 +194,15 @@ const FrameView: React.FC = () => {
         const state = store.getState() as RootState;
         const fileContents = selectFrameFileContents(state, filePath);
         
-        if (!fileContents || Object.keys(fileContents.chunks).length === 0) {
+        if (!fileContents || !fileContents.entries || fileContents.entries.length === 0) {
             dispatch(initializeFrameFilter({
                 path: filePath
             }));
             return;
         }
-        
+
         // 获取所有报文条目
-        const allEntries: FrameEntry[] = Object.values(fileContents.chunks).reduce<FrameEntry[]>((acc, chunk) => {
-            acc.push(...chunk.content);
-            return acc;
-        }, []);
+        const allEntries = fileContents.entries;
         
         // 找出最小和最大时间
         let minTimeStr: string | undefined = undefined;
@@ -257,7 +267,7 @@ const FrameView: React.FC = () => {
 
     // 确保活动文件切换时过滤器已初始化
     useEffect(() => {
-        if (activeFilePath && fileContents && Object.keys(fileContents.chunks).length > 0) {
+        if (activeFilePath && fileContents && fileContents.entries && fileContents.entries.length > 0) {
             // 检查过滤器是否已初始化
             if (!filter || Object.keys(filter).length === 0) {
                 initializeFileFilterWithDefaults(activeFilePath);
@@ -278,7 +288,7 @@ const FrameView: React.FC = () => {
             const fileContents = selectFrameFileContents(state, filePath);
 
             // 如果文件内容已经存在于缓存中，则直接返回
-            if (fileContents && Object.keys(fileContents.chunks).length > 0) {
+            if (fileContents && fileContents.entries && fileContents.entries.length > 0) {
                 console.log(`[FRAME] 使用缓存的文件内容: ${filePath}`);
                 return;
             }
@@ -320,8 +330,8 @@ const FrameView: React.FC = () => {
             // 更新进度
             updateProgressItem(progressId, { progress: 30 });
 
-            // 使用并行多线程解析报文，使用1MB分段大小
-            const { entries, segments } = await parseFrameChunkParallel(buffer, 0, buffer.length);
+            // 解析整个报文文件
+            const entries = await parseFrameFile(buffer);
 
             // 计算解析时间
             const endTime = performance.now();
@@ -331,16 +341,13 @@ const FrameView: React.FC = () => {
             updateProgressItem(progressId, {
                 progress: 80,
                 currentEntries: entries.length,
-                segments
+                segments: 1
             });
 
-            // 将解析的报文条目作为单个块添加到Redux存储中
-            dispatch(addFrameChunk({
+            // 存储解析的报文条目
+            dispatch(addFrameEntries({
                 path: filePath,
-                chunk: 0, // 使用单个块（chunk 0）存储所有内容
-                content: entries,
-                startByte: 0,
-                endByte: buffer.length
+                entries: entries
             }));
 
             // 初始化过滤器
@@ -354,7 +361,7 @@ const FrameView: React.FC = () => {
                 status: 'completed',
                 totalEntries: entries.length,
                 currentEntries: entries.length,
-                segments
+                segments: 1
             });
 
         } catch (error) {
@@ -415,7 +422,7 @@ const FrameView: React.FC = () => {
             const cachedContents = selectFrameFileContents(state, path);
             
             // 如果没有缓存内容或内容为空，加载整个文件内容
-            if (!cachedContents || Object.keys(cachedContents.chunks).length === 0) {
+            if (!cachedContents || !cachedContents.entries || cachedContents.entries.length === 0) {
                 await loadFileContent(path);
             }
 
@@ -600,6 +607,8 @@ const FrameView: React.FC = () => {
                 ) : (
                     <div className="flex flex-col h-full">
                         <FrameFilter
+                            availablePids={availablePids}
+                            availableTags={availableTags}
                             availablePorts={availablePorts}
                             availableProtocols={availableProtocols}
                         />

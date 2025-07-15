@@ -42,6 +42,12 @@ export const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+        // 增加序列化检查的阈值，避免大数据量时的性能警告
+        warnAfter: 128,
+      },
+      // 增加不可变性检查的阈值
+      immutableCheck: {
+        warnAfter: 128,
       },
     }),
 });

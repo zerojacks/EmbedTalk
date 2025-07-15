@@ -42,10 +42,8 @@ export class SettingService {
    */
   static async setTheme(theme: ThemeOption): Promise<boolean> {
     try {
-      // 对于对象类型的值，进行 JSON 序列化
-      const themeToStore = typeof theme === 'object' ? JSON.stringify(theme) : theme;
-      
-      await this.setConfigValue("MainWindow", "theme", themeToStore);
+      // setConfigValue 方法会自动处理JSON序列化
+      await this.setConfigValue("MainWindow", "theme", theme);
       return true;
     } catch (error) {
       console.error("设置主题失败:", error);
@@ -106,17 +104,9 @@ export class SettingService {
    */
   static async setConfigValue<T>(section: string, key: string, value: T): Promise<boolean> {
     try {
-      // 确保所有值都转换为字符串
-      let valueToStore: string;
-      
-      if (typeof value === 'object') {
-        valueToStore = JSON.stringify(value);
-      } else if (typeof value === 'boolean') {
-        valueToStore = value ? 'true' : 'false';
-      } else {
-        valueToStore = String(value);
-      }
-      
+      // 将所有值序列化为JSON字符串，以便后端能够正确解析
+      const valueToStore = JSON.stringify(value);
+
       await invoke("set_config_value_async", {
         section,
         key,

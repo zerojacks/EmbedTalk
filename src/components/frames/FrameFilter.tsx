@@ -9,14 +9,18 @@ import {
     FrameFilter as FrameFilterType
 } from '../../store/slices/frameParseSlice';
 import { FrameDirection } from '../../types/frameTypes';
-import { getDirectionName } from '../../utils/frameUtils';
+import { getDirectionName, getRecordTypeName, getPortName, getProtocolName } from '../../utils/frameUtils';
 
 interface FrameFilterProps {
+    availablePids: number[];
+    availableTags: number[];
     availablePorts: number[];
     availableProtocols: number[];
 }
 
 export const FrameFilter: React.FC<FrameFilterProps> = ({
+    availablePids,
+    availableTags,
     availablePorts,
     availableProtocols
 }) => {
@@ -59,6 +63,22 @@ export const FrameFilter: React.FC<FrameFilterProps> = ({
 
     // 如果没有活动文件路径，在所有hooks调用之后再返回null
     if (!activeFilePath) return null;
+
+    const handlePidChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const pid = e.target.value ? parseInt(e.target.value) : null;
+        dispatch(setFrameFilter({
+            path: activeFilePath,
+            filter: { pid }
+        }));
+    };
+
+    const handleTagChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const tag = e.target.value ? parseInt(e.target.value) : null;
+        dispatch(setFrameFilter({
+            path: activeFilePath,
+            filter: { tag }
+        }));
+    };
 
     const handlePortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const port = e.target.value ? parseInt(e.target.value) : null;
@@ -116,6 +136,14 @@ export const FrameFilter: React.FC<FrameFilterProps> = ({
         }
     };
 
+    const handleContentKeywordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const contentKeyword = e.target.value || null;
+        dispatch(setFrameFilter({
+            path: activeFilePath,
+            filter: { contentKeyword }
+        }));
+    };
+
     const handleResetTimeRange = () => {
         if (fileContents && fileContents.filters) {
             const { minTime, maxTime } = fileContents.filters;
@@ -134,9 +162,59 @@ export const FrameFilter: React.FC<FrameFilterProps> = ({
         }
     };
 
+    const handleResetAllFilters = () => {
+        if (fileContents && fileContents.filters) {
+            const { minTime, maxTime } = fileContents.filters;
+            const startTimeLocal = minTime ? formatDateTimeLocal(minTime) : null;
+            const endTimeLocal = maxTime ? formatDateTimeLocal(maxTime) : null;
+
+            dispatch(setFrameFilter({
+                path: activeFilePath,
+                filter: {
+                    pid: null,
+                    tag: null,
+                    port: null,
+                    protocol: null,
+                    direction: null,
+                    contentKeyword: null,
+                    startTime: startTimeLocal,
+                    endTime: endTimeLocal
+                }
+            }));
+        }
+    };
+
     return (
         <div className="flex flex-wrap gap-2 p-2 bg-base-200/50 border-b border-base-300">
             <div className="w-full flex flex-wrap gap-2">
+                <div className="flex-none w-[120px] flex items-center">
+                    <label className="text-xs mr-1 whitespace-nowrap">PID:</label>
+                    <select
+                        className="select select-xs select-bordered w-full"
+                        value={filter.pid?.toString() || ''}
+                        onChange={handlePidChange}
+                    >
+                        <option value="">全部</option>
+                        {availablePids.map(pid => (
+                            <option key={pid} value={pid}>{pid}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="flex-none w-[120px] flex items-center">
+                    <label className="text-xs mr-1 whitespace-nowrap">标签:</label>
+                    <select
+                        className="select select-xs select-bordered w-full"
+                        value={filter.tag?.toString() || ''}
+                        onChange={handleTagChange}
+                    >
+                        <option value="">全部</option>
+                        {availableTags.map(tag => (
+                            <option key={tag} value={tag}>{tag} - {getRecordTypeName(tag)}</option>
+                        ))}
+                    </select>
+                </div>
+
                 <div className="flex-none w-[120px] flex items-center">
                     <label className="text-xs mr-1 whitespace-nowrap">端口:</label>
                     <select
@@ -146,7 +224,7 @@ export const FrameFilter: React.FC<FrameFilterProps> = ({
                     >
                         <option value="">全部</option>
                         {availablePorts.map(port => (
-                            <option key={port} value={port}>{port}</option>
+                            <option key={port} value={port}>{port} - {getPortName(port)}</option>
                         ))}
                     </select>
                 </div>
@@ -160,7 +238,7 @@ export const FrameFilter: React.FC<FrameFilterProps> = ({
                     >
                         <option value="">全部</option>
                         {availableProtocols.map(protocol => (
-                            <option key={protocol} value={protocol}>{protocol}</option>
+                            <option key={protocol} value={protocol}>{protocol} - {getProtocolName(protocol)}</option>
                         ))}
                     </select>
                 </div>
@@ -176,6 +254,17 @@ export const FrameFilter: React.FC<FrameFilterProps> = ({
                         <option value={FrameDirection.IN}>{getDirectionName(FrameDirection.IN)}</option>
                         <option value={FrameDirection.OUT}>{getDirectionName(FrameDirection.OUT)}</option>
                     </select>
+                </div>
+
+                <div className="flex-1 min-w-[200px] max-w-[300px] flex items-center">
+                    <label className="text-xs mr-1 whitespace-nowrap">内容:</label>
+                    <input
+                        type="text"
+                        className="input input-xs input-bordered w-full"
+                        placeholder="搜索内容关键字..."
+                        value={filter.contentKeyword || ''}
+                        onChange={handleContentKeywordChange}
+                    />
                 </div>
             </div>
 
@@ -222,6 +311,12 @@ export const FrameFilter: React.FC<FrameFilterProps> = ({
                         onClick={handleResetTimeRange}
                     >
                         重置时间范围
+                    </button>
+                    <button
+                        className="btn btn-xs btn-outline btn-warning"
+                        onClick={handleResetAllFilters}
+                    >
+                        清除所有过滤器
                     </button>
                 </div>
             </div>

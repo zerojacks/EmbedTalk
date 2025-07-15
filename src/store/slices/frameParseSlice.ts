@@ -1,9 +1,10 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RootState } from '../index';
 import { FrameEntry } from '../../types/frameTypes';
-import { createAction } from '@reduxjs/toolkit';
 
 export interface FrameFilter {
+    pid?: number | null;
+    tag?: number | null;
     port?: number | null;
     protocol?: number | null;
     direction?: number | null;
@@ -11,6 +12,7 @@ export interface FrameFilter {
     endTime?: string | null;
     minTime?: string | null;
     maxTime?: string | null;
+    contentKeyword?: string | null;
 }
 
 export interface FrameFile {
@@ -21,15 +23,8 @@ export interface FrameFile {
     isActive: boolean;
 }
 
-interface FrameChunk {
-    content: FrameEntry[];
-    startByte: number;
-    endByte: number;
-    timestamp: number;
-}
-
 interface FileContents {
-    chunks: { [key: number]: FrameChunk };
+    entries: FrameEntry[];  // 直接存储所有报文条目
     filters: FrameFilter;
 }
 
@@ -71,39 +66,23 @@ export const frameParseSlice = createSlice({
                 file.isActive = file.path === action.payload;
             });
         },
-        addFrameChunk: (state, action: PayloadAction<{
+        addFrameEntries: (state, action: PayloadAction<{
             path: string;
-            chunk: number;
-            content: FrameEntry[];
-            startByte: number;
-            endByte: number;
+            entries: FrameEntry[];
         }>) => {
-            const { path, chunk, content, startByte, endByte } = action.payload;
-            if (!state.fileContents[path]) {
-                state.fileContents[path] = { chunks: {}, filters: {} };
+            const { path, entries } = action.payload;
+
+            // 清理旧的数据结构 - 使用类型断言来检查旧格式
+            if (state.fileContents[path] && 'chunks' in (state.fileContents[path] as any)) {
+                delete state.fileContents[path];
             }
-            state.fileContents[path].chunks[chunk] = {
-                content,
-                startByte,
-                endByte,
-                timestamp: Date.now()
-            };
+
+            if (!state.fileContents[path]) {
+                state.fileContents[path] = { entries: [], filters: {} };
+            }
+            state.fileContents[path].entries = entries;
         },
-        clearOldChunks: (state, action: PayloadAction<{
-            maxAge: number;
-            excludePath?: string;
-        }>) => {
-            const now = Date.now();
-            Object.entries(state.fileContents).forEach(([path, contents]) => {
-                if (path === action.payload.excludePath) return;
-                
-                Object.entries(contents.chunks).forEach(([chunk, chunkData]) => {
-                    if (now - chunkData.timestamp > action.payload.maxAge) {
-                        delete contents.chunks[Number(chunk)];
-                    }
-                });
-            });
-        },
+
         setFrameFilter: (state, action: PayloadAction<{
             path: string;
             filter: Partial<FrameFilter>;
@@ -123,7 +102,7 @@ export const frameParseSlice = createSlice({
             endTime?: string;
         }>) => {
             if (!state.fileContents[action.payload.path]) {
-                state.fileContents[action.payload.path] = { chunks: {}, filters: {} };
+                state.fileContents[action.payload.path] = { entries: [], filters: {} };
             }
             state.fileContents[action.payload.path].filters = {
                 ...state.fileContents[action.payload.path].filters,
@@ -152,8 +131,32 @@ export const selectActiveFrameFile = (state: RootState) => {
     return state.frameParse.openFiles.find(file => file.path === state.frameParse.activeFilePath);
 };
 
-export const selectFrameFileContents = (state: RootState, path: string) =>
-    state.frameParse?.fileContents?.[path] || null;
+// 用于跟踪已经警告过的文件，避免重复警告
+const warnedFrameFiles = new Set<string>();
+
+export const selectFrameFileContents = (state: RootState, path: string) => {
+    const contents = state.frameParse?.fileContents?.[path];
+
+    // 数据迁移：如果是旧的chunks结构，返回null以触发重新解析
+    if (contents && 'chunks' in (contents as any)) {
+        if (!warnedFrameFiles.has(path)) {
+            console.warn(`检测到旧的数据结构，清除缓存: ${path}`);
+            warnedFrameFiles.add(path);
+        }
+        return null;
+    }
+
+    // 确保entries属性存在
+    if (contents && !contents.entries) {
+        if (!warnedFrameFiles.has(path)) {
+            console.warn(`检测到无效的数据结构，清除缓存: ${path}`);
+            warnedFrameFiles.add(path);
+        }
+        return null;
+    }
+
+    return contents || null;
+};
 
 export const selectFrameFilter = (state: RootState) => {
     const path = state.frameParse?.activeFilePath;
@@ -189,8 +192,7 @@ export const {
     addFrameFile,
     removeFrameFile,
     setActiveFrameFile,
-    addFrameChunk,
-    clearOldChunks,
+    addFrameEntries,
     setFrameFilter,
     initializeFrameFilter,
     setLoading,

@@ -44,7 +44,7 @@ interface RawLogData {
  */
 class WorkerPool {
     private workers: ExtendedWorker[] = [];
-    private queue: { buffer: Uint8Array; startPos: number; endPos: number; segmentSize?: number; resolve: (entries: LogEntry[]) => void; reject: (error: any) => void; }[] = [];
+    private queue: { buffer: Uint8Array; startPos: number; endPos: number; resolve: (entries: LogEntry[]) => void; reject: (error: any) => void; }[] = [];
     private activeWorkers = 0;
     private readonly maxWorkers: number;
 
@@ -144,8 +144,8 @@ class WorkerPool {
     }
 }
 
-// 创建一个全局的Worker池实例
-const workerPool = new WorkerPool(5);
+// 创建一个全局的Worker池实例，增加worker数量以支持多文件并发
+const workerPool = new WorkerPool(10);
 
 /**
  * 解析日志块

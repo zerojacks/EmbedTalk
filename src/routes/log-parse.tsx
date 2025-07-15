@@ -6,7 +6,7 @@ import {
     addLogFile,
     removeLogFile,
     setActiveLogFile,
-    addLogChunk,
+    addLogEntries,
     setLogFilter,
     initializeFileFilter,
     setLoading,
@@ -36,8 +36,7 @@ import { LogFilter } from '../components/logsprase/LogFilter';
 import { FileTabs } from '../components/logsprase/FileTabs';
 import { normalizePath } from '../lib/utils';
 
-// 常量定义
-const CHUNK_SIZE = 64 * 1024; // 64KB 块大小
+
 
 // 主日志解析组件
 export default function LogParse() {
@@ -67,33 +66,13 @@ export default function LogParse() {
     // 获取所有日志条目 - 使用 useMemo 优化
     const allLogEntries = useMemo(() => {
         if (!activeFilePath) return [];
-        
+
         const state = store.getState() as RootState;
         const fileContents = selectLogFileContents(state, activeFilePath);
-        if (!fileContents) return [];
-        
-        // 使用 reduce 替代多次数组合并
-        return Object.values(fileContents.chunks).reduce<LogEntry[]>((acc, chunk) => {
-            acc.push(...chunk.content);
-            return acc;
-        }, []).sort((a, b) => {
-            // 首先按时间戳排序
-            const timeCompare = new Date(a.timeStamp).getTime() - new Date(b.timeStamp).getTime();
-            if (timeCompare !== 0) return timeCompare;
-            
-            // 如果时间戳相同，按照 PID 排序
-            if (a.pid && b.pid) {
-                const pidCompare = parseInt(a.pid) - parseInt(b.pid);
-                if (pidCompare !== 0) return pidCompare;
-            }
-            
-            // 如果 PID 相同或不存在，按照 TID 排序
-            if (a.tid && b.tid) {
-                return parseInt(a.tid) - parseInt(b.tid);
-            }
-            
-            return 0;
-        });
+        if (!fileContents || !fileContents.entries) return [];
+
+        // 直接返回entries数组，数据已在worker中排序
+        return fileContents.entries;
     }, [activeFilePath]);
 
     // 获取过滤后的日志条目 - 使用 useMemo 优化
@@ -149,18 +128,15 @@ export default function LogParse() {
         const state = store.getState() as RootState;
         const fileContents = selectLogFileContents(state, filePath);
         
-        if (!fileContents || Object.keys(fileContents.chunks).length === 0) {
+        if (!fileContents || !fileContents.entries || fileContents.entries.length === 0) {
             dispatch(initializeFileFilter({
                 path: filePath
             }));
             return;
         }
-        
+
         // 获取所有日志条目
-        const allEntries: LogEntry[] = Object.values(fileContents.chunks).reduce<LogEntry[]>((acc, chunk) => {
-            acc.push(...chunk.content);
-            return acc;
-        }, []);
+        const allEntries = fileContents.entries;
         
         // 找出最小和最大时间
         let minTimeStr: string | undefined = undefined;
@@ -223,51 +199,45 @@ export default function LogParse() {
         }
     }, [dispatch]);
 
-    // 加载文件块 - 优化版本，支持缓存
-    const loadFileChunk = async (filePath: string, chunk: number) => {
-        const start = chunk * CHUNK_SIZE;
-        
+    // 加载整个文件 - 修复版本，避免chunk逻辑混乱
+    const loadEntireFile = async (filePath: string) => {
         try {
-            // 首先检查这个块是否已经在缓存中
+            // 首先检查文件是否已经解析过
             const state = store.getState() as RootState;
             const fileContents = selectLogFileContents(state, filePath);
-            
-            // 如果这个块已经存在于缓存中，则直接返回
-            if (fileContents && fileContents.chunks[chunk]) {
-                console.log(`使用缓存的文件块: ${filePath}, 块编号: ${chunk}`);
+
+            // 如果文件已经解析过，则直接返回
+            if (fileContents && fileContents.entries && fileContents.entries.length > 0) {
+                console.log(`使用缓存的文件内容: ${filePath}`);
                 return;
             }
-            
-            dispatch(setLoading(true));
-            
-            const buffer = await readFile(filePath);
-            const end = buffer.length;
-            
-            // 使用 logParser 服务解析日志，现在使用并行处理
-            const entries = await parseLogChunk(buffer, start, end);
-            
-            // 将解析的日志条目添加到Redux存储中
-            dispatch(addLogChunk({
-                path: filePath,
-                chunk,
-                content: entries,
-                startByte: start,
-                endByte: end
-            }));
-            
 
-            // 在加载完第一个块后初始化过滤器
-            if (chunk === 0) {
-                initializeFileFilterWithDefaults(filePath);
-            }
-            
+            console.log(`开始解析日志文件: ${filePath}`);
+            dispatch(setLoading(true));
+
+            const buffer = await readFile(filePath);
+            console.log(`文件读取完成，大小: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
+
+            // 解析整个文件，不使用chunk分割
+            const entries = await parseLogChunk(buffer, 0, buffer.length);
+            console.log(`日志解析完成，找到 ${entries.length} 个条目`);
+
+            // 存储所有解析结果
+            dispatch(addLogEntries({
+                path: filePath,
+                entries: entries
+            }));
+
+            // 初始化过滤器
+            initializeFileFilterWithDefaults(filePath);
+
             dispatch(setLoading(false));
         } catch (error) {
-            console.error('加载文件块失败:', error);
+            console.error('加载文件失败:', error);
             const errorMessage = error instanceof Error ? error.message : String(error);
             dispatch(setError(errorMessage));
             dispatch(setLoading(false));
-            toast.error(`加载文件块失败: ${errorMessage}`);
+            toast.error(`加载文件失败: ${errorMessage}`);
         }
     };
 
@@ -334,16 +304,15 @@ export default function LogParse() {
             const state = store.getState() as RootState;
             const cachedContents = selectLogFileContents(state, path);
 
-            // 如果没有缓存内容或内容为空，加载第一个块
-            if (!cachedContents || Object.keys(cachedContents.chunks).length === 0) {
+            // 如果没有缓存内容或内容为空，解析整个文件
+            if (!cachedContents || !cachedContents.entries || cachedContents.entries.length === 0) {
                 updateProgressItem(progressId, { progress: 50 });
-                await loadFileChunk(path, 0);
+                await loadEntireFile(path);
 
                 // 获取解析后的条目数量
                 const updatedState = store.getState() as RootState;
                 const updatedContents = selectLogFileContents(updatedState, path);
-                const totalEntries = updatedContents ?
-                    Object.values(updatedContents.chunks).reduce((sum, chunk) => sum + chunk.content.length, 0) : 0;
+                const totalEntries = updatedContents ? updatedContents.entries.length : 0;
 
                 updateProgressItem(progressId, {
                     progress: 100,
@@ -356,7 +325,8 @@ export default function LogParse() {
                 updateProgressItem(progressId, {
                     progress: 100,
                     status: 'completed',
-                    totalEntries: Object.values(cachedContents.chunks).reduce((sum, chunk) => sum + chunk.content.length, 0)
+                    totalEntries: cachedContents.entries.length,
+                    currentEntries: cachedContents.entries.length
                 });
             }
 

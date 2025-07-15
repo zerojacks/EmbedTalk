@@ -25,17 +25,9 @@ export interface LogFile {
     isActive: boolean;
 }
 
-// 日志块接口
-export interface LogChunk {
-    content: LogEntry[];
-    startByte: number;
-    endByte: number;
-    lastAccessed: number;
-}
-
 // 日志文件内容
 export interface LogFileContents {
-    chunks: { [key: number]: LogChunk };
+    entries: LogEntry[];  // 直接存储所有日志条目
     filter: LogFilter;
     minTime?: string;  // 保存完整的时间戳（包含毫秒）
     maxTime?: string;  // 保存完整的时间戳（包含毫秒）
@@ -92,7 +84,7 @@ const logParseSlice = createSlice({
             // 初始化文件内容存储
             if (!state.fileContents[file.path]) {
                 state.fileContents[file.path] = {
-                    chunks: {},
+                    entries: [],
                     filter: {
                         level: undefined,
                         tag: undefined,
@@ -130,18 +122,21 @@ const logParseSlice = createSlice({
             state.activeFilePath = action.payload;
         },
         
-        // 添加日志块
-        addLogChunk: (state, action: PayloadAction<{
+        // 添加日志条目
+        addLogEntries: (state, action: PayloadAction<{
             path: string;
-            chunk: number;
-            content: LogEntry[];
-            startByte: number;
-            endByte: number;
+            entries: LogEntry[];
         }>) => {
-            const { path, chunk, content, startByte, endByte } = action.payload;
+            const { path, entries } = action.payload;
+
+            // 清理旧的数据结构 - 使用类型断言来检查旧格式
+            if (state.fileContents[path] && 'chunks' in (state.fileContents[path] as any)) {
+                delete state.fileContents[path];
+            }
+
             if (!state.fileContents[path]) {
                 state.fileContents[path] = {
-                    chunks: {},
+                    entries: [],
                     filter: {
                         level: undefined,
                         tag: undefined,
@@ -153,30 +148,9 @@ const logParseSlice = createSlice({
                     }
                 };
             }
-            state.fileContents[path].chunks[chunk] = {
-                content,
-                startByte,
-                endByte,
-                lastAccessed: Date.now()
-            };
+            state.fileContents[path].entries = entries;
         },
-        
-        // 清除旧的日志块 - 增强版本，支持排除当前活动文件
-        clearOldChunks: (state, action: PayloadAction<{
-            maxAge: number;
-            excludePath?: string;
-        }>) => {
-            const now = Date.now();
-            Object.entries(state.fileContents).forEach(([path, fileContent]) => {
-                if (path === action.payload.excludePath) return;
-                
-                Object.entries(fileContent.chunks).forEach(([chunkIndex, chunk]) => {
-                    if (now - chunk.lastAccessed > action.payload.maxAge) {
-                        delete fileContent.chunks[Number(chunkIndex)];
-                    }
-                });
-            });
-        },
+
         
         // 设置过滤器
         setLogFilter: (state, action: PayloadAction<{
@@ -222,8 +196,7 @@ export const {
     addLogFile,
     removeLogFile,
     setActiveLogFile,
-    addLogChunk,
-    clearOldChunks,
+    addLogEntries,
     setLogFilter,
     initializeFileFilter,
     setLoading,
@@ -242,8 +215,32 @@ export const selectActiveLogFile = (state: RootState) => {
     return state.logParse.openFiles.find((file: LogFile) => file.path === state.logParse.activeFilePath);
 };
 
-export const selectLogFileContents = (state: RootState, path: string) =>
-    state.logParse?.fileContents?.[path] || null;
+// 用于跟踪已经警告过的文件，避免重复警告
+const warnedFiles = new Set<string>();
+
+export const selectLogFileContents = (state: RootState, path: string) => {
+    const contents = state.logParse?.fileContents?.[path];
+
+    // 数据迁移：如果是旧的chunks结构，返回null以触发重新解析
+    if (contents && 'chunks' in (contents as any)) {
+        if (!warnedFiles.has(path)) {
+            console.warn(`检测到旧的数据结构，清除缓存: ${path}`);
+            warnedFiles.add(path);
+        }
+        return null;
+    }
+
+    // 确保entries属性存在
+    if (contents && !contents.entries) {
+        if (!warnedFiles.has(path)) {
+            console.warn(`检测到无效的数据结构，清除缓存: ${path}`);
+            warnedFiles.add(path);
+        }
+        return null;
+    }
+
+    return contents || null;
+};
 
 export const selectLogFilter = (state: RootState, path: string) =>
     state.logParse?.fileFilters?.[path] || {};
