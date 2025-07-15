@@ -402,22 +402,31 @@ export default function LogParse() {
                 
                 const unlistenDrop = await listen('tauri://drag-drop', async (event) => {
                     const currentPath = window.location.pathname;
-                    if (currentPath.includes('log-parse')) {
-                        setIsDragging(false);
+                    console.log(`[LogParse] 拖放事件触发，当前路径: ${currentPath}`);
+
+                    // 只有在日志解析页面才处理拖放事件
+                    if (!currentPath.includes('log-parse')) {
+                        console.log(`[LogParse] 不在日志解析页面，忽略拖放事件`);
+                        return;
                     }
+
                     setIsDragging(false);
-                    
+
                     if (typeof event.payload === 'object' && event.payload !== null && 'paths' in event.payload) {
                         const paths = event.payload.paths as string[];
                         if (!paths || !Array.isArray(paths) || paths.length === 0) {
+                            console.log(`[LogParse] 无效的文件路径`);
                             return;
                         }
-                        
+
+                        console.log(`[LogParse] 处理拖放文件:`, paths);
                         try {
                             await Promise.all(paths.map(path => loadFile(path)));
+                            toast.success(`成功加载 ${paths.length} 个日志文件`);
                         } catch (error) {
                             const errorMessage = error instanceof Error ? error.message : String(error);
                             console.error('拖放文件读取失败:', errorMessage);
+                            toast.error('日志文件读取失败');
                             dispatch(setError(errorMessage));
                         } finally {
                             dispatch(setLoading(false));

@@ -88,11 +88,15 @@ const FrameView: React.FC = () => {
 
     // 获取所有报文条目 - 数据已在解析时按时间戳排序，无需UI层排序
     const allFrameEntries = useMemo(() => {
-        if (!activeFilePath || !fileContents || !fileContents.entries) return [];
+        if (!activeFilePath || !fileContents || !fileContents.entries) {
+            console.log(`[FrameView] allFrameEntries为空: activeFilePath=${activeFilePath}, fileContents=${!!fileContents}, entries=${fileContents?.entries?.length || 0}`);
+            return [];
+        }
 
+        console.log(`[FrameView] 返回 ${fileContents.entries.length} 个报文条目`);
         // 直接返回entries数组，数据已在worker中排序
         return fileContents.entries;
-    }, [activeFilePath, fileContents]);
+    }, [activeFilePath, fileContents?.entries]);
 
     // 获取过滤后的报文条目 - 使用 useMemo 优化
     const filteredFrameEntries = useMemo(() => {
@@ -267,13 +271,40 @@ const FrameView: React.FC = () => {
 
     // 确保活动文件切换时过滤器已初始化
     useEffect(() => {
+        console.log(`[FrameView] 活动文件切换检查: ${activeFilePath}`);
+        console.log(`[FrameView] 文件内容状态:`, {
+            hasFileContents: !!fileContents,
+            hasEntries: !!fileContents?.entries,
+            entriesLength: fileContents?.entries?.length || 0,
+            hasFilter: !!filter,
+            filterKeys: filter ? Object.keys(filter).length : 0
+        });
+
         if (activeFilePath && fileContents && fileContents.entries && fileContents.entries.length > 0) {
             // 检查过滤器是否已初始化
             if (!filter || Object.keys(filter).length === 0) {
+                console.log(`[FrameView] 初始化过滤器: ${activeFilePath}`);
                 initializeFileFilterWithDefaults(activeFilePath);
             }
         }
     }, [activeFilePath, fileContents, filter, initializeFileFilterWithDefaults]);
+
+    // 监控Redux状态变化，调试数据丢失问题
+    useEffect(() => {
+        const state = store.getState() as RootState;
+        const allFileContents = state.frameParse?.fileContents || {};
+        const fileCount = Object.keys(allFileContents).length;
+        const filesWithData = Object.entries(allFileContents)
+            .filter(([_, content]) => content?.entries?.length > 0)
+            .map(([path, content]) => ({ path: path.split(/[\/\\]/).pop(), count: content.entries.length }));
+
+        console.log(`[FrameView] Redux状态监控:`, {
+            totalFiles: fileCount,
+            filesWithData: filesWithData.length,
+            activeFile: activeFilePath?.split(/[\/\\]/).pop(),
+            details: filesWithData
+        });
+    }, [openFiles, activeFilePath]);
 
     // 加载整个文件 - 使用并行多线程解析
     const loadFileContent = async (filePath: string) => {
@@ -336,6 +367,7 @@ const FrameView: React.FC = () => {
             // 计算解析时间
             const endTime = performance.now();
             const parseTime = ((endTime - startTime) / 1000).toFixed(2);
+            console.log(`[FrameView] 解析完成，耗时 ${parseTime}s，找到 ${entries.length} 个条目`);
 
             // 更新进度
             updateProgressItem(progressId, {
@@ -482,61 +514,80 @@ const FrameView: React.FC = () => {
 
                 const unlistenDrop = await listen('tauri://drag-drop', async (event) => {
                     const currentPath = window.location.pathname;
-                    if (currentPath.includes('frame-view')) {
-                        setIsDragging(false);
+                    console.log(`[FrameView] 拖放事件触发，当前路径: ${currentPath}`);
+
+                    // 只有在报文解析页面才处理拖放事件
+                    if (!currentPath.includes('frame-view')) {
+                        console.log(`[FrameView] 不在报文解析页面，忽略拖放事件`);
+                        return;
                     }
+
+                    setIsDragging(false);
 
                     if (typeof event.payload === 'object' && event.payload !== null && 'paths' in event.payload) {
                         const paths = event.payload.paths as string[];
                         if (!paths || !Array.isArray(paths) || paths.length === 0) {
+                            console.log(`[FrameView] 无效的文件路径`);
                             return;
                         }
 
+                        console.log(`[FrameView] 处理拖放文件:`, paths);
                         try {
                             await Promise.all(paths.map(path => loadFile(path)));
-                            toast.success(`成功加载 ${paths.length} 个文件`);
+                            toast.success(`成功加载 ${paths.length} 个报文文件`);
                         } catch (error) {
                             const errorMessage = error instanceof Error ? error.message : String(error);
-                            toast.error('文件读取失败');
+                            toast.error('报文文件读取失败');
                             dispatch(setError(errorMessage));
                         }
                     }
                 });
 
-                setUnlistenFns(prev => [
-                    ...prev,
-                    unlistenDragEnter,
-                    unlistenDragLeave,
-                    unlistenDrop
-                ]);
+                // 使用函数式更新确保获取最新状态
+                setUnlistenFns(prev => {
+                    console.log(`[FrameView] 添加 3 个新的监听器`);
+                    return [
+                        ...prev,
+                        unlistenDragEnter,
+                        unlistenDragLeave,
+                        unlistenDrop
+                    ];
+                });
             } catch (err) {
                 console.warn('设置拖放事件失败:', err);
             }
         };
 
+        // 设置事件监听器并返回清理函数
         setupTauriEvents();
 
-        return () => {
-            // 清理函数会在 unlistenFns 的 useEffect 中处理
-        };
+        // 这个effect不需要返回清理函数，因为监听器会在组件卸载时的专门effect中处理
+        // 如果在这里返回清理函数，可能会导致监听器被过早清理
     }, []);
 
 
 
-    // 组件卸载时清理监听器
+    // 组件卸载时清理监听器 - 只在组件卸载时执行，不依赖于unlistenFns的变化
     useEffect(() => {
+        // 这个effect只负责清理，不做其他操作
         return () => {
-            unlistenFns.forEach(fn => {
+            console.log('FrameView组件卸载，清理所有监听器...');
+            // 使用当前的unlistenFns引用，而不是依赖项中的旧值
+            const currentFns = [...unlistenFns];
+            currentFns.forEach(fn => {
                 if (fn && typeof fn === 'function') {
                     try {
+                        console.log('正在清理监听器...');
                         fn();
                     } catch (error) {
                         console.error('清理监听器失败:', error);
                     }
                 }
             });
+            // 清空监听器列表
+            setUnlistenFns([]);
         };
-    }, [unlistenFns]);
+    }, []); // 空依赖数组，确保只在组件卸载时执行清理
 
     // 渲染报文内容
     const renderFrameContent = () => {
