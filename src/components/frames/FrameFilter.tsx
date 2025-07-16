@@ -3,10 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import {
     setFrameFilter,
-    selectFrameFilter,
     selectActiveFrameFilePath,
-    selectFrameFileContents,
-    FrameFilter as FrameFilterType
+    selectFrameFileContents
 } from '../../store/slices/frameParseSlice';
 import { FrameDirection } from '../../types/frameTypes';
 import { getDirectionName, getRecordTypeName, getPortName, getProtocolName } from '../../utils/frameUtils';
@@ -26,7 +24,32 @@ export const FrameFilter: React.FC<FrameFilterProps> = ({
 }) => {
     const dispatch = useDispatch();
     const activeFilePath = useSelector(selectActiveFrameFilePath);
-    const filter = useSelector(selectFrameFilter);
+
+    // 为当前活动文件获取过滤器
+    const filter = useSelector((state: RootState) => {
+        if (!activeFilePath || !state.frameParse?.fileContents?.[activeFilePath]) {
+            return {
+                pid: null,
+                tag: null,
+                port: null,
+                protocol: null,
+                direction: null,
+                startTime: null,
+                endTime: null,
+                contentKeyword: null
+            };
+        }
+        return state.frameParse.fileContents[activeFilePath].filters || {
+            pid: null,
+            tag: null,
+            port: null,
+            protocol: null,
+            direction: null,
+            startTime: null,
+            endTime: null,
+            contentKeyword: null
+        };
+    });
     const fileContents = useSelector((state: RootState) =>
         activeFilePath ? selectFrameFileContents(state, activeFilePath) : null);
 
