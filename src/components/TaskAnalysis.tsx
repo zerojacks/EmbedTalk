@@ -108,21 +108,30 @@ const TaskAnalysis: React.FC = () => {
         const setupTauriEvents = async () => {
             try {
                 const unlistenDragEnter = await listen('tauri://drag-enter', () => {
-                    dispatch(setIsDragging(true));
+                    const currentPath = window.location.pathname;
+                    if (currentPath.includes('task-analysis')) {
+                        dispatch(setIsDragging(true));
+                    }
                 });
                 const unlistenDragLeave = await listen('tauri://drag-leave', () => {
-                    dispatch(setIsDragging(false));
+                    const currentPath = window.location.pathname;
+                    if (currentPath.includes('task-analysis')) {
+                        dispatch(setIsDragging(false));
+                    }
                 });
                 const unlistenDrop = await listen('tauri://drag-drop', async (event) => {
-                    dispatch(setIsDragging(false));
-                    if (typeof event.payload === 'object' && event.payload !== null && 'paths' in event.payload) {
-                        const paths = event.payload.paths as string[];
-                        if (!paths || !Array.isArray(paths) || paths.length === 0) {
-                            return;
-                        }
-                        const filePath = paths[0];
-                        if (filePath.endsWith('.db')) {
-                            await handleLoadDatabase(filePath);
+                    const currentPath = window.location.pathname;
+                    if (currentPath.includes('task-analysis')) {
+                        dispatch(setIsDragging(false));
+                        if (typeof event.payload === 'object' && event.payload !== null && 'paths' in event.payload) {
+                            const paths = event.payload.paths as string[];
+                            if (!paths || !Array.isArray(paths) || paths.length === 0) {
+                                return;
+                            }
+                            const filePath = paths[0];
+                            if (filePath.endsWith('.db')) {
+                                await handleLoadDatabase(filePath);
+                            }
                         }
                     }
                 });

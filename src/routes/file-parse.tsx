@@ -486,31 +486,39 @@ export default function FileParse() {
                 const { listen } = await import('@tauri-apps/api/event');
                 
                 const unlistenDragEnter = await listen('tauri://drag-enter', () => {
-                    setIsDragging(true);
+                    const currentPath = window.location.pathname;
+                    if (currentPath.includes('file-parse')) {
+                        setIsDragging(true);
+                    }
                 });
                 
                 const unlistenDragLeave = await listen('tauri://drag-leave', () => {
-                    setIsDragging(false);
+                    const currentPath = window.location.pathname;
+                    if (currentPath.includes('file-parse')) {
+                        setIsDragging(false);
+                    }
                 });
                 
                 const unlistenDrop = await listen('tauri://drag-drop', async (event) => {
-                    setIsDragging(false);
-                    
-                    if (typeof event.payload === 'object' && event.payload !== null && 'paths' in event.payload) {
-                        const paths = event.payload.paths as string[];
-                        if (!paths || !Array.isArray(paths) || paths.length === 0) {
-                            return;
-                        }
-                        
-                        try {
-                            await Promise.all(paths.map(path => loadFileContent(path)));
-                            toast.success(`成功加载 ${paths.length} 个文件`);
-                        } catch (error) {
-                            const errorMessage = error instanceof Error ? error.message : String(error);
-                            toast.error('文件读取失败');
-                            dispatch(setError(errorMessage));
-                        } finally {
-                            dispatch(setLoading(false));
+                    const currentPath = window.location.pathname;
+                    if (currentPath.includes('file-parse')) {
+                        setIsDragging(false);
+                        if (typeof event.payload === 'object' && event.payload !== null && 'paths' in event.payload) {
+                            const paths = event.payload.paths as string[];
+                            if (!paths || !Array.isArray(paths) || paths.length === 0) {
+                                return;
+                            }
+                            
+                            try {
+                                await Promise.all(paths.map(path => loadFileContent(path)));
+                                toast.success(`成功加载 ${paths.length} 个文件`);
+                            } catch (error) {
+                                const errorMessage = error instanceof Error ? error.message : String(error);
+                                toast.error('文件读取失败');
+                                dispatch(setError(errorMessage));
+                            } finally {
+                                dispatch(setLoading(false));
+                            }
                         }
                     }
                 });
