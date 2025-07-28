@@ -8,8 +8,13 @@ const UpdateSetting = () => {
     // 加载保存的设置
     useEffect(() => {
         async function loadSettings() {
-            const savedValue = await SettingService.getConfigValue<boolean>("Updates", "autoCheck", false);
-            setAutoCheck(savedValue ?? false);
+            try {
+                const savedValue = await SettingService.getConfig('updates.autoCheck');
+                setAutoCheck(savedValue ?? false);
+            } catch (error) {
+                console.error('Failed to load auto check setting:', error);
+                setAutoCheck(false);
+            }
         }
         loadSettings();
     }, []);
@@ -17,7 +22,11 @@ const UpdateSetting = () => {
     // 保存设置
     const handleAutoCheckChange = async (checked: boolean) => {
         setAutoCheck(checked);
-        await SettingService.setConfigValue("Updates", "autoCheck", checked);
+        try {
+            await SettingService.setConfig('updates.autoCheck', checked);
+        } catch (error) {
+            console.error('Failed to save auto check setting:', error);
+        }
     };
 
     return (

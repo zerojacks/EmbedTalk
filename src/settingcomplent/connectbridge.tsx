@@ -5,6 +5,7 @@ import IpInput from '../components/IPInput'
 import { json } from "stream/consumers";
 import { toast } from "../context/ToastProvider";
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { SettingService } from '../services/settingService';
 
 type ChannelType = "tcpclient" | "tcpserver" | "serial" | "mqtt" | "bluetooth";
 
@@ -81,15 +82,12 @@ const ConnectBridge = () => {
     useEffect(() => {
         async function getConnectInfo() {
             try {
-                const connectinfo = await invoke<ConnectBridgeInfo>("get_config_value_async", {
-                    section: "connectcfg",
-                    key: "",
-                });
+                const connectinfo = await SettingService.getConfig('connectcfg.connectcfg') as ConnectBridgeInfo;
                 if (connectinfo) {
                     setDefaultState(connectinfo);
                     setDefaultInfo(connectinfo);
                     setConnectInfo(connectinfo);
-                    
+
                     // 加载配置后立即验证连接状态
                     verifyConnections(connectinfo);
                 } else {

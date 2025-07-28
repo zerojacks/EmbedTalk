@@ -1,8 +1,9 @@
 import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@reduxjs/toolkit';
 import { ChannelService } from '../../services/channelService';
-import { 
-  ChannelType, 
-  ConnectionState, 
+import { SettingService } from '../../services/settingService';
+import {
+  ChannelType,
+  ConnectionState,
   ConnectionParams,
   ChannelMessage,
   MessageStats,
@@ -196,10 +197,7 @@ export const loadChannelConfig = createAsyncThunk<
     try {
       // 从配置文件加载连接信息
       console.log("Loading channel configuration from file");
-      const connectInfo = await invoke<ConnectBridgeInfo>("get_config_value_async", {
-        section: "connectcfg",
-        key: "channels"
-      });
+      const connectInfo = await SettingService.getConfig('connectcfg.connectcfg') as ConnectBridgeInfo;
       
       if (connectInfo) {
         // 设置默认状态

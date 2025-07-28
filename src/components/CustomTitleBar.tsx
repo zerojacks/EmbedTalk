@@ -6,6 +6,7 @@ import reactLogo from "../assets/icons/icon.png";
 import { useSettingsContext } from "../context/SettingsProvider"; // 假设上下文在这个路径
 import { invoke } from "@tauri-apps/api/core";
 import { Theme } from '@tauri-apps/api/window';
+import { SettingService } from '../services/settingService';
 const appWindow = getCurrentWebviewWindow()
 
 export interface CustomTitleBarProps {
@@ -18,10 +19,15 @@ export const ThemeControl: React.FC = () => {
 
   useEffect(() => {
       async function getconfigTheme() {
-          const theme = await invoke<string>("get_config_value_async", {section: "MainWindow", key: "theme"});
-          if (theme) {
-            setcurrentTheme(theme);
-          } else {
+          try {
+            const theme = await SettingService.getTheme();
+            if (theme) {
+              setcurrentTheme(theme);
+            } else {
+              setcurrentTheme("system");
+            }
+          } catch (error) {
+            console.error('Failed to get theme setting:', error);
             setcurrentTheme("system");
           }
       };

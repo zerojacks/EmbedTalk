@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, ChangeEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from '@tauri-apps/plugin-process';
 import { SetFileIcon } from '../components/Icons';
+import { SettingService } from '../services/settingService';
 import { open, confirm } from '@tauri-apps/plugin-dialog';
 import { exists } from '@tauri-apps/plugin-fs';
 import { resolveResource } from '@tauri-apps/api/path';
@@ -45,10 +46,7 @@ const ConfigFilePathCom: React.FC = () => {
         async function get_report_config() {
 
             try {
-                const fileinfo = await invoke<SelectedFiles>("get_config_value_async", {
-                    section: "ProtocolSetting", 
-                    key: "protocolfile"
-                });
+                const fileinfo = await SettingService.getConfigValue<SelectedFiles>("ProtocolSetting", "protocolfile");
                 if (fileinfo) {
                     setSelectedFiles(fileinfo);
                 } else {

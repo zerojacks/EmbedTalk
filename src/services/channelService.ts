@@ -215,18 +215,15 @@ export class ChannelService {
   static async loadChannelConfigs(): Promise<Record<ChannelType, ConnectionParams>> {
     try {
       // 从配置文件加载参数
-      const rawValue = await invoke<string>("get_config_value_async", {
-        section: CHANNEL_SECTION,
-        key: CHANNEL_CONFIG_KEY,
-      });
+      const rawValue = await SettingService.getConfig('channels.channels');
 
       let configs: Record<ChannelType, ConnectionParams>;
-      
+
       if (rawValue) {
         try {
           // 尝试解析配置
-          configs = typeof rawValue === 'string' ? 
-            JSON.parse(rawValue) : 
+          configs = typeof rawValue === 'string' ?
+            JSON.parse(rawValue) :
             rawValue as Record<ChannelType, ConnectionParams>;
         } catch (error) {
           console.warn('解析通道配置失败，使用默认配置:', error);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import {ReplayIcon} from '../components/Icons'
-import { invoke } from "@tauri-apps/api/core";
+import { SettingService } from '../services/settingService';
 import { useProtocolInfoStore } from "../stores/useProtocolInfoStore";
 
 const Report = () => {
@@ -10,7 +10,8 @@ const Report = () => {
     useEffect(() => {
         async function get_report_config() {
             try {
-                const reportstate = await invoke<string>("get_config_value_async", {section: "ProtocolSetting", key: "reportreplay"});
+                // 使用兼容的方法获取协议设置
+                const reportstate = await SettingService.getConfigValue<string>("ProtocolSetting", "reportreplay");
                 console.log("reportstate",reportstate);
                 if (reportstate) {
                     setIsReport(true);
@@ -30,7 +31,7 @@ const Report = () => {
     const handlevalueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.checked;
         setIsReport(value);
-        invoke<string>("set_config_value_async", {section: "ProtocolSetting", key: "reportreplay", value: JSON.stringify(value)});
+        SettingService.setConfigValue("ProtocolSetting", "reportreplay", value);
     };
 
     return (

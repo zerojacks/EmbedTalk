@@ -39,7 +39,6 @@
     "security": {
       "csp": null
     },
-    "trayIcon": null,
     "windows": [
       {
         "label": "main",

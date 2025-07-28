@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { PraseFrame, getPraseFrames, deletePraseFrameById, clearAllPraseFrames } from '../utils/database';
-import { useConfig } from '../hooks/useConfig';
+import { SettingService } from '../services/settingService';
 
 interface HistoryDrawerProps {
   onSelectFrame: (frame: string) => void;
@@ -10,7 +10,6 @@ interface HistoryDrawerProps {
 
 export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({ onSelectFrame, visible, onClose }) => {
   const [frames, setFrames] = useState<PraseFrame[]>([]);
-  const { getConfigValue } = useConfig();
   const [historyLimit, setHistoryLimit] = useState(100);
   const [currentCount, setCurrentCount] = useState(0);
 
@@ -25,8 +24,13 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({ onSelectFrame, vis
   }, [visible]);
 
   const loadConfig = async () => {
-    const limit = await getConfigValue('settings', 'historyLimit');
-    setHistoryLimit(Number(limit) || 100);
+    try {
+      const limit = await SettingService.getConfig('settings.historyLimit');
+      setHistoryLimit(limit || 100);
+    } catch (error) {
+      console.error('Failed to load history limit config:', error);
+      setHistoryLimit(100);
+    }
   };
 
   const loadFrames = async () => {

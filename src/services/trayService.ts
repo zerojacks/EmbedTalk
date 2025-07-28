@@ -64,20 +64,20 @@ class TrayService {
     public async showAboutDialog() {
         try {
             // 获取当前窗口
-            const mainWindow = await getCurrentWindow();
-            
+            const mainWindow = getCurrentWindow();
+
             // 检查窗口是否最小化
             const isMinimized = await mainWindow.isMinimized();
             if (isMinimized) {
                 await mainWindow.unminimize();
             }
-            
+
             // 确保窗口可见
             await mainWindow.show();
-            
+
             // 设置焦点
             await mainWindow.setFocus();
-            
+
             // 使用延迟再次设置置顶，解决某些系统中的问题
             setTimeout(async () => {
                 try {
@@ -86,13 +86,15 @@ class TrayService {
                     console.error('设置窗口置顶失败:', error);
                 }
             }, 50);
-            
+
             // 发送事件到主进程，触发关于对话框显示
             await mainWindow.emit('show-about-dialog');
         } catch (error) {
             console.error('显示关于对话框失败:', error);
         }
     }
+
+    // triggerCloseConfirmation函数已移除，托盘退出直接关闭应用
 
     // 处理托盘菜单点击事件
     private handleMenuClick = async (itemId: string) => {
@@ -104,6 +106,7 @@ class TrayService {
                 await this.showAboutDialog();
                 break;
             case 'quit':
+                // 托盘退出直接关闭，不显示确认对话框
                 await exit(0);
                 break;
             default:
@@ -113,17 +116,26 @@ class TrayService {
 
     // 初始化托盘
     public async initialize() {
+        console.log('托盘初始化请求 - 当前状态:', {
+            isInitialized: this.isInitialized,
+            hasTrayInstance: !!this.trayInstance,
+            hasInitPromise: !!this.initializationPromise
+        });
+
         // 已初始化，直接返回托盘实例
         if (this.isInitialized && this.trayInstance) {
+            console.log('托盘已初始化，返回现有实例');
             return this.trayInstance;
         }
 
         // 正在初始化中，返回初始化Promise
         if (this.initializationPromise) {
+            console.log('托盘正在初始化中，等待现有Promise');
             return this.initializationPromise;
         }
 
         // 开始初始化
+        console.log('开始新的托盘初始化');
         this.initializationPromise = this.initializeTray();
         return this.initializationPromise;
     }
@@ -159,6 +171,7 @@ class TrayService {
             this.trayInstance = await TrayIcon.getById('embedtalk');
             if (!this.trayInstance) {
                 // 创建托盘图标
+                console.log('创建托盘图标');
                 this.trayInstance = await TrayIcon.new({
                     id: 'embedtalk',
                     menu,
@@ -199,4 +212,4 @@ export default {
     initTray,
     toggleMainWindow,
     showAboutDialog,
-}; 
+};

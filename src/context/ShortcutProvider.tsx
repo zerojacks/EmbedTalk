@@ -2,7 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { register, unregister, isRegistered } from '@tauri-apps/plugin-global-shortcut';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
-import { Window } from "@tauri-apps/api/window"
+import { Window } from "@tauri-apps/api/window";
+import { SettingService } from '../services/settingService';
 
 // 定义默认快捷键
 const DEFAULT_SHORTCUTS = {
@@ -171,7 +172,7 @@ export const ShortcutProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         console.log('[Init] Starting shortcuts initialization');
         
         // 从设置中加载快捷键
-        const savedShortcuts = await invoke<any>('get_config_value_async', { section: 'MainWindow', key: 'shortcuts' });
+        const savedShortcuts = await SettingService.getShortcutSettings();
         console.log("[Init] Loaded saved shortcuts:", savedShortcuts);
         
         if (!mounted) return;
@@ -187,8 +188,8 @@ export const ShortcutProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const mergedShortcuts = {
           ...DEFAULT_SHORTCUTS,
           ...(savedShortcuts || {})
-        };
-        
+        } as typeof DEFAULT_SHORTCUTS;
+
         // 更新状态
         setShortcuts(mergedShortcuts);
         

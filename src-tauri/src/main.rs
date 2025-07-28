@@ -92,12 +92,21 @@ fn main() {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 // 只对主窗口进行特殊处理，其他窗口允许正常关闭
                 if window.label() == "main" {
+                    println!("主窗口关闭请求被拦截");
+
                     let state_flags = tauri_plugin_window_state::StateFlags::all();
                     let app = window.app_handle();
                     let _ =
                         tauri_plugin_window_state::AppHandleExt::save_window_state(app, state_flags);
-                    api.prevent_close();
-                    std::process::exit(0);
+
+                    // // 阻止默认关闭行为，让前端处理
+                    // api.prevent_close();
+
+                    // // 发送关闭请求事件到前端窗口
+                    // match app.emit("window-close-requested", ()) {
+                    //     Ok(_) => println!("成功发送window-close-requested事件"),
+                    //     Err(e) => println!("发送window-close-requested事件失败: {}", e),
+                    // }
                 } else {
                     // 对于其他窗口（如解析窗口），明确允许关闭
                     println!("允许窗口 {} 关闭", window.label());
