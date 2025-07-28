@@ -25,10 +25,17 @@ export interface LogFile {
     isActive: boolean;
 }
 
+// 滚动位置接口
+interface ScrollPosition {
+    scrollTop: number;
+    timestamp: number;
+}
+
 // 日志文件内容
 export interface LogFileContents {
     entries: LogEntry[];  // 直接存储所有日志条目
     filter: LogFilter;
+    scrollPosition: ScrollPosition;
     minTime?: string;  // 保存完整的时间戳（包含毫秒）
     maxTime?: string;  // 保存完整的时间戳（包含毫秒）
 }
@@ -93,7 +100,8 @@ const logParseSlice = createSlice({
                         endTime: undefined,
                         pid: undefined,
                         tid: undefined
-                    }
+                    },
+                    scrollPosition: { scrollTop: 0, timestamp: Date.now() }
                 };
             }
 
@@ -145,10 +153,39 @@ const logParseSlice = createSlice({
                         endTime: undefined,
                         pid: undefined,
                         tid: undefined
-                    }
+                    },
+                    scrollPosition: { scrollTop: 0, timestamp: Date.now() }
                 };
             }
+
             state.fileContents[path].entries = entries;
+
+            // 计算并设置minTime和maxTime
+            if (entries.length > 0) {
+                const validTimestamps = entries
+                    .map(entry => entry.timeStamp)
+                    .filter(timestamp => {
+                        try {
+                            const time = new Date(timestamp);
+                            return !isNaN(time.getTime());
+                        } catch {
+                            return false;
+                        }
+                    });
+
+                if (validTimestamps.length > 0) {
+                    const times = validTimestamps.map(ts => new Date(ts).getTime());
+                    const minTime = new Date(Math.min(...times));
+                    const maxTime = new Date(Math.max(...times));
+
+                    // 设置最小时间的毫秒为0，最大时间的毫秒为999
+                    minTime.setMilliseconds(0);
+                    maxTime.setMilliseconds(999);
+
+                    state.fileContents[path].minTime = minTime.toISOString();
+                    state.fileContents[path].maxTime = maxTime.toISOString();
+                }
+            }
         },
 
         
@@ -160,14 +197,24 @@ const logParseSlice = createSlice({
             const { path, filter } = action.payload;
             state.fileFilters[path] = { ...state.fileFilters[path], ...filter };
         },
+
+        setLogScrollPosition: (state, action: PayloadAction<{
+            path: string;
+            scrollTop: number;
+        }>) => {
+            if (state.fileContents[action.payload.path]) {
+                state.fileContents[action.payload.path].scrollPosition = {
+                    scrollTop: action.payload.scrollTop,
+                    timestamp: Date.now()
+                };
+            }
+        },
         
         // 初始化文件过滤器
         initializeFileFilter: (state, action: PayloadAction<{
             path: string;
-            minTime?: string;
-            maxTime?: string;
         }>) => {
-            const { path, minTime, maxTime } = action.payload;
+            const { path } = action.payload;
             state.fileFilters[path] = {
                 level: undefined,
                 tag: undefined,
@@ -198,6 +245,7 @@ export const {
     setActiveLogFile,
     addLogEntries,
     setLogFilter,
+    setLogScrollPosition,
     initializeFileFilter,
     setLoading,
     setError
@@ -250,6 +298,11 @@ export const selectIsLoading = (state: RootState) =>
 
 export const selectError = (state: RootState) =>
     state.logParse?.error || null;
+
+export const selectLogScrollPosition = (state: RootState, path: string) => {
+    const contents = state.logParse?.fileContents?.[path];
+    return contents?.scrollPosition || { scrollTop: 0, timestamp: Date.now() };
+};
 
 // 导出 reducer
 export default logParseSlice.reducer;

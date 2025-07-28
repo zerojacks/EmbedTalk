@@ -29,7 +29,7 @@ const rootReducer = combineReducers({
 const persistConfig = {
   key: 'root',
   storage,
-  whitelist: [], // 不持久化任何状态，配置由 channelSlice 管理
+  whitelist: [], // 不持久化任何状态，避免localStorage配额超限
 };
 
 // 创建持久化的 reducer

@@ -273,7 +273,7 @@ export default function FrameParse() {
               <div className="flex-1 p-4">
                 <textarea
                   ref={textareaRef}
-                  className="textarea textarea-bordered w-full h-full resize-none font-mono text-sm bg-white/80 backdrop-blur-sm border-2 focus:border-blue-400 focus:bg-white transition-all duration-200"
+                  className="textarea textarea-bordered w-full h-full resize-none font-mono text-sm bg-base-100/80 backdrop-blur-sm border-2 focus:border-primary focus:bg-base-100 transition-all duration-200"
                   placeholder="输入十六进制报文数据，例如：68 04 00 43 01 16 ..."
                   onChange={handleInputChange}
                   style={{
@@ -297,11 +297,11 @@ export default function FrameParse() {
                   <div className="w-1 h-4 bg-green-500 rounded-full"></div>
                   <span className="text-sm font-semibold text-base-content">解析结果</span>
                   <div className="flex-1"></div>
-                  {tabledata.length > 0 && (
+                  {/* {tabledata.length > 0 && (
                     <span className="text-xs text-base-content/60 bg-green-100 text-green-700 px-2 py-1 rounded-full">
                       {tabledata.length} 个字段
                     </span>
-                  )}
+                  )} */}
                 </div>
               </div>
               <div className="flex-1 overflow-hidden rounded-b-lg">

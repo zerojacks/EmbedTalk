@@ -194,7 +194,7 @@ export const VirtualFrameList: React.FC<VirtualFrameListProps> = ({ entries, onC
                                 width: '100%',
                                 transform: `translateY(${virtualRow.start}px)`,
                             }}
-                            className="flex items-center min-h-[30px] px-1 hover:bg-base-200/30 border-b border-base-200/50 min-w-0"
+                            className="flex items-center min-h-[30px] px-1 hover:bg-base-300/40 border-b border-base-200/50 min-w-0"
                         >
                             <div
                                 className="flex-shrink-0 text-xs font-mono text-base-content/70 truncate pr-2"
@@ -243,9 +243,8 @@ export const VirtualFrameList: React.FC<VirtualFrameListProps> = ({ entries, onC
                                 {directionName}
                             </div>
                             <div
-                                className="flex-1 text-xs text-base-content min-w-0 font-mono cursor-pointer hover:bg-base-200 transition-colors duration-150"
+                                className="flex-1 text-xs text-base-content min-w-0 font-mono cursor-pointer hover:bg-base-300/50 transition-colors duration-150"
                                 style={{
-                                    maxWidth: columnWidths.content,
                                     wordBreak: 'break-all',
                                     whiteSpace: 'pre-wrap',
                                     overflowWrap: 'break-word'
@@ -253,7 +252,7 @@ export const VirtualFrameList: React.FC<VirtualFrameListProps> = ({ entries, onC
                                 title={`${entry.content}\n\n点击查看解析结果`}
                                 onClick={() => handleContentClick(entry)}
                             >
-                                <div className="pl-2 py-1 hover:bg-blue-50 hover:text-blue-700 rounded transition-colors duration-150">
+                                <div className="pl-2 py-1 hover:bg-primary/10 hover:text-primary rounded transition-colors duration-150">
                                     {entry.content}
                                 </div>
                             </div>

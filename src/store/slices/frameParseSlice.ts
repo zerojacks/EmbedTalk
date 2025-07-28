@@ -23,9 +23,15 @@ export interface FrameFile {
     isActive: boolean;
 }
 
+interface ScrollPosition {
+    scrollTop: number;
+    timestamp: number;
+}
+
 interface FileContents {
     entries: FrameEntry[];  // 直接存储所有报文条目
     filters: FrameFilter;
+    scrollPosition: ScrollPosition;
 }
 
 interface FrameParseState {
@@ -78,7 +84,11 @@ export const frameParseSlice = createSlice({
             }
 
             if (!state.fileContents[path]) {
-                state.fileContents[path] = { entries: [], filters: {} };
+                state.fileContents[path] = {
+                    entries: [],
+                    filters: {},
+                    scrollPosition: { scrollTop: 0, timestamp: Date.now() }
+                };
             }
             state.fileContents[path].entries = entries;
         },
@@ -94,6 +104,18 @@ export const frameParseSlice = createSlice({
                 };
             }
         },
+
+        setFrameScrollPosition: (state, action: PayloadAction<{
+            path: string;
+            scrollTop: number;
+        }>) => {
+            if (state.fileContents[action.payload.path]) {
+                state.fileContents[action.payload.path].scrollPosition = {
+                    scrollTop: action.payload.scrollTop,
+                    timestamp: Date.now()
+                };
+            }
+        },
         initializeFrameFilter: (state, action: PayloadAction<{
             path: string;
             minTime?: string;
@@ -102,7 +124,11 @@ export const frameParseSlice = createSlice({
             endTime?: string;
         }>) => {
             if (!state.fileContents[action.payload.path]) {
-                state.fileContents[action.payload.path] = { entries: [], filters: {} };
+                state.fileContents[action.payload.path] = {
+                    entries: [],
+                    filters: {},
+                    scrollPosition: { scrollTop: 0, timestamp: Date.now() }
+                };
             }
             state.fileContents[action.payload.path].filters = {
                 ...state.fileContents[action.payload.path].filters,
@@ -188,12 +214,18 @@ export const selectIsLoading = (state: RootState) =>
 export const selectError = (state: RootState) =>
     state.frameParse?.error || null;
 
+export const selectFrameScrollPosition = (state: RootState, path: string) => {
+    const contents = state.frameParse?.fileContents?.[path];
+    return contents?.scrollPosition || { scrollTop: 0, timestamp: Date.now() };
+};
+
 export const {
     addFrameFile,
     removeFrameFile,
     setActiveFrameFile,
     addFrameEntries,
     setFrameFilter,
+    setFrameScrollPosition,
     initializeFrameFilter,
     setLoading,
     setError

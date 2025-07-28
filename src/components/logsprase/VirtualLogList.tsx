@@ -166,14 +166,12 @@ export const VirtualLogList: React.FC<VirtualLogListProps> = ({ entries }) => {
                                     {pidTid}
                                 </div>
                             )}
-                            <div 
-                                className="flex-1 text-xs text-base-content min-w-0 pl-0"
-                                style={{ 
-                                    maxWidth: columnWidths.message,
+                            <div
+                                className="flex-1 text-xs text-base-content min-w-0"
+                                style={{
                                     wordBreak: 'break-all',
                                     whiteSpace: 'pre-wrap',
-                                    overflowWrap: 'break-word',
-                                    paddingLeft: '0'
+                                    overflowWrap: 'break-word'
                                 }}
                                 title={fullMessage}
                             >

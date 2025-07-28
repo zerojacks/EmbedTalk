@@ -83,8 +83,8 @@ export default function LogParse() {
         return entries
             .filter(entry => !filter.level || entry.level === filter.level)
             .filter(entry => !filter.tag || entry.tag?.toLowerCase().includes(filter.tag.toLowerCase()))
-            .filter(entry => !filter.pid || entry.pid === filter.pid)
-            .filter(entry => !filter.tid || entry.tid === filter.tid)
+            .filter(entry => !filter.pid || (entry.pid && parseInt(entry.pid, 10) === parseInt(filter.pid, 10)))
+            .filter(entry => !filter.tid || (entry.tid && parseInt(entry.tid, 10) === parseInt(filter.tid, 10)))
             .filter(entry => !filter.keyword || (
                 entry.message?.toLowerCase().includes(filter.keyword.toLowerCase()) ||
                 entry.rawData?.toLowerCase().includes(filter.keyword.toLowerCase())
@@ -127,60 +127,17 @@ export default function LogParse() {
     const initializeFileFilterWithDefaults = useCallback((filePath: string) => {
         const state = store.getState() as RootState;
         const fileContents = selectLogFileContents(state, filePath);
-        
-        if (!fileContents || !fileContents.entries || fileContents.entries.length === 0) {
-            dispatch(initializeFileFilter({
-                path: filePath
-            }));
-            return;
-        }
 
-        // 获取所有日志条目
-        const allEntries = fileContents.entries;
-        
-        // 找出最小和最大时间
-        let minTimeStr: string | undefined = undefined;
-        let maxTimeStr: string | undefined = undefined;
-        
-        // 首先收集所有有效的时间戳
-        const validTimestamps = allEntries
-            .map(entry => entry.timeStamp)
-            .filter(timestamp => {
-                try {
-                    const time = new Date(timestamp);
-                    return !isNaN(time.getTime());
-                } catch {
-                    return false;
-                }
-            });
-        
-        // 如果有有效的时间戳，找出最小和最大值
-        if (validTimestamps.length > 0) {
-            // 按时间戳排序
-            const times = validTimestamps.map(ts => new Date(ts).getTime());
-            const minTime = new Date(Math.min(...times));
-            const maxTime = new Date(Math.max(...times));
-            
-            // 设置最小时间的毫秒为0，最大时间的毫秒为999
-            minTime.setMilliseconds(0);
-            maxTime.setMilliseconds(999);
-            
-            minTimeStr = minTime.toISOString();
-            maxTimeStr = maxTime.toISOString();
-        }
-        
-        // 初始化过滤器，保存完整的时间范围（包含毫秒）
+        // 初始化过滤器
         dispatch(initializeFileFilter({
-            path: filePath,
-            minTime: minTimeStr,
-            maxTime: maxTimeStr
+            path: filePath
         }));
-        
-        // 同时设置当前的筛选时间范围，但移除毫秒部分
-        if (minTimeStr && maxTimeStr) {
-            const startTime = new Date(minTimeStr);
-            const endTime = new Date(maxTimeStr);
-            
+
+        // 如果有文件内容且有minTime和maxTime，设置默认的时间范围过滤器
+        if (fileContents && fileContents.minTime && fileContents.maxTime) {
+            const startTime = new Date(fileContents.minTime);
+            const endTime = new Date(fileContents.maxTime);
+
             // 将时间转换为本地时间字符串，去掉毫秒部分
             const startTimeLocal = new Date(startTime.getTime() - startTime.getTimezoneOffset() * 60000)
                 .toISOString()
@@ -188,7 +145,7 @@ export default function LogParse() {
             const endTimeLocal = new Date(endTime.getTime() - endTime.getTimezoneOffset() * 60000)
                 .toISOString()
                 .slice(0, 19);
-            
+
             dispatch(setLogFilter({
                 path: filePath,
                 filter: {
