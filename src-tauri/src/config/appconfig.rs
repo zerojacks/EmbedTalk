@@ -107,7 +107,7 @@ pub async fn get_config_value_async(section: &str, key: &str) -> Result<Option<V
 
     // Load the config
     let config = Config::new(path.to_str().unwrap()).map_err(|e| format!("{}", e))?;
-    // 读取 MainWindow.theme 字段
+    // 读取 window.theme 字段
     let sectionvalue = if key.is_empty() {
         config.get_value(&[section]).cloned()
     } else {
@@ -131,7 +131,7 @@ pub async fn set_config_value_async(section: &str, key: &str, value: &str) -> Re
     }
     let value_json: serde_json::Value =
         serde_json::from_str(value).map_err(|e| format!("Failed to parse JSON: {}", e))?;
-    // 读取 MainWindow.theme 字段
+    // 读取 window.theme 字段
     let config = Config::new(path.to_str().unwrap()).map_err(|e| format!("{}", e));
     if let Ok(mut config) = config {
         if key.is_empty() {
@@ -169,7 +169,7 @@ pub fn load_config_value(section: &str, key: &str) -> Option<Value> {
     // Load the config
     let config = Config::new(path.to_str().unwrap()).map_err(|e| format!("{}", e));
     if let Ok(config) = config {
-        // 读取 MainWindow.theme 字段
+        // 读取 window.theme 字段
         let sectionvalue = config.get_value(&[section, key]);
         // Retrieve the value from the config
         sectionvalue.cloned()

@@ -45,6 +45,39 @@ export const saveSetting = createAsyncThunk(
     }
 );
 
+// 异步设置操作
+export const setRegionAsync = createAsyncThunk(
+    'settings/setRegionAsync',
+    async (region: RegionOption, { dispatch }) => {
+        await dispatch(saveSetting({ key: 'app.region', value: region }));
+        dispatch(settingsSlice.actions.updateRegion(region));
+    }
+);
+
+export const setThemeAsync = createAsyncThunk(
+    'settings/setThemeAsync',
+    async (theme: ThemeOption, { dispatch }) => {
+        await dispatch(saveSetting({ key: 'app.theme', value: theme }));
+        dispatch(settingsSlice.actions.updateTheme(theme));
+    }
+);
+
+export const setLanguageAsync = createAsyncThunk(
+    'settings/setLanguageAsync',
+    async (language: 'zh-CN' | 'en-US', { dispatch }) => {
+        await dispatch(saveSetting({ key: 'app.language', value: language }));
+        dispatch(settingsSlice.actions.updateLanguage(language));
+    }
+);
+
+export const setCloseToTrayAsync = createAsyncThunk(
+    'settings/setCloseToTrayAsync',
+    async (closeToTray: boolean | null, { dispatch }) => {
+        await dispatch(saveSetting({ key: 'window.closeToTray', value: closeToTray }));
+        dispatch(settingsSlice.actions.updateCloseToTray(closeToTray));
+    }
+);
+
 // 获取初始状态（使用默认值）
 const getInitialState = (): SettingsState => {
     return {
@@ -103,10 +136,9 @@ export const settingsSlice = createSlice({
         setIsExiting: (state, action: PayloadAction<boolean>) => {
             state.isExiting = action.payload;
         },
-        // 便捷的设置方法（同时更新状态和保存到配置）
+        // 直接更新状态的方法（不包含保存到配置）
         setRegion: (state, action: PayloadAction<RegionOption>) => {
             state.region = action.payload;
-            // 异步保存将通过 middleware 或 thunk 处理
         },
         setTheme: (state, action: PayloadAction<ThemeOption>) => {
             state.theme = action.payload;

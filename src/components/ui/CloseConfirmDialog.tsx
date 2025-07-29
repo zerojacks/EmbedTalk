@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { setCloseToTray } from '../../store/slices/settingsSlice';
+import { setCloseToTrayAsync } from '../../store/slices/settingsSlice';
 import { X } from 'lucide-react';
+import { useAppDispatch } from '../../store/hooks';
 
 interface CloseConfirmDialogProps {
     isOpen: boolean;
@@ -16,12 +16,12 @@ export const CloseConfirmDialog: React.FC<CloseConfirmDialogProps> = ({
     onMinimizeToTray,
     onExitApp
 }) => {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
     const [rememberChoice, setRememberChoice] = useState(false);
 
     const handleMinimizeToTray = () => {
         if (rememberChoice) {
-            dispatch(setCloseToTray(true));
+            dispatch(setCloseToTrayAsync(true));
         }
         onMinimizeToTray();
         onClose();
@@ -29,7 +29,7 @@ export const CloseConfirmDialog: React.FC<CloseConfirmDialogProps> = ({
 
     const handleExitApp = () => {
         if (rememberChoice) {
-            dispatch(setCloseToTray(false));
+            dispatch(setCloseToTrayAsync(false));
         }
         // 先关闭对话框，然后退出应用
         onClose();

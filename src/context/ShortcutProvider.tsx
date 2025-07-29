@@ -136,7 +136,7 @@ export const ShortcutProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // 保存到设置
       try {
         await invoke('set_config_value_async', {
-          section: 'MainWindow',
+          section: 'window',
           key: 'shortcuts',
           value: JSON.stringify({
             ...shortcuts,
