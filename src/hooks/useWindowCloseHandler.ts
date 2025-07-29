@@ -22,6 +22,10 @@ export const useWindowCloseHandler = () => {
 
                 // 使用Tauri v2的onCloseRequested API
                 unlistenFn = await window.onCloseRequested(async (event) => {
+                    // 如果不是主窗口，直接允许关闭
+                    if (window.label !== "main") {
+                        return;
+                    }
                     // 在事件处理时获取最新的设置值
                     const state = store.getState().settings;
                     const currentCloseToTray = state.closeToTray;
