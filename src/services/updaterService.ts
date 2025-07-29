@@ -2,6 +2,8 @@
 import { toast } from '../context/ToastProvider';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { store } from '../store';
+import { setIsUpdating } from '../store/slices/settingsSlice';
 import { publishProgress, resetProgress, setUpdateCallbacks } from '../components/UpdateProgress';
 
 /**
@@ -134,6 +136,8 @@ export class UpdaterService {
         return true;
       });
 
+      store.dispatch(setIsUpdating(true));
+
       // Install the update
       await update.install();
       
@@ -147,13 +151,15 @@ export class UpdaterService {
       });
       
       toast.success('更新已安装，正在重启应用...');
-      
+
       // Relaunch the app after a short delay
       setTimeout(async () => {
         try {
+          store.dispatch(setIsUpdating(false)); // 重置更新状态
           await relaunch();
         } catch (err) {
           console.error('重启应用失败:', err);
+          store.dispatch(setIsUpdating(false)); // 重置更新状态
         }
       }, 2000);
     } catch (error) {
@@ -168,6 +174,9 @@ export class UpdaterService {
         status: 'error',
         message: `更新失败: ${error instanceof Error ? error.message : String(error)}`
       });
+      
+      // 重置更新状态
+      store.dispatch(setIsUpdating(false));
     }
   }
 }

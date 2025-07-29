@@ -30,12 +30,13 @@ export const useWindowCloseHandler = () => {
                     const state = store.getState().settings;
                     const currentCloseToTray = state.closeToTray;
                     const isExiting = state.isExiting;
+                    const isUpdating = state.isUpdating;
 
-                    console.log('窗口关闭请求，closeToTray设置:', currentCloseToTray, 'isExiting:', isExiting);
+                    console.log('窗口关闭请求，closeToTray设置:', currentCloseToTray, 'isExiting:', isExiting, 'isUpdating:', isUpdating);
 
-                    // 如果应用正在退出，不拦截关闭事件
-                    if (isExiting) {
-                        console.log('应用正在退出，允许关闭');
+                    // 如果应用正在退出或正在更新，不拦截关闭事件
+                    if (isExiting || isUpdating) {
+                        console.log('应用正在退出或更新，允许关闭');
                         return;
                     }
 

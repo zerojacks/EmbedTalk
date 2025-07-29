@@ -18,6 +18,7 @@ export interface SettingsState {
     // UI 状态
     showCloseDialog: boolean;
     isExiting: boolean; // 标记应用是否正在退出
+    isUpdating: boolean; // 标记应用是否正在更新
     // 加载状态
     isLoading: boolean;
     isInitialized: boolean;
@@ -92,6 +93,7 @@ const getInitialState = (): SettingsState => {
         size: { width: 1200, height: 800 },
         showCloseDialog: false,
         isExiting: false,
+        isUpdating: false,
         isLoading: false,
         isInitialized: false
     };
@@ -135,6 +137,9 @@ export const settingsSlice = createSlice({
         },
         setIsExiting: (state, action: PayloadAction<boolean>) => {
             state.isExiting = action.payload;
+        },
+        setIsUpdating: (state, action: PayloadAction<boolean>) => {
+            state.isUpdating = action.payload;
         },
         // 直接更新状态的方法（不包含保存到配置）
         setRegion: (state, action: PayloadAction<RegionOption>) => {
@@ -213,6 +218,7 @@ export const {
     // 对话框状态
     setShowCloseDialog,
     setIsExiting,
+    setIsUpdating,
     // 设置方法（需要配合异步保存）
     setRegion,
     setTheme,
@@ -239,6 +245,7 @@ export const selectPosition = (state: RootState) => state.settings.position;
 export const selectSize = (state: RootState) => state.settings.size;
 export const selectShowCloseDialog = (state: RootState) => state.settings.showCloseDialog;
 export const selectIsExiting = (state: RootState) => state.settings.isExiting;
+export const selectIsUpdating = (state: RootState) => state.settings.isUpdating;
 export const selectIsLoading = (state: RootState) => state.settings.isLoading;
 export const selectIsInitialized = (state: RootState) => state.settings.isInitialized;
 
