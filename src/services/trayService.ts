@@ -1,8 +1,10 @@
 import { TrayIcon } from '@tauri-apps/api/tray';
-import { Menu } from '@tauri-apps/api/menu';
+import { Menu, NativeIcon } from '@tauri-apps/api/menu';
 import { defaultWindowIcon } from '@tauri-apps/api/app';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { exit } from '@tauri-apps/plugin-process';
+import { Image } from '@tauri-apps/api/image';
+import trayIcons from '../utils/trayIcons';
 
 // 单例实现
 class TrayService {
@@ -140,9 +142,36 @@ class TrayService {
         return this.initializationPromise;
     }
 
+    private async loadCustomIcon(iconType: 'show/hide' | 'about' | 'exit'): Promise<Image | null> {
+        try {
+            // 从 base64 创建图片
+            const base64Data = trayIcons[iconType];
+            // 删除 data:image/png;base64, 前缀
+            const rawBase64 = base64Data.replace(/^data:image\/\w+;base64,/, '');
+            // 创建 Uint8Array
+            const binaryString = atob(rawBase64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return Image.fromBytes(bytes);
+        } catch (error) {
+            console.error('Failed to load custom icon:', error);
+            // 回退到默认图标
+            return await defaultWindowIcon();
+        }
+    }
     // 托盘初始化逻辑
     private async initializeTray() {
-        try {
+        try {            
+            const [showHideIcon, aboutIcon, quitIcon] = await Promise.all([
+                this.loadCustomIcon('show/hide'),
+                this.loadCustomIcon('about'),
+                this.loadCustomIcon('exit')
+            ]);
+
+            console.log("icon",showHideIcon, aboutIcon, quitIcon)
+
             // 创建托盘菜单
             const menu = await Menu.new({
                 items: [
@@ -150,16 +179,22 @@ class TrayService {
                         id: 'show_hide',
                         text: '显示/隐藏',
                         action: () => this.handleMenuClick('show_hide'),
+                        enabled: true,
+                        icon: showHideIcon || undefined
                     },
                     {
                         id: 'about',
                         text: '关于',
                         action: () => this.handleMenuClick('about'),
+                        enabled: true,
+                        icon: aboutIcon || undefined
                     },
                     {
                         id: 'quit',
                         text: '退出',
                         action: () => this.handleMenuClick('quit'),
+                        enabled: true,
+                        icon: quitIcon || undefined
                     },
                 ],
             });
