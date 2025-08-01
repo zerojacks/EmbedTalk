@@ -760,6 +760,31 @@ lazy_static! {
             }
         }
     };
+    pub static ref GLOBAL_MS: Result<QframeConfig, Arc<dyn std::error::Error + Send + Sync>> = {
+        let config = QframeConfig::new();
+        let default_path = "./resources/protocolconfig/TASK_MS.xml".to_string();
+
+        let setpath = load_config_value("ProtocolSetting", "protocolfile")
+            .and_then(|protocol_config| {
+                protocol_config
+                    .get("task_ms")
+                    .and_then(|protocol| protocol.get("path"))
+                    .and_then(|path| path.as_str())
+                    .map(String::from)
+            })
+            .unwrap_or(default_path);
+        println!("task_ms XML 路径: {}", setpath);
+        match config.load(Path::new(&setpath)) {
+            Ok(_) => {
+                println!("task_ms XML 加载成功");
+                Ok(config)
+            }
+            Err(e) => {
+                println!("task_ms XML 加载失败: {}", e);
+                Err(e)
+            }
+        }
+    };
 }
 
 pub struct ProtocolConfigManager;
@@ -801,6 +826,12 @@ impl ProtocolConfigManager {
                             .ok()?
                             .get_item(data_item_id, protocol, region, dir)
                     }
+                    p if p.contains("MS") => {
+                        GLOBAL_MS
+                            .as_ref()
+                            .ok()?
+                            .get_item(data_item_id, protocol, region, dir)
+                    }
                     _ => None,
                 } {
                     return Some(result);
@@ -834,6 +865,12 @@ impl ProtocolConfigManager {
                         .ok()?
                         .get_item(data_item_id, protocol, region, dir)
                 }
+                protocol if protocol.contains("MS") => {
+                    GLOBAL_MS
+                        .as_ref()
+                        .ok()?
+                        .get_item(data_item_id, protocol, region, dir)
+                }
                 _ => None,
             }
         }
@@ -861,6 +898,10 @@ impl ProtocolConfigManager {
                 .ok()?
                 .get_item(template, protocol, region, dir),
             protocol if protocol.contains("MOUDLE") => GLOBAL_Moudle
+                .as_ref()
+                .ok()?
+                .get_item(template, protocol, region, dir),
+            protocol if protocol.contains("MS") => GLOBAL_MS
                 .as_ref()
                 .ok()?
                 .get_item(template, protocol, region, dir),

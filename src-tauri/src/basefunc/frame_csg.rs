@@ -1207,7 +1207,7 @@ impl FrameCsg {
                     }
                 } else {
                     if let Some(data_type) = template_element.get_value().map(|s| s.to_uppercase()) {
-                        if !["BCD", "BIN", "ASCII"].contains(&data_type.as_str()) {
+                        if !["BCD", "BIN", "ASCII", "BIN_BE"].contains(&data_type.as_str()) {
                             if let Some(mut template) = ProtocolConfigManager::get_template_element(
                                 &data_type, protocol, region, dir,
                             ) {

@@ -55874,6 +55874,28 @@
 		<decimal>2</decimal>
 		<unit>℃</unit>
 	</dataItem>
+	<dataItem id="E0000194" protocol="csg13" region="南网">
+		<name>应用CPU 占用率阈值</name>
+		<length>2</length>
+		<decimal>2</decimal>
+		<unit>%</unit>
+	</dataItem>
+	<dataItem id="E0000195" protocol="csg13" region="南网">
+		<name>应用内存占用率阈值</name>
+		<length>2</length>
+		<decimal>2</decimal>
+		<unit>%</unit>
+	</dataItem>
+	<dataItem id="E0000196" protocol="csg13" region="南网">
+		<name>应用储存资源占用阈值</name>
+		<length>3</length>
+		<unit>kB</unit>
+	</dataItem>
+	<dataItem id="E0000197" protocol="csg13" region="南网">
+		<name>日志占用阈值</name>
+		<length>3</length>
+		<unit>kB</unit>
+	</dataItem>
     <dataItem id="E0000E30" protocol="csg13" region="南网">
         <name>断线检测允许时间</name>
         <length>2</length>

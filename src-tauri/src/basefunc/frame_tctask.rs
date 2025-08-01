@@ -1,8 +1,9 @@
 use crate::basefunc::frame_err::CustomError;
 use crate::basefunc::frame_fun::FrameFun;
-use crate::basefunc::protocol::ProtocolInfo;
 use crate::config::oadmapconfig::TaskOadConfigManager;
 use crate::config::xmlconfig::ProtocolConfigManager;
+use crate::basefunc::frame_csg::FrameCsg;
+use crate::basefunc::protocol::{FrameAnalisyic, ProtocolInfo};
 use serde_json::Value;
 
 const MS_TYPE_ALL_USER: u8 = 0x01; //全部用户类型*/
@@ -76,6 +77,62 @@ impl TCMeterTask {
         }
     }
 
+    pub fn get_ms_len_new(
+        ms_type: u8,
+        task_content: &[u8],
+        start_pos: usize,
+    ) -> (usize, String, Vec<Value>) {
+        println!("get_ms_len_new task_content{:?}", task_content);
+        let region = "南网";
+        let protocol = ProtocolInfo::ProtocolMS.name().to_string();
+        let ms_str = format!("{:02X}", ms_type);
+        let data_item_elem = ProtocolConfigManager::get_config_xml(
+            &ms_str,
+            &protocol,
+            "南网",
+            None,
+        );
+
+        let mut item_data: Vec<Value> = Vec::new();
+        let dis_data_identifier: String;
+        let pos:usize = 0;
+        if let Some(mut data_item_elem) = data_item_elem {
+            // 上行回复
+            let sub_length_cont = data_item_elem.get_child_text("length").unwrap();
+            let name = data_item_elem.get_child_text("name").unwrap();
+            let (sub_length, sub_datament) = if sub_length_cont.to_uppercase() == "UNKNOWN" {
+                let sub_length = FrameCsg::calculate_item_length(
+                    &mut data_item_elem,
+                    &task_content[pos..],
+                    &protocol,
+                    region,
+                    None,
+                    None,
+                );
+                let new_segment = &task_content[pos..pos + sub_length];
+                (sub_length, new_segment)
+            } else {
+                let mut sub_length = sub_length_cont.parse::<usize>().unwrap();
+                if sub_length > task_content[pos..].len() {
+                    sub_length = task_content[pos..].len();
+                }
+                let sub_datament = &task_content[pos..pos + sub_length];
+                (sub_length, sub_datament)
+            };
+            data_item_elem.update_value("length", sub_length.to_string());
+            println!("get_ms_len_new {:?} {:?}", sub_datament, sub_length);
+            item_data = FrameAnalisyic::prase_data(
+                &mut data_item_elem,
+                &protocol,
+                region,
+                sub_datament,
+                start_pos + pos,
+                None,
+            );
+            return (sub_length, name, item_data);
+        }
+        return (0, "未知类型".to_string(), item_data);
+    }
     pub fn get_ms_len(
         ms_type: u8,
         task_content: &[u8],
@@ -577,9 +634,10 @@ impl TCMeterTask {
 
             let ms_type = task_content[pos];
             pos += 1;
-            let mut ms_data = vec![];
-            let (len, me_info) =
-                Self::get_ms_len(ms_type, &task_content[pos..], &mut ms_data, pos + index);
+            // let (len, me_info) =
+            //     Self::get_ms_len(ms_type, &task_content[pos..], &mut ms_data, pos + index);
+
+            let (len, me_info, ms_data) = Self::get_ms_len_new(ms_type, &task_content[pos..], pos + index);
             FrameFun::add_data(
                 &mut sub_result,
                 "MS".to_string(),

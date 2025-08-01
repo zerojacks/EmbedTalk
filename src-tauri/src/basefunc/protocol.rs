@@ -7,7 +7,7 @@ use crate::basefunc::frame_speecial::SpcialFrame;
 use crate::basefunc::frame_tctask::TCMeterTask;
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement};
 use regex::Regex;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 #[derive(Debug)]
 pub enum AnalysicErr {
@@ -23,6 +23,7 @@ pub enum ProtocolInfo {
     ProtocolCSG16,
     ProtocolDLT64507,
     ProtocolMoudle,
+    ProtocolMS,
 }
 
 impl ProtocolInfo {
@@ -32,6 +33,7 @@ impl ProtocolInfo {
             ProtocolInfo::ProtocolCSG16 => "CSG16",
             ProtocolInfo::ProtocolDLT64507 => "DLT/645-2007",
             ProtocolInfo::ProtocolMoudle => "moudle",
+            ProtocolInfo::ProtocolMS => "MS",
         }
     }
 }
@@ -684,6 +686,7 @@ impl FrameAnalisyic {
             "ASCII" => FrameFun::ascii_to_str(data_segment),
             "PORT" => FrameFun::prase_port(data_segment),
             "IP" => FrameFun::prase_ip_str(data_segment),
+            "BIN_BE" => FrameFun::prase_bin_be_deciml(data_segment, decimal, need_delete, sign, true),
             "NORMAL" => FrameFun::get_data_str(&data_segment, need_delete, true, false),
             _ => return None, // 不支持的类型返回 None
         };
@@ -1551,16 +1554,30 @@ impl FrameAnalisyic {
         } else {
             item_singal = false;
         }
-
-        let subitem_length = FrameCsg::calculate_item_length(
-            &mut item_element_clone,
-            &data_segment,
-            protocol,
-            region,
-            dir,
-            None,
-        );
-
+        let length_ele = item_element_clone.get_child_text("length");
+        let subitem_length = if let Some(length) = length_ele {
+            if length.to_uppercase() == "UNKNOWN" {
+                FrameCsg::calculate_item_length(
+                    &mut item_element_clone,
+                    &data_segment,
+                    protocol,
+                    region,
+                    dir,
+                    None,
+                )
+            } else {
+                length.parse::<usize>().unwrap()
+            }
+        } else {
+            FrameCsg::calculate_item_length(
+                &mut item_element_clone,
+                &data_segment,
+                protocol,
+                region,
+                dir,
+                None,
+            )
+        };
         if is_singal && ((data_segment.len() / subitem_length) == 1) {
             item_singal = true;
         }
@@ -1584,9 +1601,10 @@ impl FrameAnalisyic {
             .unwrap_or_else(|| format!("第{}组数据内容", i + 1));
 
         println!(
-            "prase_template_type item_singal: {:?} {:?}",
-            data_segment, item_len
+            "prase_template_type item_singal: {:?} {:?} {:?}",
+            data_segment, item_len, subitem_length
         );
+        let attri_id = item_element.get_attribute("id");
         if data_segment.len() % subitem_length == 0 {
             while pos < data_segment.len() {
                 let sub_data = &data_segment[pos..pos + subitem_length];
@@ -1608,7 +1626,7 @@ impl FrameAnalisyic {
                     })
                     .unwrap_or_else(|| format!("第{}组数据内容", i + 1));
 
-                let (item_value, length) = Self::prase_split_by_length_item(
+                let item_value = Self::prase_data_item(
                     &mut item_element_clone,
                     sub_data,
                     index + pos,
@@ -1632,15 +1650,47 @@ impl FrameAnalisyic {
                 if item_singal {
                     result_vec.extend(item_value);
                 } else {
-                    FrameFun::add_data(
-                        &mut result_vec,
-                        item_name,
-                        FrameFun::get_data_str(&sub_data, false, false, true),
-                        item_description,
-                        vec![index + pos, index + pos + subitem_length],
-                        Some(item_value),
-                        None,
-                    );
+                    if !item_value.is_empty() && item_value.iter().any(|v| {
+                        if let Some(frame_domain) = v.get("frameDomain") {
+                            if frame_domain.is_string() {
+                                return true;
+                            }
+                        }
+                        false
+                    }) {
+                        // 将 frameDomain 修改为 item_name
+                        let mut modified_value = item_value;
+                        for v in modified_value.iter_mut() {
+                            if let Some(frame_domain) = v.as_object_mut() {
+                                if frame_domain.contains_key("frameDomain") {
+                                    frame_domain.insert("frameDomain".to_string(), json!(item_name.clone()));
+                                }
+                                if frame_domain.contains_key("description") {
+                                    if let Some(description) = frame_domain.get("description") {
+                                        if description.is_string() {
+                                            let desc_str = description.as_str().unwrap_or("");
+                                            if let Some(attri_id) = attri_id.as_ref() {
+                                                let pattern = format!("{}_", attri_id);
+                                                let new_desc = desc_str.replace(&pattern, "");
+                                                frame_domain.insert("description".to_string(), json!(new_desc));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        result_vec.extend(modified_value);
+                    } else {
+                        FrameFun::add_data(
+                            &mut result_vec,
+                            item_name,
+                            FrameFun::get_data_str(&sub_data, false, false, true),
+                            item_description,
+                            vec![index + pos, index + pos + subitem_length],
+                            Some(item_value),
+                            None,
+                        );
+                    }
                 }
                 i += 1;
                 pos += subitem_length;

@@ -238,6 +238,20 @@ impl FrameFun {
         }
     }
 
+    pub fn prase_bin_be_deciml(
+        bcd_array: &[u8],
+        decimal_places: usize,
+        need_delete: bool,
+        sign: bool,
+        judge_ff: bool,
+    ) -> String {
+        // 转换为大端序：反转字节顺序
+        let mut array = bcd_array.to_vec();
+        array.reverse();
+        
+        // 调用现有的 bin_to_decimal 函数处理转换后的数据
+        Self::bin_to_decimal(&array, decimal_places, need_delete, sign, judge_ff)
+    }
     // This code translates a Python function to Rust.
     pub fn bintodecimal(binary_data: &[u8]) -> u64 {
         // 将数组元素拼接成字符串

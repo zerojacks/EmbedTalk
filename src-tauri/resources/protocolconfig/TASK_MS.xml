@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <dataItem id="01" protocol="MS" region="南网">
+        <name>全部用户类型</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="02" protocol="MS" region="南网">
+        <name>一组用户类型</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>用户组数</name>
+            <length>1</length>
+        </splitByLength>
+        <splitByLength>
+            <name>用户类型</name>
+            <length>unknown</length>
+            <lengthrule>1 * 用户组数 </lengthrule>
+            <type>USER_TYPE</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="03" protocol="MS" region="南网">
+        <name>一组用户地址</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>地址个数</name>
+            <length>1</length>
+        </splitByLength>
+        <splitByLength>
+            <name>用户地址</name>
+            <length>unknown</length>
+            <lengthrule>6 * 地址个数</lengthrule>
+            <type>ADRESS_TYPE</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="04" protocol="MS" region="南网">
+        <name>一组配置序号</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>地址个数</name>
+            <length>1</length>
+        </splitByLength>
+        <splitByLength>
+            <name>用户地址</name>
+            <length>unknown</length>
+            <lengthrule>6 * 地址个数</lengthrule>
+            <type>ADRESS_TYPE</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="05" protocol="MS" region="南网">
+        <name>一组用户类型区间</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>区间个数</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>用户区间</name>
+            <length>unknown</length>
+            <lengthrule>3 * 区间个数</lengthrule>
+            <type>RANGE_OF_USER_TYPE</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="07" protocol="MS" region="南网">
+        <name>一组配置序号区间</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>区间个数</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>测量点区间</name>
+            <length>unknown</length>
+            <lengthrule>7 * 区间个数</lengthrule>
+            <type>RANGE_OF_NUMBER</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="F5" protocol="MS" region="南网">
+        <name>一组电表类型</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>类型组数</name>
+            <length>1</length>
+        </splitByLength>
+        <splitByLength>
+            <name>电表类型</name>
+            <length>unknown</length>
+            <lengthrule>1 * 类型组数 </lengthrule>
+            <type>METER_TYPE</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="F7" protocol="MS" region="南网">
+        <name>除交采外的所有表</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="F8" protocol="MS" region="南网">
+        <name>一组重点用户类型区分端口(任务号属于[300,500]:载波，其他：非载波)</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>用户类型个数</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>用户类型</name>
+            <length>unknown</length>
+            <lengthrule>1 * 用户类型个数</lengthrule>
+            <type>USER_TYPE</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="F9" protocol="MS" region="南网">
+        <name>一组重点用户类型区分端口(任务号属于[300,500]:载波，其他：非载波)</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>用户类型个数</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>用户类型</name>
+            <length>unknown</length>
+            <lengthrule>1 * 用户类型个数</lengthrule>
+            <type>USER_TYPE</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="FB" protocol="MS" region="南网">
+        <name>一组重点用户类型</name>
+        <length>1</length>
+        <splitByLength>
+            <name>用户类型</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="FC" protocol="MS" region="南网">
+        <name>一组用户事件等级</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>等级个数</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>事件等级</name>
+            <length>unknown</length>
+            <lengthrule>1 * 等级个数</lengthrule>
+            <type>EVENT_LEVEL</type>
+        </splitByLength>
+    </dataItem>
+    <dataItem id="FD" protocol="MS" region="南网">
+        <name>重点用户</name>
+        <length>0</length>
+    </dataItem>
+    <dataItem id="FE" protocol="MS" region="南网">
+        <name>一组端口号</name>
+        <length>unknown</length>
+        <splitByLength>
+            <name>端口个数</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>端口</name>
+            <length>unknown</length>
+            <lengthrule>1 * 端口个数</lengthrule>
+            <type>PORT_TYPE</type>
+        </splitByLength>
+    </dataItem>
+    <template id="USER_TYPE" protocol="MS" region="南网">
+        <name>用户类型</name>
+        <length>1</length>
+        <type>BIN</type>
+    </template>
+    <template id="ADRESS_TYPE" protocol="MS" region="南网">
+        <name>用户地址</name>
+        <length>6</length>
+        <type>NORMAL</type>
+    </template>
+    <template id="RANGE_OF_USER_TYPE" protocol="MS" region="南网">
+        <name>用户类型区间</name>
+        <length>3</length>
+        <splitByLength>
+            <name>区间类型</name>
+            <length>1</length>
+            <type>BIN</type>
+            <value key = "00">前闭后开</value>
+            <value key = "01">前开后闭</value>
+            <value key = "02">前闭后闭</value>
+            <value key = "03">前开后开</value>
+            <value key="other">未知</value>
+        </splitByLength>
+        <splitByLength>
+            <name>用户类型</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>用户类型</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+    </template>
+    <template id="METER_TYPE" protocol="MS" region="南网">
+        <name>电能表类型</name>
+        <length>1</length>
+        <type>BIN</type>
+    </template>
+    <template id="RANGE_OF_NUMBER" protocol="MS" region="南网">
+        <name>配置序号区间</name>
+        <splitByLength>
+            <name>区间类型</name>
+            <length>1</length>
+            <type>BIN</type>
+            <value key = "00">前闭后开</value>
+            <value key = "01">前开后闭</value>
+            <value key = "02">前闭后闭</value>
+            <value key = "03">前开后开</value>
+            <value key="other">未知</value>
+        </splitByLength>
+        <splitByLength>
+            <name>数据类型</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>测量点号</name>
+            <length>2</length>
+            <type>BIN_BE</type>
+        </splitByLength>
+        <splitByLength>
+            <name>数据类型</name>
+            <length>1</length>
+            <type>BIN</type>
+        </splitByLength>
+        <splitByLength>
+            <name>测量点号</name>
+            <length>2</length>
+            <type>BIN_BE</type>
+        </splitByLength>
+    </template>
+    <template id="EVENT_LEVEL" protocol="MS" region="南网">
+        <name>事件等级</name>
+        <length>1</length>
+        <type>BIN</type>
+    </template>
+    <template id="PORT_TYPE" protocol="MS" region="南网">
+        <name>端口</name>
+        <length>1</length>
+        <type>BIN</type>
+        <value key="00">交采</value>
+        <value key="01">485_1</value>
+        <value key="02">485_2</value>
+        <value key="03">485_3</value>
+        <value key="04">485_4</value>
+        <value key="1F">载波</value>
+        <value key="other">未知</value>
+    </template>
+</config>
