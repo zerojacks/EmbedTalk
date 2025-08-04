@@ -40,7 +40,7 @@ const UpdateSetting = () => {
                         </div>
                     </div>
                     <label className="cursor-pointer label gap-2">
-                        <span className="label-text">关</span>
+                        <span className="label-text">{autoCheck?"开":"关"}</span>
                         <input
                             type="checkbox"
                             className="toggle toggle-accent"
