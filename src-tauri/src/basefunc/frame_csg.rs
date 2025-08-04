@@ -3,7 +3,7 @@ use crate::basefunc::frame_err::CustomError;
 use crate::basefunc::frame_fun::FrameFun;
 use crate::basefunc::protocol::{AnalysicErr, FrameAnalisyic, ProtocolInfo};
 use crate::config::xmlconfig::{ProtocolConfigManager, XmlElement}; // 引入 FrameFun 模块
-use chrono::{DateTime, Duration as ChronoDuration, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde_json::Value;
@@ -1639,10 +1639,49 @@ impl FrameCsg {
         let dt2 = dt2.unwrap();
 
         if dt1 > dt2 {
-            let time_difference = dt1 - dt2;
-            return time_difference <= ChronoDuration::days(30);
+            // 获取两个日期的年月信息
+            let (year1, month1) = (dt1.year(), dt1.month());
+            let (year2, month2) = (dt2.year(), dt2.month());
+            
+            // 计算月份差
+            let months_diff = (year1 - year2) * 12 + (month1 as i32 - month2 as i32);
+            if months_diff > 1 {
+                return false;
+            }
+            
+            if months_diff == 1 {
+                // 如果是跨月，需要考虑具体天数
+                let days_in_month2 = match month2 {
+                    2 => if Self::is_leap_year(year2) { 29 } else { 28 },
+                    4 | 6 | 9 | 11 => 30,
+                    _ => 31
+                };
+                
+                // 计算天数差
+                let day1 = dt1.day();
+                let day2 = dt2.day();
+                
+                // 计算实际的天数差（不包含起始日）
+                let total_days = days_in_month2 - day2 + day1 - 1;
+                
+                return total_days <= 30;
+            }
+            
+            // 同月份内，直接比较天数差
+            let days_diff = (dt1 - dt2).num_days();
+            return days_diff <= 30;
         }
 
+        false
+    }
+
+    fn is_leap_year(year: i32) -> bool {
+        if year % 4 == 0 {
+            if year % 100 == 0 {
+                return year % 400 == 0;
+            }
+            return true;
+        }
         false
     }
 

@@ -8,7 +8,7 @@ import { exists } from '@tauri-apps/plugin-fs';
 import { resolveResource } from '@tauri-apps/api/path';
 
 interface Protocol {
-    id: 'nanwang13' | 'dlt645' | 'nanwang16' | 'moudle';
+    id: 'nanwang13' | 'dlt645' | 'nanwang16' | 'moudle' | 'task_ms';
     name: string;
 }
 
@@ -21,6 +21,7 @@ interface SelectedFiles {
     dlt645: FileInfo;
     nanwang16: FileInfo;
     moudle: FileInfo;
+    task_ms: FileInfo;
 }
 
 interface ProtocolMap {
@@ -31,7 +32,8 @@ const protocolmap: ProtocolMap = {
     nanwang13: 'CSG13',
     dlt645: 'DLT645',
     nanwang16: 'CSG16',
-    moudle: 'MOUDLE'
+    moudle: 'MOUDLE',
+    task_ms: 'MS',
 };
 
 const ConfigFilePathCom: React.FC = () => {
@@ -39,7 +41,8 @@ const ConfigFilePathCom: React.FC = () => {
         nanwang13: { path: '' },
         dlt645: { path: '' },
         nanwang16: { path: '' },
-        moudle: { path: '' }
+        moudle: { path: '' },
+        task_ms: { path: '' }
     });
 
     useEffect(() => {
@@ -154,7 +157,8 @@ const ConfigFilePathCom: React.FC = () => {
         { id: 'nanwang13', name: '南网13协议' },
         { id: 'dlt645', name: 'DLT/645协议' },
         { id: 'nanwang16', name: '南网16协议' },
-        { id: 'moudle', name: '模组协议' }
+        { id: 'moudle', name: '模组协议' },
+        { id: 'task_ms', name: '任务MS配置'}
     ];
 
     return (
