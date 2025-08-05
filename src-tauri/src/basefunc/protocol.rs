@@ -475,7 +475,8 @@ impl FrameAnalisyic {
             region,
             dir,
         );
-        let re = Regex::new(r"(\d+)").unwrap();
+        println!("parse_value: {:?}", parse_value);
+        let re = Regex::new(r"^([^\s]+)\s").unwrap();
         let value = if let Some(cap) = re.captures(&parse_value) {
             cap.get(1)
                 .map_or_else(|| parse_value.clone(), |m| m.as_str().to_string())
@@ -517,6 +518,7 @@ impl FrameAnalisyic {
     ) -> (String, Option<XmlElement>) {
         let mut found_value = search_value.to_string();
 
+        println!("value_elements: {:?}", found_value);
         // First pass: Look for a key that matches `search_value`
         for value_elem in value_elements.iter() {
             if let Some(key) = value_elem.get_attribute("key") {

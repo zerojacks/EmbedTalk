@@ -247,7 +247,7 @@
     <template id="PORT_TYPE" protocol="MS" region="南网">
         <name>端口</name>
         <length>1</length>
-        <type>BIN</type>
+        <type>NORMAL</type>
         <value key="00">交采</value>
         <value key="01">485_1</value>
         <value key="02">485_2</value>
