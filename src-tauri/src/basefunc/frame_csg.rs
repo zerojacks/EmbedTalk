@@ -4399,12 +4399,19 @@ impl FrameCsg {
                 None,
             );
             pos += 4;
+            println!("point_str{:?} dis_data_identifier{:?}", point_str, dis_data_identifier);
             if dir == 1 && prm == 0 {
+                // 找到"Pn="后面的内容
+                let point_suffix = point_str.strip_prefix("Pn=").unwrap_or(&point_str);
+                
+                // 找到"数据标识编码："后面的内容
+                let dis_suffix = dis_data_identifier.strip_prefix("数据标识编码：").unwrap_or(&dis_data_identifier);
+                
                 FrameFun::add_data(
                     &mut sub_result,
                     format!("<第{}组>数据内容", num + 1),
                     FrameFun::get_data_str_with_space(sub_datament),
-                    format!("{}-{}", &point_str[3..], &dis_data_identifier[7..]),
+                    format!("{}-{}", point_suffix, dis_suffix),
                     vec![index + pos, index + pos + sub_length],
                     Some(item_data),
                     None,

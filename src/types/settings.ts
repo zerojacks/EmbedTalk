@@ -33,8 +33,6 @@ export interface WindowSettings {
 
 // 应用设置
 export interface AppSettings {
-  /** 地区设置 */
-  region: RegionOption;
   /** 主题设置 */
   theme: ThemeOption;
   /** 语言设置 */
@@ -89,6 +87,11 @@ export interface HistorySettings {
   historyLimit: number;
 }
 
+export interface ProtocolSettings {
+  /** 地区设置 */
+  region: RegionOption;
+}
+
 // 完整的应用配置
 export interface AppConfig {
   app: AppSettings;
@@ -99,11 +102,12 @@ export interface AppConfig {
   connectcfg: ConnectBridgeSettings;
   updates: UpdateSettings;
   settings: HistorySettings;
+  protocolsetting: ProtocolSettings;
 }
 
 // 配置键的映射，用于类型安全的配置访问
 export interface ConfigKeyMap {
-  'app.region': RegionOption;
+  'protocolsetting.region': RegionOption;
   'app.theme': ThemeOption;
   'app.language': 'zh-CN' | 'en-US';
   'window.minimizeToTray': boolean;
@@ -132,7 +136,6 @@ export type ConfigKey = keyof ConfigKeyMap;
 // 默认配置
 export const DEFAULT_CONFIG: AppConfig = {
   app: {
-    region: '南网',
     theme: 'system',
     language: 'zh-CN'
   },
@@ -167,6 +170,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   },
   settings: {
     historyLimit: 100
+  },
+  protocolsetting: {
+    region: '南网',
   }
 };
 

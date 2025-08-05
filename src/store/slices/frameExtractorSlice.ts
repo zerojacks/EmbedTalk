@@ -2,6 +2,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { invoke } from "@tauri-apps/api/core";
 import { TreeItemType } from '../../components/TreeItem';
+import { ParseResponse } from '../../api/types';
 
 // 定义类型
 export interface ExtractedDataChild {
@@ -116,7 +117,7 @@ export const parseFrameMessage = createAsyncThunk(
                 .trim()
                 .toUpperCase();
 
-            const result = await invoke<{ data: TreeItemType[]; error?: string }>('on_text_change', {
+            const result = await invoke<ParseResponse>('prase_frame', {
                 message: formattedValue,
                 region: "南网"
             });

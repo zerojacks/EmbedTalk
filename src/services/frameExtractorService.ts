@@ -4,6 +4,7 @@ import { TreeItemType } from "../components/TreeItem";
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 import { ExtractedData } from "../store/slices/frameExtractorSlice";
+import { ParseResponse } from "../api/types";
 
 export class FrameExtractorService {
     /**
@@ -20,7 +21,7 @@ export class FrameExtractorService {
             .toUpperCase();
 
         try {
-            const result = await invoke<{ data: TreeItemType[]; error?: string }>('on_text_change', {
+            const result = await invoke<ParseResponse>('prase_frame', {
                 message: formattedValue,
                 region: "南网"
             });

@@ -664,7 +664,7 @@ lazy_static! {
         let config = QframeConfig::new();
         let default_path = "./resources/protocolconfig/CSG13.xml".to_string();
 
-        let setpath = load_config_value("ProtocolSetting", "protocolfile")
+        let setpath = load_config_value("protocolsetting", "protocolfile")
             .and_then(|protocol_config| {
                 protocol_config
                     .get("nanwang13")
@@ -689,7 +689,7 @@ lazy_static! {
         let config = QframeConfig::new();
         let default_path = "./resources/protocolconfig/DLT645.xml".to_string();
 
-        let setpath = load_config_value("ProtocolSetting", "protocolfile")
+        let setpath = load_config_value("protocolsetting", "protocolfile")
             .and_then(|protocol_config| {
                 protocol_config
                     .get("dlt645")
@@ -714,7 +714,7 @@ lazy_static! {
         let config = QframeConfig::new();
         let default_path = "./resources/protocolconfig/CSG16.xml".to_string();
 
-        let setpath = load_config_value("ProtocolSetting", "protocolfile")
+        let setpath = load_config_value("protocolsetting", "protocolfile")
             .and_then(|protocol_config| {
                 protocol_config
                     .get("nanwang16")
@@ -739,7 +739,7 @@ lazy_static! {
         let config = QframeConfig::new();
         let default_path = "./resources/protocolconfig/MOUDLE.xml".to_string();
 
-        let setpath = load_config_value("ProtocolSetting", "protocolfile")
+        let setpath = load_config_value("protocolsetting", "protocolfile")
             .and_then(|protocol_config| {
                 protocol_config
                     .get("moudle")
@@ -764,7 +764,7 @@ lazy_static! {
         let config = QframeConfig::new();
         let default_path = "./resources/protocolconfig/TASK_MS.xml".to_string();
 
-        let setpath = load_config_value("ProtocolSetting", "protocolfile")
+        let setpath = load_config_value("protocolsetting", "protocolfile")
             .and_then(|protocol_config| {
                 protocol_config
                     .get("task_ms")

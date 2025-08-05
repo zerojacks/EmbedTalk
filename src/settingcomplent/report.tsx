@@ -11,7 +11,7 @@ const Report = () => {
         async function get_report_config() {
             try {
                 // 使用兼容的方法获取协议设置
-                const reportstate = await SettingService.getConfigValue<string>("ProtocolSetting", "reportreplay");
+                const reportstate = await SettingService.getConfigValue<string>("protocolsetting", "reportreplay");
                 console.log("reportstate",reportstate);
                 if (reportstate) {
                     setIsReport(true);
@@ -31,7 +31,7 @@ const Report = () => {
     const handlevalueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.checked;
         setIsReport(value);
-        SettingService.setConfigValue("ProtocolSetting", "reportreplay", value);
+        SettingService.setConfigValue("protocolsetting", "reportreplay", value);
     };
 
     return (

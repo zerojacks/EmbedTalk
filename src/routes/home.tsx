@@ -13,6 +13,16 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useDispatch, useSelector } from 'react-redux';
 import { selectSplitSize, setSplitSize } from '../store/slices/splitSizeSlice';
 import { getApi } from '../api';
+import { getRegions } from '../utils/region';
+
+const protocolTypes = [
+  { value: "auto", label: "自适应" },
+  { value: "nanwang13", label: "南网13" },
+  { value: "dlt645", label: "DLT-645" },
+  { value: "nanwang16", label: "南网16" },
+  { value: "task", label: "任务方案" },
+  { value: "other", label: "其他" }
+];
 
 const initialColumns: Column[] = [
   { name: '帧域', width: 30, minWidth: 100 },
@@ -31,17 +41,43 @@ export default function Home() {
     frame,
     selectedframe,
     frameScroll,
+    protocol,
+    region, 
     setTableData,
     setFrame,
     setSelectedFrame,
     setFrameScroll,
+    setProtocol,
+    setRegion,
   } = useFrameTreeStore();
-
   const dispatch = useDispatch();
   const splitSize = useSelector(selectSplitSize);
   const { historyVisible, setHistoryVisible } = useShortcuts();
-  const { region, setRegion } = useProtocolInfoStore();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  function cleanAndUppercase(targetRegion: string) {
+    let cleaned = targetRegion;
+    cleaned = cleaned.replace(/"/g, '');
+    cleaned = cleaned.toUpperCase();
+    return cleaned;
+}
+  useEffect(() => {
+    const loadInitialData = async () => {
+      const api = await getApi();
+      try {
+        const currentRegion = await api.getRegion();
+        let cleanRegion = cleanAndUppercase(currentRegion);
+        setRegion(cleanRegion);
+        console.log("currentRegion set to:", cleanRegion);
+      } catch (error) {
+        console.error("Failed to get region:", error);
+        setRegion("南网"); // Fallback
+      }
+    };
+    if(region === "") {
+      loadInitialData();
+    }
+  }, [setRegion]);
 
   const handlePanelResize = (sizes: number[]) => {
     dispatch(setSplitSize(sizes));
@@ -104,7 +140,7 @@ export default function Home() {
     handleParse(selectedFrame);
   };
 
-  const handleParse = async (text: string) => {
+  const handleParse = async (text: string, region: string = "") => {
     try {
       const formattedValue = text
         .replace(/\s+/g, '')
@@ -120,26 +156,35 @@ export default function Home() {
       }
 
       const api = await getApi();
-      let currentRegion = region;
-      if (region === "") {
-        try {
-          currentRegion = await api.getRegion();
-        } catch (error) {
-          currentRegion = "南网";
-        }
-        setRegion(currentRegion);
-      }
       
       try {
         console.log("formattedValue", formattedValue)
-        console.log("currentRegion", currentRegion)
-        const result = await api.parseFrame(formattedValue, currentRegion);
+        console.log("region", region)
+        if(region === "") {
+          try {
+            region = await api.getRegion();
+            region = cleanAndUppercase(region);
+            setRegion(region);
+          } catch (error) {
+            console.error("获取选中的省份失败: ", error);
+            region = "南网";
+          }
+        }
+        const result = await api.parseFrame(formattedValue, region);
         if (result.error) {
           toast.error("解析失败！");
           console.log("错误信息：", result.error);
         } else {
-          console.log("******", result.data)
+          console.log("******", result.data);
           setTableData(result.data);
+          // 更新协议类型
+          if (result.protocol) {
+            setProtocol(result.protocol);
+          }
+          // 更新区域
+          if (result.region) {
+            setRegion(result.region);
+          }
         }
       } catch (error) {
         console.error("解析失败:", error);
@@ -150,6 +195,13 @@ export default function Home() {
     }
   };
 
+  const handle_region_change = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newRegion = e.target.value;
+    console.log("newRegion", newRegion);
+    setRegion(newRegion);
+    if (frame) handleParse(frame, newRegion);
+  };
+  
   return (
     <div className="flex flex-col h-full">
       <PanelGroup direction="vertical" className="flex-grow" onLayout={handlePanelResize}>
@@ -166,12 +218,46 @@ export default function Home() {
         </Panel>
         <PanelResizeHandle className="h-0.5 bg-base-300 hover:bg-primary/50 transition-colors cursor-row-resize" />
         <Panel defaultSize={splitSize[1]} minSize={30}>
-          <div className="h-full p-2">
-            <TreeTable
-              data={tabledata}
-              tableheads={initialColumns}
-              onRowClick={handleRowClick}
-            />
+          <div className="h-full p-2 flex flex-col">
+            <div className="h-full flex flex-col">
+              {/* 操作区：固定高度 */}
+              <div className="bg-base-100 rounded shadow p-1 mb-2 flex flex-wrap items-center gap-3 shrink-0 text-xs">
+                <div className="flex items-center gap-8 flex-wrap">
+                {/* 解析结果组 */}
+                <div className="flex items-center gap-1">
+                  <label className="text-xs font-semibold text-gray-700">解析结果:</label>
+                  <label className="text-xs font-normal">协议类型:</label>
+                  <span
+                    className="badge badge-info px-3 py-1 text-xs"
+                    style={{ fontWeight: 500, letterSpacing: 1 }}
+                  >
+                    {protocol || '自适应'}
+                  </span>
+                </div>
+                {/* 省份组 */}
+                <div className="flex items-center gap-1">
+                  <label className="text-xs font-normal">省份:</label>
+                  <select 
+                    className="select select-bordered select-xs min-w-[70px]"
+                    value={region}
+                    onChange={handle_region_change}
+                  >
+                    {getRegions().map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              </div>
+              {/* 表格区：占满剩余空间 */}
+              <div className="flex-grow min-h-0">
+                <TreeTable
+                  data={tabledata}
+                  tableheads={initialColumns}
+                  onRowClick={handleRowClick}
+                />
+              </div>
+            </div>
           </div>
         </Panel>
       </PanelGroup>

@@ -49,7 +49,7 @@ const ConfigFilePathCom: React.FC = () => {
         async function get_report_config() {
 
             try {
-                const fileinfo = await SettingService.getConfigValue<SelectedFiles>("ProtocolSetting", "protocolfile");
+                const fileinfo = await SettingService.getConfigValue<SelectedFiles>("protocolsetting", "protocolfile");
                 if (fileinfo) {
                     setSelectedFiles(fileinfo);
                 } else {
@@ -125,7 +125,7 @@ const ConfigFilePathCom: React.FC = () => {
     async function save_config(save_config: SelectedFiles) {
         try {
             await invoke("set_config_value_async", {
-                section: "ProtocolSetting", 
+                section: "protocolsetting", 
                 key: "protocolfile", 
                 value: JSON.stringify(save_config)
             });

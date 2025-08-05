@@ -26,11 +26,11 @@ use crate::taurihandler::channel_handler::{
     start_timer_send, stop_timer_send,
 };
 #[cfg(feature = "desktop")]
-use crate::taurihandler::dlt645_handler::{build_dlt645_frame, list_channels, parse_dlt645_frame};
+use crate::taurihandler::dlt645_handler::{build_dlt645_frame, list_channels};
 #[cfg(feature = "desktop")]
 use crate::taurihandler::handler::{
     app_close, check_update, get_all_config_item_lists, get_app_info, get_com_list,
-    get_protocol_config_item, get_region_value, get_window_position, on_text_change, open_window,
+    get_protocol_config_item, get_region_value, get_window_position, prase_frame, open_window,
     parse_item_data, save_file, save_protocol_config_item, set_region_value,
     update_window_position, WindowState,
 };
@@ -116,7 +116,7 @@ fn main() {
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
-            on_text_change,
+            prase_frame,
             app_close,
             set_config_value_async,
             get_config_value_async,
@@ -140,8 +140,6 @@ fn main() {
             update_window_position,
             get_window_position,
             // DLT645 相关命令
-            parse_dlt645_frame,
-            build_dlt645_frame,
             list_channels,
             // 协议相关命令
             taurihandler::protocol_handler::get_supported_protocols,

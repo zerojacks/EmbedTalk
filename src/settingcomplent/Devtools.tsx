@@ -1,8 +1,5 @@
-import { useState, useEffect, useRef } from "react";
 import { Terminal} from 'lucide-react';
 import { invoke } from "@tauri-apps/api/core";
-import { useProtocolInfoStore } from "../stores/useProtocolInfoStore";
-
 const Devtools = () => {
 
     const handleOpenDevTools = async () => {

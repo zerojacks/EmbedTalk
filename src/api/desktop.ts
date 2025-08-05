@@ -3,7 +3,7 @@ import { ApiInterface, ParseResponse, ProtocolConfigRequest, ProtocolListRespons
 
 class DesktopApi implements ApiInterface {
     async parseFrame(message: string, region: string): Promise<ParseResponse> {
-        return await invoke<ParseResponse>('on_text_change', { message, region });
+        return await invoke<ParseResponse>('prase_frame', { message, region });
     }
 
     async getRegion(): Promise<string> {

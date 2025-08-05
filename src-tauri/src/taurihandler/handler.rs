@@ -57,15 +57,19 @@ pub fn app_close() {
 
 #[derive(serde::Serialize)]
 pub struct Response {
+    pub protocol: String,
+    pub region: String,
     pub data: Vec<Value>,
     pub error: Option<String>,
 }
 
 #[tauri::command]
-pub async fn on_text_change(message: String, region: String) -> Response {
+pub async fn prase_frame(message: String, region: String) -> Response {
     use std::panic;
     if message.is_empty() {
         return Response {
+            protocol: "Unknown".to_string(),
+            region: region.clone(),
             data: Vec::new(),
             error: Some("Invalid hex message".to_string()),
         };
@@ -79,6 +83,8 @@ pub async fn on_text_change(message: String, region: String) -> Response {
         if !message_cleaned.chars().all(|c| c.is_digit(16)) || message_cleaned.len() % 2 != 0 {
             info!("Invalid hex message: {}", message);
             return Response {
+                protocol: "Unknown".to_string(),
+                region: region.clone(),
                 data: Vec::new(),
                 error: Some("Invalid hex message".to_string()),
             };
@@ -90,10 +96,12 @@ pub async fn on_text_change(message: String, region: String) -> Response {
             frame,
             start_time.elapsed().as_millis()
         );
-        let processed_result = FrameAnalisyic::process_frame(&frame, &region);
+        let (protocol, processed_result) = FrameAnalisyic::process_frame(&frame, &region.clone());
         info!("Result: {:?}", processed_result);
 
         Response {
+            protocol:protocol,
+            region: region.clone(),
             data: processed_result,
             error: None,
         }
@@ -102,12 +110,14 @@ pub async fn on_text_change(message: String, region: String) -> Response {
     match result {
         Ok(response) => {
             let duration = start_time.elapsed();
-            info!("on_text_change duration: {:?}", duration.as_millis());
+            info!("prase_frame duration: {:?}", duration.as_millis());
             response // 返回正常结果
         }
         Err(e) => {
-            error!("on_text_change panic: {:?}", e);
+            error!("prase_frame panic: {:?}", e);
             Response {
+                protocol: "Unknown".to_string(),
+                region: region.clone(),
                 data: Vec::new(),
                 error: Some("An error occurred".to_string()),
             }

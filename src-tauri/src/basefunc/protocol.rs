@@ -24,6 +24,7 @@ pub enum ProtocolInfo {
     ProtocolDLT64507,
     ProtocolMoudle,
     ProtocolMS,
+    ProtocolHis,
 }
 
 impl ProtocolInfo {
@@ -34,6 +35,7 @@ impl ProtocolInfo {
             ProtocolInfo::ProtocolDLT64507 => "DLT/645-2007",
             ProtocolInfo::ProtocolMoudle => "moudle",
             ProtocolInfo::ProtocolMS => "MS",
+            ProtocolInfo::ProtocolHis => "His"
         }
     }
 }
@@ -41,28 +43,34 @@ impl ProtocolInfo {
 pub struct FrameAnalisyic;
 
 impl FrameAnalisyic {
-    pub fn process_frame(frame: &[u8], region: &str) -> Vec<Value> {
+    pub fn process_frame(frame: &[u8], region: &str) -> (String, Vec<Value>) {
         let mut parsed_data: Vec<Value> = Vec::new();
-
+        let mut protocol = String::from("Unknown");
         if FrameCsg::is_csg_frame(frame) {
             let result = FrameCsg::analysic_csg_frame_by_afn(frame, &mut parsed_data, 0, region);
+            protocol = ProtocolInfo::ProtocolCSG13.name().to_string();
             match result {
                 Ok(_) => {}
                 Err(_) => {}
             }
         } else if Frame645::is_dlt645_frame(frame) {
+            protocol = ProtocolInfo::ProtocolDLT64507.name().to_string();
             let result = Frame645::analysic_645_frame_by_afn(frame, &mut parsed_data, 0, region);
         } else if FrameCCO::is_cco_frame(frame) {
+            protocol = ProtocolInfo::ProtocolCSG16.name().to_string();
             FrameCCO::analysic_cco_frame_by_afn(frame, &mut parsed_data, 0, region);
         } else if FrameMoudle::is_moudle_frame(frame) {
+            protocol = ProtocolInfo::ProtocolMoudle.name().to_string();
             FrameMoudle::analysic_moudle_frame(frame, &mut parsed_data, 0, region);
         } else if TCMeterTask::is_meter_task(frame) {
+            protocol = ProtocolInfo::ProtocolMS.name().to_string();
             let result = TCMeterTask::analysic_meter_task(frame, &mut parsed_data, 0, region);
             match result {
                 Ok(_) => {}
                 Err(_) => {}
             }
         } else if SpcialFrame::is_special_frame(frame, region) {
+            protocol = ProtocolInfo::ProtocolHis.name().to_string();
             let result = SpcialFrame::analysic_special_frame(frame, &mut parsed_data, 0, region);
             match result {
                 Ok(_) => {}
@@ -70,7 +78,7 @@ impl FrameAnalisyic {
             }
         }
 
-        parsed_data
+        (protocol, parsed_data)
     }
     pub fn prase_data(
         data_item_elem: &mut XmlElement,
@@ -1331,7 +1339,7 @@ impl FrameAnalisyic {
                         template_element, protocol, region, dir
                     );
                     if let Some(template_element) = template_element {
-                        let (result_vec, length) = Self::prase_template_type(
+                        let (cur_result, result_vec, length) = Self::prase_template_type(
                             &template_element,
                             &data_content,
                             singal_length as usize,
@@ -1342,6 +1350,7 @@ impl FrameAnalisyic {
                             dir,
                             is_singal,
                         );
+                        result_str = cur_result;
                         sub_item_result = Some(result_vec);
                         item_length = length;
                     } else {
@@ -1538,7 +1547,7 @@ impl FrameAnalisyic {
         region: &str,
         dir: Option<u8>,
         is_singal: bool,
-    ) -> (Vec<Value>, usize) {
+    ) -> (String, Vec<Value>, usize) {
         let mut result_vec: Vec<Value> = Vec::new();
         let mut i = 0;
         let mut pos = 0;
@@ -1604,6 +1613,7 @@ impl FrameAnalisyic {
             "prase_template_type item_singal: {:?} {:?} {:?}",
             data_segment, item_len, subitem_length
         );
+        let all_data_str = FrameFun::get_data_str(&data_segment, false, false, false);
         let attri_id = item_element.get_attribute("id");
         if data_segment.len() % subitem_length == 0 {
             while pos < data_segment.len() {
@@ -1638,8 +1648,8 @@ impl FrameAnalisyic {
                 let item_id = FrameFun::get_data_str(sub_data, false, true, false);
                 let item_description: String = format!("[{}]: {}", item_name, item_id);
                 println!(
-                    "prase_template_type item_id: {:?} {:?} {:?}",
-                    item_id, item_value, item_description
+                    "prase_template_type item_id: {:?} {:?} {:?} {:?}",
+                    item_id, item_value, item_description, item_singal
                 );
                 // if let Some(item_element) = ProtocolConfigManager::get_config_xml(&item_id, protocol, region, dir) {
                 //     if let Some(element_name) = item_element.get_child_text("name") {
@@ -1700,12 +1710,12 @@ impl FrameAnalisyic {
                 &mut result_vec,
                 template_name,
                 FrameFun::get_data_str(&data_segment, false, false, true),
-                FrameFun::get_data_str(&data_segment, false, false, false),
+                all_data_str.clone(),
                 vec![index, index + item_len],
                 None,
                 None,
             );
         }
-        (result_vec, pos)
+        (all_data_str, result_vec, pos)
     }
 }

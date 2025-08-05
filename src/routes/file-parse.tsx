@@ -381,7 +381,7 @@ export default function FileParse() {
             const bytes = new Uint8Array(hexData.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
             
             // 调用Rust解析函数
-            const result = await invoke<Response>('on_text_change', {
+            const result = await invoke<Response>('prase_frame', {
                 message: hexData,
                 region: '南网'
             });

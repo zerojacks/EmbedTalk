@@ -7,42 +7,10 @@ use tracing::{debug, error};
 
 #[derive(serde::Serialize)]
 pub struct Response {
+    pub protocol: String,
+    pub region: String,
     pub data: Vec<Value>,
     pub error: Option<String>,
-}
-
-/// 解析 DLT645 报文
-#[tauri::command]
-pub async fn parse_dlt645_frame(message: String) -> Response {
-    debug!("Parsing DLT645 frame: {}", message);
-
-    // 将十六进制字符串转换为字节数组
-    let bytes = match hex_to_bytes(&message) {
-        Ok(bytes) => bytes,
-        Err(e) => {
-            error!("Failed to convert hex to bytes: {}", e);
-            return Response {
-                data: Vec::new(),
-                error: Some(format!("无效的十六进制字符串: {}", e)),
-            };
-        }
-    };
-
-    // 验证是否为有效的 DLT645 帧
-    if !Frame645::is_dlt645_frame(&bytes) {
-        return Response {
-            data: Vec::new(),
-            error: Some("无效的 DLT645 报文格式".to_string()),
-        };
-    }
-
-    // 使用 FrameAnalisyic 解析帧
-    let parsed_data = FrameAnalisyic::process_frame(&bytes, "default");
-
-    Response {
-        data: parsed_data,
-        error: None,
-    }
 }
 
 /// 构建 DLT645 报文
@@ -94,37 +62,6 @@ pub async fn build_dlt645_frame(
             Ok(hex_str)
         }
         Err(e) => Err(format!("构建报文失败: {}", e)),
-    }
-}
-
-/// 发送 DLT645 报文并等待响应
-#[tauri::command]
-pub async fn send_dlt645_frame(channel_id: String, message: String) -> Result<Response, String> {
-    debug!(
-        "Sending DLT645 frame: {} to channel: {}",
-        message, channel_id
-    );
-
-    // 将十六进制字符串转换为字节数组
-    let bytes = match hex_to_bytes(&message) {
-        Ok(bytes) => bytes,
-        Err(e) => {
-            error!("Failed to convert hex to bytes: {}", e);
-            return Err(format!("无效的十六进制字符串: {}", e));
-        }
-    };
-
-    // 发送消息
-    match channel_handler::send_message(channel_id, bytes, None).await {
-        Ok(_) => {
-            // 发送成功，返回空响应
-            // 注意：在实际应用中，这里应该等待并解析响应
-            Ok(Response {
-                data: Vec::new(),
-                error: None,
-            })
-        }
-        Err(e) => Err(format!("发送消息失败: {}", e)),
     }
 }
 

@@ -7,6 +7,8 @@ import { TreeTable, Column } from '../components/treeview';
 import { primaryMonitor } from '@tauri-apps/api/window';
 
 interface Response {
+  protocol: string,
+  region: string,
   data: any[];
   error?: string;
 }
@@ -144,7 +146,7 @@ const QuickParseWindow: React.FC = () => {
         currentRegion = "南网";
       }
 
-      const result = await invoke<Response>('on_text_change', { 
+      const result = await invoke<Response>('prase_frame', { 
         message: formattedValue, 
         region: currentRegion
       });

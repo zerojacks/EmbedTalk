@@ -276,7 +276,7 @@ impl GlobalConfigManager {
 
     // 通用方法来加载配置
     pub fn load_config_value(key: &str) -> String {
-        let value = load_config_value("ProtocolSetting", key);
+        let value = load_config_value("protocolsetting", key);
 
         println!("key: {}, value: {:?}", key, value); // 打印调试信息
 
@@ -288,6 +288,6 @@ impl GlobalConfigManager {
 
     pub fn set_config_value(key: &str, value: String) -> Result<(), String> {
         println!("key: {}, value: {:?}", key, value);
-        set_config_value("ProtocolSetting", key, &value)
+        set_config_value("protocolsetting", key, &value)
     }
 }

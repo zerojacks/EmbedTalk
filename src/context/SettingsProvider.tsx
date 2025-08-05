@@ -177,7 +177,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     size,
 
     // 更新方法
-    updateRegion: createUpdateMethod('app.region', setRegion),
+    updateRegion: createUpdateMethod('protocolsetting.region', setRegion),
     updateLanguage: createUpdateMethod('app.language', setLanguage),
     updateMinimizeToTray: createUpdateMethod('window.minimizeToTray', setMinimizeToTray),
     updateCloseToTray: createUpdateMethod('window.closeToTray', setCloseToTray),

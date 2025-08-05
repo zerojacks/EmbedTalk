@@ -2,10 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core"; // 如果你用的是 Tauri，使用这个导入
 import { MapIcon } from "../components/Icons";
 import { useProtocolInfoStore } from '../stores/useProtocolInfoStore';
-
-const getRegions = () => {
-    return ["南网", "云南", "广东", "深圳", "广西", "贵州", "海南", "topo"]; // 这是一个静态的数组
-};
+import { getRegions } from '../utils/region'
 
 export default function Region() {
     const regionList = getRegions(); // 这里确保调用了函数，返回数组

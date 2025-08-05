@@ -62,7 +62,7 @@ export class SettingService {
    */
   private static async loadAllConfigs(): Promise<void> {
     const configKeys: ConfigKey[] = [
-      'app.region', 'app.theme', 'app.language',
+      'protocolsetting.region', 'app.theme', 'app.language',
       'window.minimizeToTray', 'window.closeToTray', 'window.startMinimized',
       'window.showTrayNotifications', 'window.position', 'window.size',
       'shortcuts.parseText', 'shortcuts.quickParse', 'shortcuts.toggleHistory', 'shortcuts.toggleWindow',
@@ -144,7 +144,6 @@ export class SettingService {
 
     return {
       app: {
-        region: await this.getConfig('app.region'),
         theme: await this.getConfig('app.theme'),
         language: await this.getConfig('app.language')
       },
@@ -179,6 +178,9 @@ export class SettingService {
       },
       settings: {
         historyLimit: await this.getConfig('settings.historyLimit')
+      },
+      protocolsetting: {
+         region: await this.getConfig('protocolsetting.region'),
       }
     };
   }

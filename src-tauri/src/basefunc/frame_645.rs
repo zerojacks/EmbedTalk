@@ -36,17 +36,18 @@ impl Frame645 {
         region: &str,
     ) -> usize {
         let (mut updated_index, dir) = Self::analysic_head_frame(frame, result_list, index);
+        let data_content = &frame[updated_index..];
         updated_index += index;
         let afn = frame[8];
         let protocol = ProtocolInfo::ProtocolDLT64507.name().to_string();
 
         if afn == 0x11 {
             // 下行读取报文
-            Self::analysic_read_frame(frame, result_list, updated_index, &protocol, region, dir);
+            Self::analysic_read_frame(data_content, result_list, updated_index, &protocol, region, dir);
         } else if afn == 0x91 || afn == 0xB1 {
             // 读取回复正常
             Self::analysic_read_response_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -56,7 +57,7 @@ impl Frame645 {
         } else if matches!(afn, 0xD1 | 0xD2 | 0xD4 | 0xD6 | 0xD7 | 0xD9 | 0xDA | 0xDB) {
             // 异常应答
             Self::analysic_read_err_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -66,7 +67,7 @@ impl Frame645 {
         } else if afn == 0x12 {
             // 读取后续帧下行报文
             Self::analysic_read_subsequent_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -76,7 +77,7 @@ impl Frame645 {
         } else if afn == 0x92 || afn == 0xB2 {
             // 读取后续帧回复报文
             Self::analysic_read_subsequent_response_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -85,11 +86,11 @@ impl Frame645 {
             );
         } else if afn == 0x14 {
             // 写数据
-            Self::analysic_write_frame(frame, result_list, updated_index, &protocol, region, dir);
+            Self::analysic_write_frame(data_content, result_list, updated_index, &protocol, region, dir);
         } else if afn == 0x93 {
             // 读通信地址正常应答
             Self::analysic_read_address_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -99,7 +100,7 @@ impl Frame645 {
         } else if afn == 0x15 {
             // 写数据
             Self::analysic_write_address_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -108,7 +109,7 @@ impl Frame645 {
             );
         } else if afn == 0x08 {
             Self::analysic_broadcast_time_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -118,7 +119,7 @@ impl Frame645 {
         } else if afn == 0x16 {
             // 冻结命令
             Self::analysic_write_frozen_time_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -128,7 +129,7 @@ impl Frame645 {
         } else if afn == 0x17 || afn == 0x97 {
             // 更改通信速率
             Self::analysic_write_baud_rate_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -138,7 +139,7 @@ impl Frame645 {
         } else if afn == 0x18 {
             // 更改密码
             Self::analysic_write_password_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -148,7 +149,7 @@ impl Frame645 {
         } else if afn == 0x98 {
             // 修改密码应答
             Self::analysic_write_password_response_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -158,7 +159,7 @@ impl Frame645 {
         } else if afn == 0x19 {
             // 最大需量清零
             Self::analysic_maximum_demand_reset_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -168,7 +169,7 @@ impl Frame645 {
         } else if afn == 0x1A {
             // 电表清零
             Self::analysic_meter_reset_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -178,7 +179,7 @@ impl Frame645 {
         } else if afn == 0x1B {
             // 事件清零
             Self::analysic_event_reset_frame(
-                frame,
+                data_content,
                 result_list,
                 updated_index,
                 &protocol,
@@ -186,9 +187,9 @@ impl Frame645 {
                 dir,
             );
         } else {
-            Self::analysic_invalid_frame(frame, result_list, updated_index, &protocol, region, dir);
+            Self::analysic_invalid_frame(data_content, result_list, updated_index, &protocol, region, dir);
         }
-        Self::analysic_end_frame(frame, result_list, updated_index);
+        Self::analysic_end_frame(data_content, result_list, updated_index);
         updated_index
     }
 

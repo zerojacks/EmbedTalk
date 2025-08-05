@@ -12065,7 +12065,7 @@
 			<unit>%</unit>
 			<decimal>2</decimal>
 		</dataItem>
-		<dataItem id="020A01014">
+		<dataItem id="020A0114">
 			<name>A相电压20次谐波含量</name>
 			<length>2</length>
 			<unit>%</unit>
@@ -12196,7 +12196,7 @@
 			<unit>%</unit>
 			<decimal>2</decimal>
 		</dataItem>
-		<dataItem id="020A02014">
+		<dataItem id="020A0214">
 			<name>B相电压20次谐波含量</name>
 			<length>2</length>
 			<unit>%</unit>
@@ -12327,7 +12327,7 @@
 			<unit>%</unit>
 			<decimal>2</decimal>
 		</dataItem>
-		<dataItem id="020A03014">
+		<dataItem id="020A0314">
 			<name>C相电压20次谐波含量</name>
 			<length>2</length>
 			<unit>%</unit>
@@ -12458,7 +12458,7 @@
 			<unit>%</unit>
 			<decimal>2</decimal>
 		</dataItem>
-		<dataItem id="020B01014">
+		<dataItem id="020B0114">
 			<name>A相电流20次谐波含量</name>
 			<length>2</length>
 			<unit>%</unit>
@@ -12589,7 +12589,7 @@
 			<unit>%</unit>
 			<decimal>2</decimal>
 		</dataItem>
-		<dataItem id="020B02014">
+		<dataItem id="020B0214">
 			<name>B相电流20次谐波含量</name>
 			<length>2</length>
 			<unit>%</unit>
@@ -12720,7 +12720,7 @@
 			<unit>%</unit>
 			<decimal>2</decimal>
 		</dataItem>
-		<dataItem id="020B03014">
+		<dataItem id="020B0314">
 			<name>C相电流20次谐波含量</name>
 			<length>2</length>
 			<unit>%</unit>
@@ -25808,6 +25808,40 @@
 			<unit>kWh</unit>
 			<decimal>4</decimal>
 		</dataItem>
+	</dataItem>
+	<dataItem id="00900100" protocol="csg13" region="南网">
+		<name>（当前）剩余电量</name>
+		<length>4</length>
+		<decimal>2</decimal>
+		<unit>kWh</unit>
+		<type>BCD</type>
+	</dataItem>
+	<dataItem id="00900101" protocol="csg13" region="南网">
+		<name>（当前）透支电量</name>
+		<length>4</length>
+		<decimal>2</decimal>
+		<unit>kWh</unit>
+		<type>BCD</type>
+	</dataItem>
+	<dataItem id="00900200" protocol="csg13" region="南网">
+		<name>（当前）剩余金额</name>
+		<length>4</length>
+		<decimal>2</decimal>
+		<unit>元</unit>
+		<type>BCD</type>
+	</dataItem>
+	<dataItem id="00900201" protocol="csg13" region="南网">
+		<name>（当前）透支金额</name>
+		<length>4</length>
+		<decimal>2</decimal>
+		<unit>元</unit>
+		<type>BCD</type>
+	</dataItem>
+	<dataItem id="0220000D" protocol="csg13" region="云南">
+		<name>零序电流</name>
+		<length>3</length>
+		<decimal>3</decimal>
+		<unit>A</unit>
 	</dataItem>
 	<!--日冻结反向有功精确电能数据块-->
 	<dataItem id="056102FF" protocol="csg13" region="南网">

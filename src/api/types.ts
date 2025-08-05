@@ -1,6 +1,8 @@
 import { TreeItemType } from "../components/TreeItem";
 
 export interface ParseResponse {
+    protocol: string,
+    region: string,
     data: TreeItemType[];
     error?: string;
 }

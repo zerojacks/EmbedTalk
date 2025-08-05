@@ -13,6 +13,8 @@ interface FrameTreeState {
     selectedframe: number[];
     frameScroll: number[];
     treeScrollPosition: number;
+    protocol: string;
+    region: string;
 
     // Actions to update the state
     setFrame: (frame: string) => void;
@@ -26,6 +28,8 @@ interface FrameTreeState {
     setSelectedFrame: (frame: number[]) => void;
     setFrameScroll: (scroll: number[]) => void;
     setTreeScrollPosition: (position: number) => void;
+    setProtocol: (protocol: string) => void;
+    setRegion: (region: string) => void;
   }
   
   export const useFrameTreeStore = create<FrameTreeState>((set) => ({
@@ -40,6 +44,8 @@ interface FrameTreeState {
     selectedframe: [0,0],
     frameScroll: [0,0],
     treeScrollPosition: 0,
+    protocol: "自适应",
+    region: "",
     // Actions to update the state
     setFrame: (frame: string) => set({ frame: frame }),
     setSelectedRowId: (rowid: string | null) => set({ selectedRowId: rowid}),
@@ -52,4 +58,6 @@ interface FrameTreeState {
     setSelectedFrame: (frame: number[]) => set({ selectedframe: frame }),
     setFrameScroll: (scroll: number[]) => set({ frameScroll: scroll }),
     setTreeScrollPosition: (position: number) => set({ treeScrollPosition: position }),
+    setProtocol: (protocol: string) => set({ protocol: protocol }),
+    setRegion: (region: string) => set({ region: region }),
   }));

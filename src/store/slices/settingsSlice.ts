@@ -50,7 +50,7 @@ export const saveSetting = createAsyncThunk(
 export const setRegionAsync = createAsyncThunk(
     'settings/setRegionAsync',
     async (region: RegionOption, { dispatch }) => {
-        await dispatch(saveSetting({ key: 'app.region', value: region }));
+        await dispatch(saveSetting({ key: 'protocolsetting.region', value: region }));
         dispatch(settingsSlice.actions.updateRegion(region));
     }
 );
@@ -179,7 +179,7 @@ export const settingsSlice = createSlice({
                 state.isLoading = false;
                 state.isInitialized = true;
                 // 更新所有设置
-                state.region = action.payload.app.region;
+                state.region = action.payload.protocolsetting.region;
                 state.theme = action.payload.app.theme;
                 state.language = action.payload.app.language;
                 state.minimizeToTray = action.payload.window.minimizeToTray;
