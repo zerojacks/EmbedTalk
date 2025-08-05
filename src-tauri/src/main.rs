@@ -26,7 +26,7 @@ use crate::taurihandler::channel_handler::{
     start_timer_send, stop_timer_send,
 };
 #[cfg(feature = "desktop")]
-use crate::taurihandler::dlt645_handler::{build_dlt645_frame, list_channels};
+use crate::taurihandler::dlt645_handler::list_channels;
 #[cfg(feature = "desktop")]
 use crate::taurihandler::handler::{
     app_close, check_update, get_all_config_item_lists, get_app_info, get_com_list,
