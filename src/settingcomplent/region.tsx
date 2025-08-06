@@ -2,19 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core"; // 如果你用的是 Tauri，使用这个导入
 import { MapIcon } from "../components/Icons";
 import { useProtocolInfoStore } from '../stores/useProtocolInfoStore';
-import { getRegions } from '../utils/region'
+import { cleanAndUppercase, getRegions } from '../utils/region'
 
 export default function Region() {
     const regionList = getRegions(); // 这里确保调用了函数，返回数组
     const { region, setRegion} = useProtocolInfoStore();
     const hasFetchedRegion = useRef(false); // 用于标记是否已获取选中的省份
-
-    function cleanAndUppercase(targetRegion: string) {
-        let cleaned = targetRegion;
-        cleaned = cleaned.replace(/"/g, '');
-        cleaned = cleaned.toUpperCase();
-        return cleaned;
-    }
 
     // 从后端获取选中的省份
     useEffect(() => {

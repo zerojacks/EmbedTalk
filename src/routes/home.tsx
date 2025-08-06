@@ -13,7 +13,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useDispatch, useSelector } from 'react-redux';
 import { selectSplitSize, setSplitSize } from '../store/slices/splitSizeSlice';
 import { getApi } from '../api';
-import { getRegions } from '../utils/region';
+import { cleanAndUppercase, getRegions } from '../utils/region';
 
 const protocolTypes = [
   { value: "auto", label: "自适应" },
@@ -54,13 +54,7 @@ export default function Home() {
   const splitSize = useSelector(selectSplitSize);
   const { historyVisible, setHistoryVisible } = useShortcuts();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  function cleanAndUppercase(targetRegion: string) {
-    let cleaned = targetRegion;
-    cleaned = cleaned.replace(/"/g, '');
-    cleaned = cleaned.toUpperCase();
-    return cleaned;
-}
+  
   useEffect(() => {
     const loadInitialData = async () => {
       const api = await getApi();
@@ -189,9 +183,14 @@ export default function Home() {
       } catch (error) {
         console.error("解析失败:", error);
         toast.error("解析失败！");
+        setTableData([]);
+        setProtocol("自适应");
       }
     } catch (error) {
       console.error('解析失败:', error);
+      toast.error("解析失败！");
+      setTableData([]);
+      setProtocol("自适应");
     }
   };
 

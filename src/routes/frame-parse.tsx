@@ -10,6 +10,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useDispatch, useSelector } from 'react-redux';
 import { selectSplitSize, setSplitSize } from '../store/slices/splitSizeSlice';
 import { desktopApi } from '../api/desktop';
+import { cleanAndUppercase, getRegions } from '../utils/region';
 
 const initialColumns: Column[] = [
   { name: '帧域', width: 30, minWidth: 100 },
@@ -30,20 +31,24 @@ export default function FrameParse() {
   const {
     tabledata,
     selectedframe,
+    protocol,
+    region,
     setTableData,
     setFrame,
     setSelectedFrame,
+    setProtocol,
+    setRegion,
   } = useFrameTreeStore();
 
   const dispatch = useDispatch();
   const splitSize = useSelector(selectSplitSize);
-  const { region, setRegion } = useProtocolInfoStore();
+  const { region: storeRegion, setRegion: setStoreRegion } = useProtocolInfoStore();
 
   // 优化的面板大小调整处理
   const handlePanelResize = useCallback((sizes: number[]) => {
     dispatch(setSplitSize(sizes));
   }, [dispatch]);
-  
+
   // 优化的滚动处理
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -81,7 +86,7 @@ export default function FrameParse() {
   }, []);
 
   // 解析报文数据
-  const handleParse = useCallback(async (text: string) => {
+  const handleParse = useCallback(async (text: string, region: string = "") => {
     if (!text.trim()) {
       setTableData([]);
       return;
@@ -97,35 +102,53 @@ export default function FrameParse() {
       // 尝试保持光标位置
       textareaRef.current.setSelectionRange(cursorPosition, cursorPosition);
     }
+    parseFrame(formattedValue, region);
 
+  }, [setFrame, setTableData, formatHexText]);
+
+  const parseFrame = async function (formattedValue: string, region: string = "") {
     try {
       // 获取区域配置
       let currentRegion = region;
-      if (!region) {
-        try {
-          currentRegion = await desktopApi.getRegion();
-        } catch (error) {
-          currentRegion = "南网";
+      if (!currentRegion) {
+        currentRegion = storeRegion;
+        if (!currentRegion) {
+          try {
+            currentRegion = await desktopApi.getRegion();
+          } catch (error) {
+            currentRegion = "南网";
+          }
         }
-        setRegion(currentRegion);
+        currentRegion = cleanAndUppercase(currentRegion);
+        setStoreRegion(currentRegion);
       }
-
+      // 如果传入了region，则直接clean并用它
+      else {
+        currentRegion = cleanAndUppercase(currentRegion);
+      }
+      setRegion(currentRegion);
       // 解析报文
       const result = await desktopApi.parseFrame(formattedValue, currentRegion);
       if (result.error) {
         toast.error("解析失败！");
         console.error("解析错误：", result.error);
         setTableData([]);
+        setProtocol("自适应");
       } else {
         setTableData(result.data);
+        if(result.protocol) {
+          setProtocol(result.protocol);
+        }
+        // 不再 setRegion(result.region)，避免覆盖用户选择
       }
     } catch (error) {
       console.error("解析失败:", error);
       toast.error("解析失败！");
       setTableData([]);
+      setProtocol("自适应");
     }
-  }, [region, setRegion, setFrame, setTableData, formatHexText]);
-
+  }
+  
   // 输入变化处理
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const inputValue = e.target.value;
@@ -250,6 +273,13 @@ export default function FrameParse() {
     );
   }, [tabledata, handleRowClick]);
 
+  const handle_region_change = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedRegion = e.target.value;
+    setRegion(selectedRegion);
+    // 立即用最新选择的省份重新解析
+    parseFrame(textareaRef.current?.value || '', selectedRegion);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-base-100">
       {/* 主内容区域 */}
@@ -295,13 +325,30 @@ export default function FrameParse() {
               <div className="px-4 py-3 border-b border-base-300/50 bg-base-100/80 backdrop-blur-sm rounded-t-lg">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-4 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-semibold text-base-content">解析结果</span>
-                  <div className="flex-1"></div>
-                  {/* {tabledata.length > 0 && (
-                    <span className="text-xs text-base-content/60 bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                      {tabledata.length} 个字段
+                  {/* <span className="text-sm font-semibold text-base-content">解析结果</span> */}
+                  <div className="flex items-center gap-1">
+                    <label className="text-sm font-semibold text-base-content">解析结果:</label>
+                    <label className="text-xs font-normal">协议类型:</label>
+                    <span
+                      className="badge badge-info px-3 py-1 text-xs"
+                      style={{ fontWeight: 500, letterSpacing: 1 }}
+                    >
+                      {protocol || '自适应'}
                     </span>
-                  )} */}
+                  </div>
+                  {/* 省份组 */}
+                  <div className="flex items-center gap-1">
+                    <label className="text-xs font-normal">省份:</label>
+                    <select
+                      className="select select-bordered select-xs min-w-[70px]"
+                      value={region}
+                      onChange={handle_region_change}
+                    >
+                      {getRegions().map(r => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
               <div className="flex-1 overflow-hidden rounded-b-lg">
