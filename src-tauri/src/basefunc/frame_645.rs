@@ -564,7 +564,7 @@ impl Frame645 {
                 pos, sublength, data_item_str, all_length
             );
             data_item_elem.update_value("length", sublength.to_string());
-            while pos < all_length {
+            while pos + sublength <= all_length {
                 let alalysic_result = FrameAnalisyic::prase_data(
                     &mut data_item_elem,
                     protocol,
