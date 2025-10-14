@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import TreeItem, { TreeItemType, generateRowId } from './TreeItem';
 import domtoimage from 'dom-to-image';// Add this for image export
+import { snapdom } from '@zumer/snapdom';// Add snapdom for faster image copying
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 import { toast } from '../context/ToastProvider';// Add this for toast
@@ -155,24 +156,38 @@ export const TreeTable: React.FC<TreeTableViewProps> = ({ data, tableheads, onRo
         try {
           await new Promise(resolve => setTimeout(resolve, 0));
 
-          const dataUrl = await generateImage(element, ['png']);
-          if (dataUrl) {
-            const response = await fetch(dataUrl);
-            const blob = await response.blob();
-            const file = new File([blob], 'image.png', { type: 'image/png' });
+          // 使用 snapdom 生成 canvas 然后转换为 PNG blob
+          console.log('Using snapdom for faster image copying...');
+          const canvas = await snapdom.toCanvas(element, {
+            backgroundColor: 'transparent', // 使用透明背景，如用户所需
+            scale: 2, // 降低到1倍缩放以减少文件大小
+          });
 
+          // 将 canvas 转换为 PNG blob
+          const blob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob((blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Failed to convert canvas to blob'));
+              }
+            }, 'image/png', 1.0);
+          });
+
+          if (blob) {
             const clipboardItem = new ClipboardItem({
-              'image/png': file,
+              'image/png': blob,
             });
             await navigator.clipboard.write([clipboardItem]);
 
+            console.log('Image copied successfully with snapdom');
             setProgress(prevProgress => ({ ...prevProgress, visible: false }));
             toast.success("图片复制成功", 'end', 'bottom', 3000);
           } else {
-            throw new Error('Failed to generate image');
+            throw new Error('Failed to generate image blob');
           }
         } catch (error) {
-          console.error('Error saving file:', error);
+          console.error('Error copying image with snapdom:', error);
           setProgress(prevProgress => ({ ...prevProgress, visible: false }));
           toast.error("图片复制失败", 'end', 'bottom', 3000);
         } finally {

@@ -66,14 +66,14 @@ const ItemTreeView: React.FC<TreeItemProps> = ({
   return (
     <>
       <tr
-        className={`cursor-pointer ${isSelected ? 'bg-blue-500' : 'bg-transparent'} text-sm`}
+        className={`cursor-pointer ${isSelected ? 'bg-blue-500 text-white' : 'bg-base-100'} text-sm`}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
       >
         <td
           style={{
             paddingLeft: `${level * 20}px`,
-            backgroundColor: selectedCell.row === rowIndex && selectedCell.column === 0 ? 'red' : 'transparent'
+            backgroundColor: selectedCell.row === rowIndex && selectedCell.column === 0 ? 'red' : ''
           }}
           onClick={() => handleCellClick(0)}
         >
