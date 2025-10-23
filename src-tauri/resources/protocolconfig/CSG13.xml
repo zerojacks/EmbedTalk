@@ -44579,7 +44579,7 @@
 				<value key="0" color="#00FF00">屏蔽</value>
 			</bit>
 			<bit id="31">
-				<name>E2010020:保留</name>
+				<name>E2010020:终端安全事件</name>
 				<value key="1" color="#FF0000">判断</value>
 				<value key="0" color="#00FF00">屏蔽</value>
 			</bit>
@@ -51886,7 +51886,7 @@
 		<splitByLength>
 			<name>APP控制信息</name>
 			<length>unknown</length>
-			<lengthrule>25 * APP数量</lengthrule>
+			<lengthrule>33 * APP数量</lengthrule>
 			<type>APPCTRL</type>
 		</splitByLength>
 	</dataItem>
@@ -52529,17 +52529,18 @@
 	<template id="APPCTRL" protocol="csg13" region="南网">
 		<splitByLength>
 			<name>APP名称</name>
-			<length>24</length>
+			<length>32</length>
 			<type>ASCII</type>
 		</splitByLength>
 		<splitByLength>
 			<name>控制类型</name>
 			<type>BCD</type>
 			<length>1</length>
-			<value key="00">下装</value>
-			<value key="01">启动</value>
-			<value key="02">停止</value>
+			<value key="00">启动</value>
+			<value key="01">临时停止(系统复位后会继续运行)</value>
+			<value key="02">永久停止(系统复位后不会运行)</value>
 			<value key="03">卸载</value>
+			<value key="04">重新安装</value>
 			<value key="other">未知</value>
 		</splitByLength>
 	</template>
@@ -55778,6 +55779,12 @@
 		<type>ERD13</type>
 		<single>YES</single>
 	</dataItem>
+	<dataItem id="E2010020" protocol="csg13" region="南网">
+		<name>终端安全事件</name>
+		<length>7</length>
+		<type>ERD14</type>
+		<single>YES</single>
+	</dataItem>
 	<template id="ERD2" protocol="csg13" region="南网">
 		<splitByLength>
 			<name>最大需量清零时间</name>
@@ -55838,6 +55845,25 @@
 			<name>电表广播校时发生时间</name>
 			<length>6</length>
 			<time>ssmmhhDDMMYY</time>
+		</splitByLength>
+	</template>
+	<template id="ERD14" protocol="csg13" region="南网">
+		<splitByLength>
+			<name>事件发生时间</name>
+			<length>6</length>
+			<time>ssmmhhDDMMYY</time>
+		</splitByLength>
+		<splitByLength>
+			<name>事件类型</name>
+			<length>1</length>
+			<value key="01">以太网远程端口开放</value>
+			<value key="02">以太网外联信息</value>
+			<value key="03">SSH服务异常</value>
+			<value key="04">以太网登录控制台信息</value>
+			<value key="05">口令信息变更</value>
+			<value key="06">USB设备接入</value>
+			<value key="07">蓝牙接口设备接入</value>
+			<value key="other">未知类型</value>
 		</splitByLength>
 	</template>
 	<template id="ERD6" protocol="csg13" region="南网">
