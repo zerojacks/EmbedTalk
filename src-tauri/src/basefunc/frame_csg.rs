@@ -3107,8 +3107,7 @@ impl FrameCsg {
                         None,
                     );
                     pos += 4;
-
-                    if region == "海南" {
+                    if dir == 1 && prm == 0 && region == "海南" {
                         let data_count = data_segment[pos];
                         let identifier = format!("数据时间个数: {:02o}", data_count);
                         FrameFun::add_data(
