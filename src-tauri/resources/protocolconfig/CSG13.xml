@@ -44413,7 +44413,7 @@
 			</bit>
 			<bit id="254">
 				<name>E20000FF:保留</name>
-				<value key="1" color="#FF0000">上报</value>
+				<value key="1" color="#FF0000">判断</value>
 				<value key="0" color="#00FF00">屏蔽</value>
 			</bit>
 		</splitbit>
@@ -51866,12 +51866,12 @@
 		<splitByLength>
 			<name>APP 数量</name>
 			<length>1</length>
-			<type>BCD</type>
+			<type>BIN</type>
 		</splitByLength>
 		<splitByLength>
 			<name>APP信息</name>
 			<length>unknown</length>
-			<lengthrule>26 * APP 数量</lengthrule>
+			<lengthrule>30 * APP 数量</lengthrule>
 			<type>APP</type>
 		</splitByLength>
 	</dataItem>
@@ -51886,7 +51886,7 @@
 		<splitByLength>
 			<name>APP控制信息</name>
 			<length>unknown</length>
-			<lengthrule>33 * APP数量</lengthrule>
+			<lengthrule>25 * APP数量</lengthrule>
 			<type>APPCTRL</type>
 		</splitByLength>
 	</dataItem>
@@ -52271,7 +52271,7 @@
 		</splitByLength>
 	</template>
 	<template id="APP" protocol="csg13" region="南网">
-		<length>26</length>
+		<length>30</length>
 		<name>APP信息</name>
 		<splitByLength>
 			<name>APP名称</name>
@@ -52307,6 +52307,18 @@
 			<name>APP 虚拟内存大小</name>
 			<length>4</length>
 			<unit>kb</unit>
+			<type>BCD</type>
+		</splitByLength>
+		<splitByLength>
+			<name>APP 内存占用率</name>
+			<length>3</length>
+			<unit>%</unit>
+			<type>BCD</type>
+		</splitByLength>
+		<splitByLength>
+			<name>APP 复位次数</name>
+			<length>1</length>
+			<unit>次</unit>
 			<type>BCD</type>
 		</splitByLength>
 	</template>
@@ -52529,18 +52541,17 @@
 	<template id="APPCTRL" protocol="csg13" region="南网">
 		<splitByLength>
 			<name>APP名称</name>
-			<length>32</length>
+			<length>24</length>
 			<type>ASCII</type>
 		</splitByLength>
 		<splitByLength>
 			<name>控制类型</name>
 			<type>BCD</type>
 			<length>1</length>
-			<value key="00">启动</value>
-			<value key="01">临时停止(系统复位后会继续运行)</value>
-			<value key="02">永久停止(系统复位后不会运行)</value>
+			<value key="00">安装</value>
+			<value key="01">启动</value>
+			<value key="02">停止</value>
 			<value key="03">卸载</value>
-			<value key="04">重新安装</value>
 			<value key="other">未知</value>
 		</splitByLength>
 	</template>
@@ -59481,6 +59492,25 @@
 			<length>8</length>
 			<type>ASCII</type>
 		</dataItem>
+	</dataItem>
+	<dataItem id="E0800032" protocol="csg13" region="南网">
+		<name>负荷曲线补采补上送控制<name>
+		<length>3</length>
+		<splitByLength>
+			<name>补采功能控制</name>
+			<length>1</length>
+			<type>BIN</type>
+			<value key="00">关闭</value>
+			<value key="01">开启</value>
+			<value key="other">保留</value>
+		</splitByLength>
+		<splitByLength>
+			<name>补采上报周期</name>
+			<length>2</length>
+			<type>BCD</type>
+			<unit>分钟</unit>
+			<value key="00">即采即报</value>
+		</splitByLength>
 	</dataItem>
 	<dataItem id="E1008020" protocol="csg13" region="南网">
 		<name>日 电流不平衡度合格率统计数据</name>

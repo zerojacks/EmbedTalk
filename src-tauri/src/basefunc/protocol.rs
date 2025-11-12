@@ -481,7 +481,7 @@ impl FrameAnalisyic {
             cap.get(1)
                 .map_or_else(|| parse_value.clone(), |m| m.as_str().to_string())
         } else {
-            parse_value
+            parse_value.clone()
         };
 
         // 查找对应的 value 元素
@@ -499,11 +499,11 @@ impl FrameAnalisyic {
         // 获取所有 `value` 子元素
         let value_elements = data_item_elem.get_items("value");
         let (value_str, element) = Self::find_value_from_elements(&value_elements, &value);
-
-        value_name = if value_str.is_empty() {
-            format!("[{}]: {}", value_name, value)
+        
+        value_name = if value_str.is_none() {
+            format!("[{}]: {}", value_name, parse_value.clone())
         } else {
-            format!("[{}]: {}", value_name, value_str)
+            format!("[{}]: {}-{}", value_name, parse_value.clone(), value_str.unwrap())
         };
         // 获取 color 属性并使用 `.cloned()` 将 Option<&String> 转换为 Option<String>
         color = data_item_elem.get_attribute("color").cloned();
@@ -515,7 +515,7 @@ impl FrameAnalisyic {
     pub fn find_value_from_elements(
         value_elements: &[XmlElement],
         search_value: &str,
-    ) -> (String, Option<XmlElement>) {
+    ) -> (Option<String>, Option<XmlElement>) {
         let mut found_value = search_value.to_string();
 
         println!("value_elements: {:?}", found_value);
@@ -527,7 +527,7 @@ impl FrameAnalisyic {
                     found_value = value_elem
                         .get_value()
                         .unwrap_or_else(|| search_value.to_string());
-                    return (found_value, Some(value_elem.clone())); // Return immediately upon finding a match
+                    return (Some(found_value), Some(value_elem.clone())); // Return immediately upon finding a match
                 }
             }
         }
@@ -540,12 +540,12 @@ impl FrameAnalisyic {
                     found_value = value_elem
                         .get_value()
                         .unwrap_or_else(|| search_value.to_string());
-                    return (found_value, Some(value_elem.clone())); // Return immediately upon finding a match
+                    return (Some(found_value), Some(value_elem.clone())); // Return immediately upon finding a match
                 }
             }
         }
 
-        (found_value, None)
+        (None, None)
     }
 
     pub fn prase_singal_item(
@@ -756,14 +756,18 @@ impl FrameAnalisyic {
             } else {
                 None
             };
-
-            value_name = format!("[{}]: {}", name_str, value_name);
+            let description: String;
+            if value_name.is_none() {
+                description = format!("[{}]: {}", name_str, bit_value);
+            } else {
+                description = format!("[{}]: {}-{}", name_str, bit_value, value_name.unwrap());
+            }
 
             FrameFun::add_data(
                 &mut sub_item_result, // Pass mutable reference here
                 bit_id_attr,
                 bit_value,
-                value_name,
+                description,
                 vec![index + start_pos, index + end_pos],
                 None,
                 coclor, // Assuming you want `None` here
@@ -946,7 +950,6 @@ impl FrameAnalisyic {
                     region,
                     dir,
                 );
-
                 result_str = cur_result;
                 sub_item_result = sub_result;
                 cur_length = length;
