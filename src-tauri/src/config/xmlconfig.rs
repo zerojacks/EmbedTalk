@@ -554,7 +554,7 @@ impl QframeConfig {
         element
     }
 
-    pub fn get_config(&self) -> RwLockReadGuard<Option<XmlTree>> {
+    pub fn get_config(&'_ self) -> RwLockReadGuard<'_, Option<XmlTree>> {
         self.config.read().unwrap()
     }
 

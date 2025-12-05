@@ -232,7 +232,7 @@ const extractData = (items: TreeItemType[]): ExtractedData[] => {
             const nextItem = items[i + 1];
             const dataitem = items[i + 2];
             const timeitem = items[i + 3];
-
+            console.log("currentItem:", currentItem)
             // 检查当前项是否包含信息点标识DA
             if (currentItem.frameDomain.includes('信息点标识DA')) {
                 let da = '';
@@ -273,6 +273,7 @@ const extractData = (items: TreeItemType[]): ExtractedData[] => {
                         da=''
                     }
                     
+                    console.log("da:", da, "di:", di, "content:", content, "time:", time)
                     // 提取子项
                     const children: ExtractedDataChild[] = [];
                     if (dataitem?.children) {
@@ -312,6 +313,7 @@ const extractData = (items: TreeItemType[]): ExtractedData[] => {
                     }
 
                     // 只有当DA和DI存在时才添加数据
+                    console.log("da:", da, "di:", di)
                     if (da && di) {
                         const uniqueId = `${da}-${di}-${content}-${time}-${Math.random().toString(36).substr(2, 9)}`;
                         const extractedItem: ExtractedData = {

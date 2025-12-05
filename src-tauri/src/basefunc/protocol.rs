@@ -742,7 +742,7 @@ impl FrameAnalisyic {
                 FrameFun::hex_array_to_int(&data_segment[start_pos..end_pos], need_delete),
             );
             let value_elements = bit_elem.get_items("value");
-            let (mut value_name, element) =
+            let (value_name, element) =
                 Self::find_value_from_elements(&value_elements, &bit_value);
 
             let bit_id_attr = format!("bit{}", bit_id_attr);

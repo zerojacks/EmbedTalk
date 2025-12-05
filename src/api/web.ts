@@ -1,6 +1,6 @@
 import { ApiInterface, ParseResponse, ProtocolConfigRequest, ProtocolListResponse } from './types';
 
-const WEB_API_BASE = 'http://localhost:3000';
+const WEB_API_BASE = import.meta.env.VITE_WEB_API_BASE || 'http://localhost:3000';
 
 class WebApi implements ApiInterface {
     async parseFrame(message: string, region: string): Promise<ParseResponse> {

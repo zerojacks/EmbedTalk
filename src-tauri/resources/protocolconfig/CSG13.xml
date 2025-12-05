@@ -49033,6 +49033,1288 @@
 		<type>BASETASK</type>
 	</dataItem>
 
+	<!--数据推送任务-->
+	<dataItem id="E0001600" protocol="csg13" region="南网">
+		<name>有效的数据推送任务总数</name>
+		<length>1</length>
+		<type>BCD</type>
+	</dataItem>
+	<dataItem id="E0001601" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001602" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001603" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001604" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001605" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001606" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001607" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001608" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001609" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000160A" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000160B" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000160C" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000160D" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000160E" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000160F" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001610" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001611" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001612" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001613" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001614" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001615" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001616" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001617" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001618" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001619" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000161A" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000161B" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000161C" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000161D" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000161E" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000161F" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001620" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001621" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001622" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001623" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001624" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001625" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001626" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001627" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001628" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001629" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000162A" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000162B" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000162C" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000162D" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000162E" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000162F" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001630" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001631" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001632" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001633" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001634" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001635" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001636" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001637" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001638" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001639" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000163A" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000163B" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000163C" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000163D" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000163E" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000163F" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001640" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001641" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001642" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001643" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001644" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001645" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001646" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001647" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001648" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001649" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000164A" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000164B" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000164C" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000164D" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000164E" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000164F" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001650" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001651" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001652" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001653" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001654" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001655" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001656" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001657" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001658" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001659" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000165A" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000165B" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000165C" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000165D" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000165E" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000165F" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001660" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001661" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001662" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001663" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001664" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001665" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001666" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001667" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001668" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001669" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000166A" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000166B" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000166C" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000166D" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000166E" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000166F" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001670" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001671" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001672" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001673" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001674" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001675" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001676" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001677" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001678" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001679" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000167A" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000167B" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000167C" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000167D" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000167E" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000167F" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001680" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001681" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001682" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001683" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001684" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001685" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001686" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001687" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001688" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001689" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000168A" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000168B" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000168C" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000168D" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000168E" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000168F" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001690" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001691" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001692" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001693" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001694" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001695" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001696" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001697" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001698" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E0001699" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000169A" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000169B" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000169C" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000169D" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000169E" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E000169F" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016A0" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016A1" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016A2" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016A3" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016A4" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016A5" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016A6" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016A7" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016A8" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016A9" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016AA" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016AB" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016AC" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016AD" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016AE" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016AF" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016B0" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016B1" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016B2" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016B3" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016B4" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016B5" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016B6" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016B7" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016B8" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016B9" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016BA" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016BB" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016BC" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016BD" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016BE" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016BF" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016C0" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016C1" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016C2" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016C3" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016C4" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016C5" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016C6" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016C7" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016C8" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016C9" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016CA" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016CB" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016CC" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016CD" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016CE" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016CF" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016D0" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016D1" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016D2" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016D3" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016D4" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016D5" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016D6" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016D7" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016D8" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016D9" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016DA" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016DB" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016DC" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016DD" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016DE" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016DF" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016E0" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016E1" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016E2" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016E3" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016E4" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016E5" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016E6" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016E7" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016E8" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016E9" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016EA" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016EB" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016EC" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016ED" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016EE" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016EF" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016F0" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016F1" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016F2" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016F3" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016F4" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016F5" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016F6" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016F7" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016F8" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016F9" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016FA" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016FB" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016FC" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016FD" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016FE" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+	<dataItem id="E00016FF" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<type>PUSHTASK</type>
+	</dataItem>
+
 	<!--中继任务-->
 	<dataItem id="E0000400" protocol="csg13" region="南网">
 		<name>有效的普通任务总数</name>
@@ -52512,6 +53794,135 @@
 			<name>数据标识编码组数</name>
 			<length>1</length>
 			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>数据标识编码</name>
+			<length>unknown</length>
+			<lengthrule>4*数据标识编码组数</lengthrule>
+			<type>ITEM</type>
+		</splitByLength>
+	</template>
+	<template id="PUSHTASK" protocol="csg13" region="南网">
+		<name>数据推送任务</name>
+		<length>unknown</length>
+		<splitByLength>
+			<name>有效性标志</name>
+			<length>1</length>
+			<value key="00">无效</value>
+			<value key="01">有效</value>
+		</splitByLength>
+		<splitByLength>
+			<name>推送基准时间</name>
+			<length>5</length>
+			<time>mmhhDDMMYY</time>
+			<type>BCD</type>
+		</splitByLength>
+		<splitByLength>
+			<name>定时推送周期单位</name>
+			<length>1</length>
+			<type>BIN</type>
+			<value key="00">分</value>
+			<value key="01">时</value>
+			<value key="02">日</value>
+			<value key="03">月</value>
+		</splitByLength>
+		<splitByLength>
+			<name>定时推送周期</name>
+			<length>1</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>数据结构方式</name>
+			<length>1</length>
+			<type>BIN</type>
+			<value key="00">自描述格式</value>
+			<value key="01">任务定义的数据格式组织数据</value>
+		</splitByLength>
+		<splitByLength>
+			<name>定时采样基准时间</name>
+			<length>5</length>
+			<type>BCD</type>
+			<time>mmhhDDMMYY</time>
+		</splitByLength>
+		<splitByLength>
+			<name>定时采样周期单位</name>
+			<length>1</length>
+			<type>BIN</type>
+			<value key="00">分</value>
+			<value key="01">时</value>
+			<value key="02">日</value>
+			<value key="03">月</value>
+		</splitByLength>
+		<splitByLength>
+			<name>定时采样周期</name>
+			<length>1</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>数据抽取倍率</name>
+			<length>1</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>执行次数</name>
+			<length>2</length>
+			<type>BIN</type>
+			<value key ="0000">永远执行</value>
+		</splitByLength>
+		<splitByLength>
+			<name>数据推送端口</name>
+			<length>2</length>
+			<type>BIN</type>
+			<value key ="0000">485 端口1</value>
+			<value key ="0001">485 端口2</value>
+			<value key ="0002">485 端口3</value>
+			<value key ="0003">485 端口4</value>
+			<value key ="0004">485 端口5</value>
+			<value key ="0005">485 端口6</value>
+			<value key ="0006">485 端口7</value>
+			<value key ="0007">485 端口8</value>
+			<value key ="0008">485 端口9</value>
+			<value key ="0009">485 端口10</value>
+			<value key ="0010">485 端口11</value>
+			<value key ="0011">485 端口12</value>
+			<value key ="0012">485 端口13</value>
+			<value key ="0013">485 端口14</value>
+			<value key ="0014">485 端口15</value>
+			<value key ="0015">485 端口16</value>
+			<value key ="0016">485 端口17</value>
+			<value key ="0017">485 端口18</value>
+			<value key ="0018">485 端口19</value>
+			<value key ="0019">485 端口20</value>
+			<value key ="0020">485 端口21</value>
+			<value key ="0021">485 端口22</value>
+			<value key ="0022">485 端口23</value>
+			<value key ="0023">485 端口24</value>
+			<value key ="0024">485 端口25</value>
+			<value key ="0025">485 端口26</value>
+			<value key ="0026">485 端口27</value>
+			<value key ="0027">485 端口28</value>
+			<value key ="0028">485 端口29</value>
+			<value key ="0029">485 端口30</value>
+			<value key ="0030">485 端口31</value>
+			<value key ="0035">无线公网</value>
+			<value key ="0036">以太网</value>
+			<value key ="other">其他备用通道</value>
+		</splitByLength>
+		<splitByLength>
+			<name>信息点标识组数</name>
+			<length>1</length>
+			<type>BIN_FF</type>
+		</splitByLength>
+		<splitByLength>
+			<name>信息点标识</name>
+			<length>unknown</length>
+			<type>PN</type>
+			<lengthrule>2*信息点标识组数</lengthrule>
+		</splitByLength>
+		<splitByLength>
+			<name>数据标识编码组数</name>
+			<length>1</length>
+			<type>BIN_FF</type>
 		</splitByLength>
 		<splitByLength>
 			<name>数据标识编码</name>
@@ -59494,7 +60905,7 @@
 		</dataItem>
 	</dataItem>
 	<dataItem id="E0800032" protocol="csg13" region="南网">
-		<name>负荷曲线补采补上送控制<name>
+		<name>负荷曲线补采补上送控制</name>
 		<length>3</length>
 		<splitByLength>
 			<name>补采功能控制</name>
@@ -64415,6 +65826,55 @@
 			<type>UNRECEIVEIDLIST</type>
 		</splitByLength>
 	</dataItem>
+    <dataItem protocol="csg13" region="南网" id="E3010101" dir="0">
+        <name>sftp文件传输启动</name>
+        <length>200</length>
+        <splitByLength>
+            <name>文件性质</name>
+            <length>2</length>
+            <type>BIN</type>
+			<value key="0000">终端升级文件</value>
+			<value key="0001">终端普通文件</value>
+			<value key="0002">远程通信模块文件</value>
+			<value key="0003">APP升级文件</value>
+			<value key="0011">集中器本地通信模块文件</value>
+			<value key="0012">从节点本地通信模块文件</value>
+			<value key="0013">采集器文件</value>
+			<value key="0015">电表升级文件</value>
+			<value key="0020">RS-485模块</value>
+			<value key="0021">遥信模块</value>
+			<value key="0022">遥控模块</value>
+			<value key="0023">分支监测模块</value>
+			<value key="0024">M-Bus通信模块</value>
+			<value key="000F">清除正在传输的文件</value>
+        </splitByLength>
+		<splitByLength>
+            <name>文件大小</name>
+            <length>4</length>
+            <type>BIN</type>
+			<unit>字节</unit>
+        </splitByLength>
+		<splitByLength>
+			<name>登录sftp服务器用户名</name>
+			<length>32</length>
+			<type>ASCII</type>
+		</splitByLength>
+		<splitByLength>
+			<name>登录sftp服务器用密码</name>
+			<length>32</length>
+			<type>ASCII</type>
+		</splitByLength>
+		<splitByLength>
+			<name>文件路径及文件名称</name>
+			<length>128</length>
+			<type>ASCII</type>
+		</splitByLength>
+		<splitByLength>
+			<name>总校验</name>
+			<length>2</length>
+			<type>NORMAL</type>
+		</splitByLength>
+    </dataItem>
 	<template id="UNRECEIVEIDLIST" protocol="csg13" region="南网">
 		<name>第%d组未成功接收的段号</name>
 		<length>2</length>
