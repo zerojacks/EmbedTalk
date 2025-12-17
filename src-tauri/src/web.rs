@@ -1,18 +1,20 @@
+use crate::basefunc::protocol::FrameAnalisyic;
+use crate::config::xmlconfig::{
+    GLOBAL_Moudle, ItemConfigList, ProtocolConfigManager, GLOBAL_645, GLOBAL_CSG13, GLOBAL_CSG16,
+    GLOBAL_MS,
+};
 #[cfg(feature = "web")]
 use axum::{
-    routing::{get, post},
-    Router,
-    Json,
     extract::State,
+    routing::{get, post},
+    Json, Router,
 };
-use tower_http::cors::{CorsLayer, Any};
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use serde::{Deserialize, Serialize};
-use crate::basefunc::protocol::FrameAnalisyic;
-use crate::config::xmlconfig::{ProtocolConfigManager, ItemConfigList, GLOBAL_CSG13, GLOBAL_645, GLOBAL_CSG16, GLOBAL_Moudle, GLOBAL_MS};
 use std::time::Instant;
+use tokio::sync::RwLock;
+use tower_http::cors::{Any, CorsLayer};
 use tracing::{error, info};
 
 // 状态管理
@@ -76,8 +78,19 @@ pub async fn start_web_server() {
         .with_state(state)
         .layer(cors);
 
-    // 绑定地址
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    // 绑定地址 - 支持环境变量配置
+    // 开发环境默认 localhost，生产环境建议设置为 0.0.0.0
+    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let port = std::env::var("PORT")
+        .unwrap_or_else(|_| "3000".to_string())
+        .parse::<u16>()
+        .unwrap_or(3000);
+
+    let addr = SocketAddr::from((
+        host.parse::<std::net::IpAddr>()
+            .unwrap_or([0, 0, 0, 0].into()),
+        port,
+    ));
     println!("Web server listening on {}", addr);
 
     // 启动服务器
@@ -109,31 +122,31 @@ async fn get_protocol_config(
 // 获取所有协议列表
 async fn get_protocol_list() -> Json<ProtocolListResponse> {
     let mut all_items = Vec::new();
-    
+
     // 收集CSG13协议项
     if let Ok(csg13) = &*GLOBAL_CSG13 {
         let items = csg13.get_all_item().await;
         all_items.extend(items);
     }
-    
+
     // 收集CSG16协议项
     if let Ok(csg16) = &*GLOBAL_CSG16 {
         let items = csg16.get_all_item().await;
         all_items.extend(items);
     }
-    
+
     // 收集DLT645协议项
     if let Ok(dlt645) = &*GLOBAL_645 {
         let items = dlt645.get_all_item().await;
         all_items.extend(items);
     }
-    
+
     // 收集模块协议项
     if let Ok(module) = &*GLOBAL_Moudle {
         let items = module.get_all_item().await;
         all_items.extend(items);
     }
-    
+
     Json(ProtocolListResponse {
         items: all_items,
         error: None,
@@ -144,10 +157,7 @@ async fn get_protocol_list() -> Json<ProtocolListResponse> {
 async fn get_csg13_list() -> Json<ProtocolListResponse> {
     if let Ok(csg13) = &*GLOBAL_CSG13 {
         let items = csg13.get_all_item().await;
-        return Json(ProtocolListResponse {
-            items,
-            error: None,
-        });
+        return Json(ProtocolListResponse { items, error: None });
     }
     Json(ProtocolListResponse {
         items: Vec::new(),
@@ -159,10 +169,7 @@ async fn get_csg13_list() -> Json<ProtocolListResponse> {
 async fn get_csg16_list() -> Json<ProtocolListResponse> {
     if let Ok(csg16) = &*GLOBAL_CSG16 {
         let items = csg16.get_all_item().await;
-        return Json(ProtocolListResponse {
-            items,
-            error: None,
-        });
+        return Json(ProtocolListResponse { items, error: None });
     }
     Json(ProtocolListResponse {
         items: Vec::new(),
@@ -174,10 +181,7 @@ async fn get_csg16_list() -> Json<ProtocolListResponse> {
 async fn get_dlt645_list() -> Json<ProtocolListResponse> {
     if let Ok(dlt645) = &*GLOBAL_645 {
         let items = dlt645.get_all_item().await;
-        return Json(ProtocolListResponse {
-            items,
-            error: None,
-        });
+        return Json(ProtocolListResponse { items, error: None });
     }
     Json(ProtocolListResponse {
         items: Vec::new(),
@@ -189,10 +193,7 @@ async fn get_dlt645_list() -> Json<ProtocolListResponse> {
 async fn get_module_list() -> Json<ProtocolListResponse> {
     if let Ok(module) = &*GLOBAL_Moudle {
         let items = module.get_all_item().await;
-        return Json(ProtocolListResponse {
-            items,
-            error: None,
-        });
+        return Json(ProtocolListResponse { items, error: None });
     }
     Json(ProtocolListResponse {
         items: Vec::new(),
@@ -265,11 +266,8 @@ async fn get_region(State(state): State<AppState>) -> Json<String> {
 }
 
 // 设置区域值
-async fn set_region(
-    State(state): State<AppState>,
-    Json(new_region): Json<String>,
-) -> Json<String> {
+async fn set_region(State(state): State<AppState>, Json(new_region): Json<String>) -> Json<String> {
     let mut region = state.region.write().await;
     *region = new_region;
     Json(region.to_string())
-} 
+}
