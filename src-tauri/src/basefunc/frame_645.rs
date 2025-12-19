@@ -35,6 +35,10 @@ impl Frame645 {
         index: usize,
         region: &str,
     ) -> usize {
+        if frame.len() < 12 {
+            return 0;
+        }
+        
         let (mut updated_index, dir) = Self::analysic_head_frame(frame, result_list, index);
         let data_content = &frame[updated_index..];
         updated_index += index;

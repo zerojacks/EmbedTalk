@@ -57577,7 +57577,7 @@
 			<type>DISALARMRESULT</type>
 		</splitByLength>
 	</dataItem>
-	<dataItem id="E3020001" protocol="csg13" region="南网">
+	<dataItem id="E3020001" protocol="csg13" region="南网" dir="0">
 		<name>中继转发</name>
 		<length>unknown</length>
 		<splitByLength>
@@ -57593,6 +57593,7 @@
 		<splitByLength>
 			<name>端口号</name>
 			<length>1</length>
+			<type>NORMAL</type>
 			<value key="00">485-1</value>
 			<value key="01">485-2</value>
 			<value key="02">485-3</value>
@@ -57690,7 +57691,32 @@
 			<type>FRAME645</type>
 		</splitByLength>
 	</dataItem>
-	<dataItem id="E3020002" protocol="csg13" region="南网">
+	<dataItem id="E3020001" protocol="csg13" region="南网" dir="1">
+		<name>中继转发</name>
+		<length>unknown</length>
+		<splitByLength>
+			<name>中继类型</name>
+			<length>1</length>
+			<type>BCD</type>
+			<value key="00">普通中继</value>
+			<value key="01">转发主站对电能表的拉闸命令</value>
+			<value key="02">转发主站对电能表的允许合闸命令</value>
+			<value key="03">转发主站对电能表的保电投入命令</value>
+			<value key="04">转发主站对电能表的保电解除命令</value>
+		</splitByLength>
+		<splitByLength>
+			<name>中继报文长度</name>
+			<length>1</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>中继报文</name>
+			<length>unknown</length>
+			<lengthrule>1*中继报文长度</lengthrule>
+			<type>FRAME645</type>
+		</splitByLength>
+	</dataItem>
+	<dataItem id="E3020002" protocol="csg13" region="南网" dir="0">
 		<name>中继转发</name>
 		<length>unknown</length>
 		<splitByLength>
@@ -57706,6 +57732,7 @@
 		<splitByLength>
 			<name>端口号</name>
 			<length>1</length>
+			<type>NORMAL</type>
 			<value key="00">485-1</value>
 			<value key="01">485-2</value>
 			<value key="02">485-3</value>
@@ -57790,6 +57817,31 @@
 			<length>1</length>
 			<type>BIN</type>
 			<unit>s</unit>
+		</splitByLength>
+		<splitByLength>
+			<name>中继报文长度</name>
+			<length>2</length>
+			<type>BIN</type>
+		</splitByLength>
+		<splitByLength>
+			<name>中继报文</name>
+			<length>unknown</length>
+			<lengthrule>1*中继报文长度</lengthrule>
+			<type>FRAME645</type>
+		</splitByLength>
+	</dataItem>
+	<dataItem id="E3020002" protocol="csg13" region="南网" dir="1">
+		<name>中继转发</name>
+		<length>unknown</length>
+		<splitByLength>
+			<name>中继类型</name>
+			<length>1</length>
+			<type>BCD</type>
+			<value key="00">普通中继</value>
+			<value key="01">转发主站对电能表的拉闸命令</value>
+			<value key="02">转发主站对电能表的允许合闸命令</value>
+			<value key="03">转发主站对电能表的保电投入命令</value>
+			<value key="04">转发主站对电能表的保电解除命令</value>
 		</splitByLength>
 		<splitByLength>
 			<name>中继报文长度</name>

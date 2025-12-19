@@ -1307,6 +1307,7 @@ impl FrameAnalisyic {
                         index,
                         region,
                     );
+                    println!("645 analysic {:?}", result_vec);
                     sub_item_result = Some(result_vec);
                 }
                 "FRAMECSG13" => {

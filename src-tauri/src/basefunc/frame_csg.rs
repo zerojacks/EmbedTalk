@@ -1206,7 +1206,8 @@ impl FrameCsg {
                         println!("rules:{:?} is not valid", rules);
                     }
                 } else {
-                    if let Some(data_type) = template_element.get_value().map(|s| s.to_uppercase()) {
+                    if let Some(data_type) = template_element.get_value().map(|s| s.to_uppercase())
+                    {
                         if !["BCD", "BIN", "ASCII", "BIN_BE"].contains(&data_type.as_str()) {
                             if let Some(mut template) = ProtocolConfigManager::get_template_element(
                                 &data_type, protocol, region, dir,
@@ -1222,7 +1223,7 @@ impl FrameCsg {
                                 );
                             }
                         }
-                    } 
+                    }
                 }
             }
         } else {
@@ -1355,7 +1356,10 @@ impl FrameCsg {
                 text_part.parse::<usize>().unwrap_or(0)
             } else {
                 if let Some(vaule) = length_map.get(text_part) {
-                    println!("value {:?} vaule.0 {:?} vaule.1 {:?} data_segment {:?}", vaule, vaule.0, vaule.1, data_segment);
+                    println!(
+                        "value {:?} vaule.0 {:?} vaule.1 {:?} data_segment {:?}",
+                        vaule, vaule.0, vaule.1, data_segment
+                    );
                     if vaule.0 - (vaule.0 - vaule.1) > data_segment.len() {
                         return 0;
                     }
@@ -1454,10 +1458,18 @@ impl FrameCsg {
             Self::recalculate_sub_length(&mut item_element, data_segment, protocol, region, dir);
 
         if (length + 6) > data_segment.len() {
-            println!("length:{:?} data_segment.len():{:?}", length, data_segment.len());
+            println!(
+                "length:{:?} data_segment.len():{:?}",
+                length,
+                data_segment.len()
+            );
             return false;
         }
-        println!("data_segment[length..length + 6]:{:?} data_time:{:?}", &data_segment[length..length + 6], data_time);
+        println!(
+            "data_segment[length..length + 6]:{:?} data_time:{:?}",
+            &data_segment[length..length + 6],
+            data_time
+        );
         if Self::is_valid_bcd_time(&data_segment[length..length + 6]) {
             if let Some(data_time) = data_time {
                 if Self::is_within_one_month(&data_segment[length..length + 6], data_time) {
@@ -1642,31 +1654,37 @@ impl FrameCsg {
             // 获取两个日期的年月信息
             let (year1, month1) = (dt1.year(), dt1.month());
             let (year2, month2) = (dt2.year(), dt2.month());
-            
+
             // 计算月份差
             let months_diff = (year1 - year2) * 12 + (month1 as i32 - month2 as i32);
             if months_diff > 1 {
                 return false;
             }
-            
+
             if months_diff == 1 {
                 // 如果是跨月，需要考虑具体天数
                 let days_in_month2 = match month2 {
-                    2 => if Self::is_leap_year(year2) { 29 } else { 28 },
+                    2 => {
+                        if Self::is_leap_year(year2) {
+                            29
+                        } else {
+                            28
+                        }
+                    }
                     4 | 6 | 9 | 11 => 30,
-                    _ => 31
+                    _ => 31,
                 };
-                
+
                 // 计算天数差
                 let day1 = dt1.day();
                 let day2 = dt2.day();
-                
+
                 // 计算实际的天数差（不包含起始日）
                 let total_days = days_in_month2 - day2 + day1 - 1;
-                
+
                 return total_days <= 30;
             }
-            
+
             // 同月份内，直接比较天数差
             let days_diff = (dt1 - dt2).num_days();
             return days_diff <= 30;
@@ -1751,11 +1769,14 @@ impl FrameCsg {
         info!("da:{:?}", da);
         let (total_measurement_points, measurement_points_array) =
             FrameFun::calculate_measurement_points(&da);
-        info!("total_measurement_points:{:?} {:?}", total_measurement_points, measurement_points_array);
+        info!(
+            "total_measurement_points:{:?} {:?}",
+            total_measurement_points, measurement_points_array
+        );
         if measurement_points_array.is_empty() {
             return "Pn解析失败".to_string();
         }
-        
+
         if measurement_points_array[0] == 0 && total_measurement_points == 1 {
             "Pn=测量点：0(终端)".to_string()
         } else if measurement_points_array[0] == 0xFFFF && total_measurement_points == 1 {
@@ -2851,7 +2872,10 @@ impl FrameCsg {
                                 None,
                             );
                             let new_sub_datament = &data_segment[pos + 4..pos + 4 + new_sub_length];
-                            println!("new_sub_datament:{:?} sub_length:{:?}", new_sub_datament, new_sub_length);
+                            println!(
+                                "new_sub_datament:{:?} sub_length:{:?}",
+                                new_sub_datament, new_sub_length
+                            );
                             (new_sub_length, new_sub_datament)
                         } else {
                             let mut sub_length = sub_length_cont.parse::<usize>().unwrap();
@@ -3887,7 +3911,10 @@ impl FrameCsg {
                 pos += sub_length;
                 num += 1;
 
-                if length - pos == 16 || length - pos == 22 || ((num == (item_count * pncount)) && (length - pos >= 16)) {
+                if length - pos == 16
+                    || length - pos == 22
+                    || ((num == (item_count * pncount)) && (length - pos >= 16))
+                {
                     pw = Self::guest_is_exit_pw(
                         length,
                         pw_data,
@@ -4279,22 +4306,22 @@ impl FrameCsg {
         let mut sub_result: Vec<Value> = Vec::new();
         let total_length = frame.len();
         let mut tpv_data: &[u8] = &[];
-        let mut pw_data: &[u8] = &[];
+        let empty_data: &[u8] = &[];
 
         let (pw_data, pw_pos) = if tpv {
             length -= 5;
             tpv_data = &frame[frame.len() - 7..frame.len() - 2];
             if valid_data_segment.len() < 21 {
-                (pw_data, vec![0, 0])
+                (empty_data, vec![0, 0])
             } else {
                 let pw_data = &valid_data_segment[valid_data_segment.len() - 21..];
                 (pw_data, vec![total_length - 23, total_length - 7])
             }
         } else {
             if valid_data_segment.len() < 16 {
-                (pw_data, vec![0, 0])
+                (empty_data, vec![0, 0])
             } else {
-                pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
+                let pw_data = &valid_data_segment[valid_data_segment.len() - 16..];
                 (pw_data, vec![total_length - 18, total_length - 2])
             }
         };
@@ -4398,14 +4425,19 @@ impl FrameCsg {
                 None,
             );
             pos += 4;
-            println!("point_str{:?} dis_data_identifier{:?}", point_str, dis_data_identifier);
+            println!(
+                "point_str{:?} dis_data_identifier{:?}",
+                point_str, dis_data_identifier
+            );
             if dir == 1 && prm == 0 {
                 // 找到"Pn="后面的内容
                 let point_suffix = point_str.strip_prefix("Pn=").unwrap_or(&point_str);
-                
+
                 // 找到"数据标识编码："后面的内容
-                let dis_suffix = dis_data_identifier.strip_prefix("数据标识编码：").unwrap_or(&dis_data_identifier);
-                
+                let dis_suffix = dis_data_identifier
+                    .strip_prefix("数据标识编码：")
+                    .unwrap_or(&dis_data_identifier);
+
                 FrameFun::add_data(
                     &mut sub_result,
                     format!("<第{}组>数据内容", num + 1),
@@ -4571,6 +4603,7 @@ impl FrameCsg {
             if let Some(mut data_item_elem) = data_item_elem {
                 if dir == 1 && prm == 0 {
                     let frame_result: Vec<String> = Vec::new();
+                    info!("dir:{:?} data_item_elem{:?} data_segment{:?}", dir,data_item_elem, data_segment);
                     let sub_length_cont = data_item_elem.get_child_text("length").unwrap();
                     (sub_length, sub_datament) = if sub_length_cont.to_uppercase() == "UNKNOWN" {
                         let sub_length = Self::calculate_item_length(
@@ -4598,59 +4631,19 @@ impl FrameCsg {
                         );
                         (sub_length, new_datament)
                     };
-
-                    let (new_sub_length, frame_len) = Self::get_sub_length(
-                        &data_item_elem,
-                        "中继报文长度",
-                        &data_segment[pos + 5..],
+                    info!("sub_length {:?} new_datament:{:?}", sub_length,sub_datament);
+                    data_item_elem.update_value("length", sub_length.to_string());
+                    item_data = FrameAnalisyic::prase_data(
+                        &mut data_item_elem,
                         protocol,
                         region,
+                        sub_datament,
+                        index + pos + 4,
                         Some(dir),
                     );
-                    let replay_type = Self::get_relay_type(data_segment[pos + 4]);
-                    FrameFun::add_data(
-                        &mut item_data,
-                        "中继类型".to_string(),
-                        FrameFun::get_data_str_with_space(&data_segment[pos + 4..pos + 5]),
-                        format!("中继类型:{}", replay_type),
-                        vec![index + pos + 4, index + pos + 5],
-                        None,
-                        None,
-                    );
-                    FrameFun::add_data(
-                        &mut item_data,
-                        "中继应答长度".to_string(),
-                        FrameFun::get_data_str_with_space(
-                            &data_segment[pos + 5..pos + 5 + sub_length],
-                        ),
-                        format!("中继应答长度{}", frame_len),
-                        vec![index + pos + 5, index + pos + 5 + sub_length],
-                        None,
-                        None,
-                    );
-                    let mut frame_result: Vec<Value> = Vec::new();
-                    Frame645::analysic_645_frame_by_afn(
-                        &data_segment[pos + 5 + sub_length..pos + 5 + frame_len + sub_length],
-                        &mut frame_result,
-                        pos + 5 + sub_length + index,
-                        region,
-                    );
-                    FrameFun::add_data(
-                        &mut item_data,
-                        "中继应答内容".to_string(),
-                        FrameFun::get_data_str_with_space(
-                            &data_segment[pos + 5 + sub_length..pos + 5 + frame_len],
-                        ),
-                        "中继应答内容".to_string(),
-                        vec![index + pos + 5 + sub_length, index + pos + 5 + frame_len],
-                        Some(frame_result),
-                        None,
-                    );
-                    sub_length += frame_len + 1;
-                    let sub_datament = &data_segment[pos + 4..pos + 4 + new_sub_length];
                 } else {
                     let sub_length_cont = data_item_elem.get_child_text("length").unwrap();
-                    let (sub_length, new_datament) = if sub_length_cont.to_uppercase() == "UNKNOWN"
+                    (sub_length, sub_datament) = if sub_length_cont.to_uppercase() == "UNKNOWN"
                     {
                         let sub_length = Self::calculate_item_length(
                             &mut data_item_elem,
@@ -4677,15 +4670,17 @@ impl FrameCsg {
                         );
                         (sub_length, new_datament)
                     };
+                    info!("sub_length {:?} new_datament:{:?}", sub_length,sub_datament);
                     data_item_elem.update_value("length", sub_length.to_string());
                     item_data = FrameAnalisyic::prase_data(
                         &mut data_item_elem,
                         protocol,
                         region,
-                        new_datament,
+                        sub_datament,
                         index + pos + 4,
                         Some(dir),
                     );
+
                 }
                 let name = data_item_elem.get_child_text("name").unwrap();
                 let dis_data_identifier = format!("数据标识编码：[{}]-{}", data_item, name);
@@ -4698,11 +4693,24 @@ impl FrameCsg {
                     None,
                     None,
                 );
+
                 FrameFun::add_data(
                     &mut sub_result,
                     format!("<第{}组>数据内容", num + 1),
                     FrameFun::get_data_str_with_space(sub_datament),
-                    format!("{}-{}", &point_str[3..], &dis_data_identifier[7..]),
+                    format!(
+                        "{}-{}",
+                        if point_str.len() > 3 {
+                            &point_str[3..]
+                        } else {
+                            &point_str
+                        },
+                        if dis_data_identifier.starts_with("数据标识编码：") {
+                            &dis_data_identifier[7 * 3..] // "数据标识编码：" 是7个中文字符，每个3字节
+                        } else {
+                            &dis_data_identifier
+                        }
+                    ),
                     vec![index + pos + 4, index + pos + 4 + sub_length],
                     Some(item_data),
                     None,
