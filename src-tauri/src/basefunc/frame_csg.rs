@@ -1072,8 +1072,13 @@ impl FrameCsg {
         }
         let total_len = data_segment.len();
         let mut pos = 0;
+        let left_length = if with_time { total_len - 6 } else { total_len };
         while total_len > pos {
             if pos + 4 > total_len {
+                println!("ddddd pos + 4:{:?} total_len {:?}", pos + 4,total_len);
+                if pos != 0 {
+                    return true;
+                }
                 break;
             }
             let item = &data_segment[2 + pos..6 + pos];
@@ -1095,17 +1100,23 @@ impl FrameCsg {
                     } else {
                         sub_length_cont.parse::<usize>().unwrap()
                     };
+                    println!("sub_length:{:?} pos{:?} with_time{:?}", sub_length,pos,with_time);
                     pos += sub_length + 6;
-                    if with_time {
-                        pos += 6;
+                    pos += 5;
+                    if (left_length - 6) % (sub_length + 5) == 0 {
+                        return false;
                     }
+                    
                 } else {
-                    return false;
+                    println!("aaaaa");
+                    return true;
                 }
             } else {
+                println!("bbbbbbb");
                 return true;
             }
         }
+        println!("ccccccc");
         false
     }
 
@@ -3612,7 +3623,7 @@ impl FrameCsg {
                 } else {
                     &empty_data
                 },
-                [total_length - 23, total_length - 7],
+                [start_pos + total_length - 23, start_pos + total_length - 7],
                 length - 5,
             )
         } else {
@@ -3623,7 +3634,7 @@ impl FrameCsg {
                 } else {
                     &Vec::<u8>::new()[..]
                 },
-                [total_length - 18, total_length - 2],
+                [start_pos + total_length - 18, start_pos + total_length - 2],
                 length,
             )
         };
@@ -3655,7 +3666,7 @@ impl FrameCsg {
                 "信息点标识DA".to_string(),
                 FrameFun::get_data_str_with_space(da),
                 point_str.clone(),
-                vec![16, 18],
+                vec![start_pos + 16, start_pos + 18],
                 None,
                 None,
             );
@@ -3664,7 +3675,7 @@ impl FrameCsg {
                 "数据标识编码DI".to_string(),
                 FrameFun::get_data_str_with_space(item),
                 task_name.clone(),
-                vec![18, 22],
+                vec![start_pos + 18, start_pos + 22],
                 None,
                 None,
             );
@@ -3681,7 +3692,7 @@ impl FrameCsg {
                 "数据结构方式".to_string(),
                 FrameFun::get_data_str_with_space(&frame[22..23]),
                 task_kind_str.to_string(),
-                vec![22, 23],
+                vec![start_pos + 22, start_pos + 23],
                 None,
                 None,
             );
@@ -3709,7 +3720,7 @@ impl FrameCsg {
                         item_count,
                         pncount * item_count
                     ),
-                    vec![23, 25],
+                    vec![start_pos + 23, start_pos + 25],
                     None,
                     None,
                 );
@@ -3910,11 +3921,12 @@ impl FrameCsg {
 
                 pos += sub_length;
                 num += 1;
-
+                info!("num:{:?} length{:?} pos{:?} item_count * pncount{:?}", num, length, pos, item_count * pncount);
                 if length - pos == 16
                     || length - pos == 22
                     || ((num == (item_count * pncount)) && (length - pos >= 16))
                 {
+                    info!("pw:{:?} pw_data:{:?}", pw, pw_data);
                     pw = Self::guest_is_exit_pw(
                         length,
                         pw_data,
@@ -3969,7 +3981,7 @@ impl FrameCsg {
                 "任务数据内容".to_string(),
                 FrameFun::get_data_str_with_space(&valid_data_segment[6..]),
                 format!("{}数据内容", task_name),
-                vec![22, frame.len() - 2],
+                vec![start_pos + 22, start_pos + frame.len() - 2],
                 Some(sub_result),
                 None,
             );
@@ -3994,7 +4006,7 @@ impl FrameCsg {
             "信息体".to_string(),
             FrameFun::get_data_str_with_space(&frame[16..frame.len() - 2]),
             "".to_string(),
-            vec![16, total_length - 2],
+            vec![index + 16, index + total_length - 2],
             Some(task_result),
             None,
         );
@@ -4019,7 +4031,7 @@ impl FrameCsg {
                 "时间标签Tp".to_string(),
                 FrameFun::get_data_str_with_space(tpv_data),
                 tpv_str,
-                vec![total_length - 7, total_length - 2],
+                vec![start_pos + total_length - 7, start_pos + total_length - 2],
                 None,
                 None,
             );
