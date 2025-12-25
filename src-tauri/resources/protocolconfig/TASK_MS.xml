@@ -253,6 +253,10 @@
         <value key="02">485_2</value>
         <value key="03">485_3</value>
         <value key="04">485_4</value>
+        <value key="05">485_5</value>
+        <value key="06">485_6</value>
+        <value key="07">485_7</value>
+        <value key="08">485_8</value>
         <value key="1F">载波</value>
         <value key="other">未知</value>
     </template>
